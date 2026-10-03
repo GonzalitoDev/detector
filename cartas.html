@@ -65,7 +65,7 @@
 </head>
 <body>
 <h1>🃏 Cartas: Goku vs El Gordo</h1>
-<div><a href="./">⬅ Volver a la pelea</a></div>
+<div><a href="./">⬅ Menú</a></div>
 
 <div class="jugador" style="margin-top:8px">
   <div class="cara" id="cara-gordo">🫃</div>
@@ -88,6 +88,7 @@
 <div id="aviso"></div>
 <div class="final" id="final"><div id="final-txt"></div><button style="margin-top:18px" onclick="nueva()">🔁 Otra partida</button></div>
 
+<script src="comun.js"></script>
 <script>
 const CARTAS_GOKU = [
   { id:"pina",  ico:"👊", nom:"Piña",            costo:1, desc:"6 de daño",            dmg:6 },
@@ -127,7 +128,7 @@ function nueva() {
 }
 function log(t){ const p=document.createElement("p"); p.textContent=t; $("log").prepend(p); }
 function aviso(t){ const a=$("aviso"); a.textContent=t; a.classList.remove("ver"); void a.offsetWidth; a.classList.add("ver"); }
-function beep(f){ try{ const c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain(); o.frequency.value=f; o.type="triangle"; g.gain.value=.06;
+function beep(f){ if (!AJUSTES.sonido) return; try{ const c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain(); o.frequency.value=f; o.type="triangle"; g.gain.value=.06;
   o.connect(g); g.connect(c.destination); o.start(); g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+.25); o.stop(c.currentTime+.3);}catch(e){} }
 function clase(el, c){ el.classList.remove(c); void el.offsetWidth; el.classList.add(c); setTimeout(()=>el.classList.remove(c),700); }
 function numero(el, t, tipo){ const r=el.getBoundingClientRect(), n=document.createElement("div"); n.className="num "+(tipo||"");
@@ -169,7 +170,7 @@ async function jugar(quien, i, el) {
   // Efecto
   const yo=$("cara-"+quien), el2=$("cara-"+(quien=="goku"?"gordo":"goku"));
   if (c.dmg) {
-    let d=c.dmg+p.bonus; const bloq=Math.min(rival.escudo,d); rival.escudo-=bloq; d-=bloq; rival.vida-=d;
+    let d=c.dmg+p.bonus; if (quien=="gordo") d=Math.round(d*AJUSTES.mult); const bloq=Math.min(rival.escudo,d); rival.escudo-=bloq; d-=bloq; rival.vida-=d;
     clase(yo,"golpe"); chispas(el2, quien=="goku"?"#ff8c1a":"#3fb6ff"); clase(el2,"golpe");
     numero(el2, bloq&&!d ? "🛡️BLOQUEO" : "-"+d+(bloq?` (🛡️${bloq})`:"")); beep(d>=15?180:300);
     if (d>=15) { document.body.classList.remove("tiembla"); void document.body.offsetWidth; document.body.classList.add("tiembla"); aviso(c.nom.toUpperCase()+"!!"); }
@@ -187,6 +188,7 @@ async function jugar(quien, i, el) {
 function fin() {
   if (J.goku.vida>0 && J.gordo.vida>0) return false;
   const gana = J.gordo.vida<=0; ocupado=true; render();
+  AJUSTES.resultado("cartas", gana);
   aviso(gana?"¡¡K.O.!!":"¡¡PERDISTE!!");
   setTimeout(()=>{ $("final-txt").innerHTML = gana ? "🏆 ¡GANASTE!<br><small>El Gordo se fue a llorar con un alfajor 🍫</small>" : "🫃 ¡GANÓ EL GORDO!<br><small>Te aplastó con cartas y milanesas</small>"; $("final").style.display="flex"; }, 1200);
   return true;
