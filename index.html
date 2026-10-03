@@ -12,9 +12,35 @@
   h1 { margin:8px 0 16px; font-size:clamp(22px,6vw,40px); text-shadow:0 0 12px #ffcc00; text-align:center; }
   .arena { display:flex; gap:16px; justify-content:space-between; width:100%; max-width:720px; }
   .fighter { flex:1; text-align:center; background:#ffffff10; border-radius:16px; padding:12px; }
-  .avatar { font-size:clamp(60px,18vw,110px); transition:transform .15s; display:inline-block; }
-  .hit { animation:shake .4s; }
-  .attack { transform:scale(1.3); }
+  .avatar { font-size:clamp(60px,18vw,110px); transition:transform .15s; display:inline-block; animation:respira 2s ease-in-out infinite; }
+  @keyframes respira { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+  .hit { animation:shake .4s, rojo .4s; }
+  @keyframes rojo { 50%{filter:drop-shadow(0 0 20px red) brightness(1.6)} }
+  .attack { animation:none; }
+  .dash-der { animation:dashDer .45s ease-in-out; }
+  .dash-izq { animation:dashIzq .45s ease-in-out; }
+  @keyframes dashDer { 0%{transform:none} 45%{transform:translateX(min(40vw,300px)) scale(1.3) rotate(15deg)} 100%{transform:none} }
+  @keyframes dashIzq { 0%{transform:none} 45%{transform:translateX(max(-40vw,-300px)) scale(1.3) rotate(-15deg)} 100%{transform:none} }
+  .esquiva { animation:rueda .6s; }
+  @keyframes rueda { 50%{transform:translateY(-40px) rotate(360deg)} 100%{transform:rotate(720deg)} }
+  .carga { animation:carga .9s; }
+  @keyframes carga { 0%,100%{filter:none;transform:scale(1)} 50%{filter:drop-shadow(0 0 25px #ffd400) drop-shadow(0 0 50px #ff8c1a);transform:scale(1.25)} }
+  .muerto { animation:cae 1s forwards !important; }
+  @keyframes cae { to{transform:rotate(90deg) translateY(20px);opacity:.4;filter:grayscale(1)} }
+  .gana { animation:salta .5s infinite alternate !important; }
+  @keyframes salta { to{transform:translateY(-30px) scale(1.15)} }
+  .part { position:fixed; width:10px; height:10px; border-radius:50%; pointer-events:none; z-index:6; animation:part .7s ease-out forwards; }
+  @keyframes part { to{transform:translate(var(--x),var(--y)) scale(0);opacity:0} }
+  #bola { position:fixed; left:50%; top:-200px; width:160px; height:160px; margin-left:-80px; border-radius:50%; z-index:5; pointer-events:none;
+          background:radial-gradient(circle,#fff,#7fe0ff 40%,#0077ff); box-shadow:0 0 60px 30px #5ad1ff; display:none; }
+  #bola.cae { display:block; animation:bola 1s ease-in forwards; }
+  @keyframes bola { 0%{top:-200px;transform:scale(.5)} 100%{top:35%;transform:scale(1.4);opacity:.2} }
+  #estrellas { position:fixed; inset:0; z-index:-1; pointer-events:none;
+    background-image:radial-gradient(2px 2px at 20% 30%,#fff8,transparent),radial-gradient(2px 2px at 70% 60%,#fff6,transparent),
+    radial-gradient(1px 1px at 40% 80%,#fff8,transparent),radial-gradient(2px 2px at 85% 15%,#fff7,transparent),radial-gradient(1px 1px at 10% 70%,#fff9,transparent);
+    background-size:300px 300px; animation:cielo 40s linear infinite; }
+  @keyframes cielo { to{background-position:300px 600px} }
+  button { transition:transform .1s; } button:active:not(:disabled) { transform:scale(.92); }
   @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-10px) rotate(-8deg)} 75%{transform:translateX(10px) rotate(8deg)} }
   .name { font-weight:800; font-size:20px; }
   .bar { height:16px; background:#0006; border-radius:8px; overflow:hidden; margin:8px 0 4px; }
@@ -79,7 +105,7 @@
 </div>
 <div id="habla" style="width:100%;max-width:720px;margin-top:12px;padding:12px;border-radius:12px;background:#3fb6ff22;min-height:48px;font-style:italic">🫃💬 <span id="habla-txt">...</span> <small style="opacity:.6">(IA)</small></div>
 <div id="log"></div>
-<div id="flash"></div><div id="vineta"></div><div id="narrador"></div><div id="rayo"></div>
+<div id="estrellas"></div><div id="bola"></div><div id="flash"></div><div id="vineta"></div><div id="narrador"></div><div id="rayo"></div>
 <div class="big" id="final"><div id="final-txt"></div><button onclick="reset()">🔁 Revancha</button></div>
 
 <script>
@@ -145,10 +171,19 @@ async function intro() {
   for (const t of ["3","2","1","¡¡PELEEN!!"]) { narrar(t); beep(t.length>1?990:520); await espera(t.length>1?1100:700); }
   s.busy=false; render();
 }
+function chispas(id, color="#ffd400", n=16) { const r=$(id).getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
+  for (let i=0;i<n;i++) { const p=document.createElement("div"), a=Math.random()*6.28, d=60+Math.random()*90;
+    p.className="part"; p.style.left=cx+"px"; p.style.top=cy+"px"; p.style.background=pick([color,"#fff","#ff6a00"]);
+    p.style.setProperty("--x",Math.cos(a)*d+"px"); p.style.setProperty("--y",Math.sin(a)*d+"px");
+    document.body.appendChild(p); setTimeout(()=>p.remove(),750); } }
+function confeti() { for (let i=0;i<60;i++) setTimeout(()=>{ const p=document.createElement("div");
+  p.className="part"; p.style.left=Math.random()*innerWidth+"px"; p.style.top="-10px"; p.style.background=pick(["#ffd400","#ff3b3b","#3ddc5a","#3fb6ff","#c86bff"]);
+  p.style.animationDuration="2s"; p.style.setProperty("--x",(Math.random()*100-50)+"px"); p.style.setProperty("--y",innerHeight+"px");
+  document.body.appendChild(p); setTimeout(()=>p.remove(),2100); }, i*30); }
 function reset() {
   s = { goku:100, gordo:130, ki:20, hambre:0, busy:false, ssj:false, turnoGordo:false, usado:{}, mate:false, escudo:0, cambio:false };
   $("av-gordo").style.fontSize=""; $("av-gordo").textContent="🫃";
-  $("av-goku").textContent="🥋"; $("av-goku").classList.remove("ssj");
+  $("av-goku").textContent="🥋"; $("av-goku").classList.remove("ssj","muerto","gana"); $("av-gordo").classList.remove("muerto","gana");
   $("log").innerHTML = "";
   $("final").style.display = "none";
   log("🔔 ¡Arranca la pelea del siglo!");
@@ -169,7 +204,7 @@ function render() {
     b.disabled = s.busy || s.turnoGordo || s.usado[b.dataset.m] || (m.ki > 0 && s.ki < m.ki);
   });
 }
-function anim(id, cls) { const e=$(id); e.classList.remove(cls); void e.offsetWidth; e.classList.add(cls); setTimeout(()=>e.classList.remove(cls),400); }
+function anim(id, cls) { const e=$(id); e.classList.remove(cls); void e.offsetWidth; e.classList.add(cls); setTimeout(()=>e.classList.remove(cls),950); }
 function beep(f) { try { const c=new (window.AudioContext||window.webkitAudioContext)(), o=c.createOscillator(), g=c.createGain();
   o.frequency.value=f; o.type="square"; g.gain.value=.05; o.connect(g); g.connect(c.destination); o.start();
   g.gain.exponentialRampToValueAtTime(.0001, c.currentTime+.25); o.stop(c.currentTime+.3); } catch(e){} }
@@ -191,25 +226,26 @@ async function turno(key) {
     narrar(key=="kame" ? "KAAA... MEEE... HAAA... MEEE..." : "¡¡ENERGÍA DEL UNIVERSO!!");
     for (let i=0;i<6;i++){ beep(300+i*120); await espera(220); }
     narrar(key=="kame" ? "¡¡HAAAAAAA!!" : "¡¡GENKIDAMA!!");
-    rayo(1); flash(key=="genki" ? "#9fe8ff" : "#fff"); await espera(400);
+    if (key=="genki") { const b=$("bola"); b.classList.remove("cae"); void b.offsetWidth; b.classList.add("cae"); await espera(900); flash("#9fe8ff"); }
+    else { rayo(1); flash("#fff"); await espera(400); }
   }
-  anim("av-goku","attack");
+  if (m.dmg[1]) { anim("av-goku","dash-der"); await espera(200); }
   if (m.dmg[1]) {
     let d = rnd(m.dmg);
     const crit = Math.random() < .15;
     if (crit) d = Math.round(d*1.5);
     if (s.ssj) d = Math.round(d*1.5);
-    if (Math.random() < .1) { log("😂 " + m.txt + "... ¡pero El Gordo lo esquiva rodando!"); narrar("¡¡LO ESQUIVÓ!!"); numero("av-gordo","MISS"); }
+    if (Math.random() < .1) { log("😂 " + m.txt + "... ¡pero El Gordo lo esquiva rodando!"); narrar("¡¡LO ESQUIVÓ!!"); anim("av-gordo","esquiva"); numero("av-gordo","MISS"); }
     else {
       if (s.escudo>0) d = Math.ceil(d/2);
       s.gordo = Math.max(0, s.gordo - d);
-      anim("av-gordo","hit"); beep(crit?880:440); temblor();
+      anim("av-gordo","hit"); chispas("av-gordo", crit?"#ff3b3b":"#ffd400", crit?30:16); beep(crit?880:440); temblor();
       numero("av-gordo", "-"+d);
       if (crit) { narrar("¡¡CRÍTICO!!"); flash("#ffd400"); }
       else if (d>=30) narrar(pick(["¡¡INCREÍBLE!!","¡¡DEVASTADOR!!","¡¡QUÉ PODER!!"]));
       log(`${pick(ZAS)} ${m.txt} → -${d}${crit?" 💥CRÍTICO":""}`);
     }
-  } else { log("⚡ " + m.txt); beep(660); flash("#ffd40088"); }
+  } else { log("⚡ " + m.txt); beep(660); flash("#ffd40088"); anim("av-goku","carga"); chispas("av-goku","#ffd400",24); }
   render();
   if (s.gordo<=0) break;
   if (v+1<veces) await espera(700);
@@ -255,14 +291,14 @@ async function gordoTurno() {
     for (let i=0;i<4;i++){ beep(150); temblor(); await espera(300); }
   }
   if (s.escudo>0 && --s.escudo==0) { $("av-gordo").style.fontSize=""; log("🍩 Al Gordo se le bajaron las facturas."); }
-  anim("av-gordo","attack");
+  if (!a.heal && !a.facturas && a.dmg && a.dmg[1]) { anim("av-gordo","dash-izq"); await espera(200); }
   if (a.facturas) { s.escudo=2; $("av-gordo").style.fontSize="clamp(90px,26vw,160px)"; narrar("¡¡EL GORDO CRECIÓ!!"); temblor(); beep(120); log(a.txt); }
   else if (a.heal) { const h=rnd(a.heal); s.gordo=Math.min(130,s.gordo+h); numero("av-gordo","+"+h,true); log(`${a.txt} → +${h}`); }
   else if (a.dmg[1]) {
     const d=rnd(a.dmg); s.goku=Math.max(0,s.goku-d);
     if (a.furia) rayo(-1);
     if (a.fuego) { rayo(-1); flash("#ff6a00"); narrar("¡¡FUEGO PICANTE!!"); }
-    anim("av-goku","hit"); beep(220); temblor(); numero("av-goku","-"+d);
+    anim("av-goku","hit"); chispas("av-goku", a.fuego||a.furia?"#ff6a00":"#3fb6ff"); beep(220); temblor(); numero("av-goku","-"+d);
     if (d>=25) { flash("#ff0000"); narrar("¡¡GOKU ESTÁ EN PROBLEMAS!!"); }
     log(`${a.txt} → -${d}`);
   }
@@ -293,6 +329,7 @@ function fin() {
     ? "🏆 ¡GANÓ GOKU!<br><small>El Gordo se fue a comer un pancho para consolarse 🌭</small>"
     : "🍔 ¡GANÓ EL GORDO!<br><small>Goku quedó aplastado. Se viene la revancha 😤</small>";
   narrar(gana ? "¡¡K.O.!!" : "¡¡GOKU CAYÓ!!"); flash(); temblor(); vineta();
+  $(gana?"av-gordo":"av-goku").classList.add("muerto"); $(gana?"av-goku":"av-gordo").classList.add("gana"); confeti();
   $("vineta").classList.remove("peligro");
   setTimeout(()=>{ $("final").style.display = "flex"; }, 1500);
   hablaGordo(gana ? "El Gordo perdió la pelea, lamentate gracioso" : "El Gordo ganó la pelea, festejá");
