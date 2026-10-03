@@ -238,7 +238,7 @@ const EVENTOS = [
   async () => { narrar("🌧️ ¡¡LLUEVEN EMPANADAS!!"); const h=rnd([5,10]); s.goku=Math.min(100,s.goku+h); s.gordo=Math.min(130,s.gordo+h*2);
     numero("av-goku","+"+h,true); numero("av-gordo","+"+h*2,true); log(`🥟 Llueven empanadas. Goku come ${h}, El Gordo come el doble.`); },
   async () => { narrar("💃 ¡¡CUMBIA!!"); for(let i=0;i<6;i++){ beep([523,659,784,659][i%4]); temblor(); await espera(180); }
-    log("💃 Suena una cumbia y los dos se ponen a bailar. Pierden el turno de pelear, pero ganaron en vida."); },
+    log("💃 Suena una cumbia y los dos se ponen a bailar. No pasa nada, pero la pasaron bárbaro."); },
 ];
 async function eventoLoco() {
   if (s.cambio) { const a=$("av-goku").textContent; $("av-goku").textContent=$("av-gordo").textContent; $("av-gordo").textContent=a; s.cambio=false; log("🔄 Los cuerpos vuelven a la normalidad."); }
