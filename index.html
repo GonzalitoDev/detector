@@ -37,6 +37,14 @@
   .fila { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
   .op { padding:10px 14px; border-radius:10px; border:0; font-weight:700; font-size:15px; cursor:pointer; background:#ffffff22; color:#fff; }
   .op.on { background:#ffd400; color:#000; }
+  input { padding:10px 12px; border-radius:10px; border:2px solid #ffd400; background:#0006; color:#fff; font-size:16px; width:200px; }
+  table { width:100%; border-collapse:collapse; font-size:15px; }
+  td, th { padding:6px 8px; text-align:left; border-bottom:1px solid #ffffff1a; }
+  th { opacity:.7; font-weight:600; }
+  .frase { display:flex; gap:10px; align-items:center; padding:6px 0; border-bottom:1px solid #ffffff1a; }
+  .frase span { flex:1; font-style:italic; }
+  .voto { padding:6px 10px; border-radius:8px; border:0; cursor:pointer; background:#ffffff22; color:#fff; font-weight:700; }
+  .vacio { opacity:.6; font-style:italic; }
   footer { margin-top:24px; opacity:.5; font-size:12px; text-align:center; }
 </style>
 </head>
@@ -52,11 +60,38 @@
     <p>Kamehameha, Super Saiyajin, eventos locos y El Gordo pensando con IA.</p>
     <small id="rec-pelea"></small>
   </a>
+  <a class="modo" href="comida.html" style="border-color:#3ddc5a;background:linear-gradient(160deg,#3ddc5a33,#ffffff10)">
+    <div class="ico">🍕</div><h2>El Gordo Come</h2>
+    <p>Comida realista hecha con IA cae del cielo. Atrapá la rica, esquivá las verduras.</p>
+    <small id="rec-comida"></small>
+  </a>
   <a class="modo c" href="cartas.html">
     <div class="ico">🃏</div><h2>Cartas</h2>
     <p>Armá tu estrategia con cartas animadas. Energía, escudos y combos.</p>
     <small id="rec-cartas"></small>
   </a>
+</div>
+
+<div class="panel">
+  <h3>👤 Tu nombre</h3>
+  <div class="fila"><input id="nombre" maxlength="20" placeholder="Escribí tu nombre"> <button class="op" id="guardar-nombre">💾 Guardar</button></div>
+  <small style="opacity:.7">Con tu nombre, tus partidas entran al ranking mundial.</small>
+</div>
+
+<div class="panel">
+  <h3>🌍 Ranking mundial</h3>
+  <div class="fila"><button class="op on" data-r="pelea">⚡ Pelea</button><button class="op" data-r="cartas">🃏 Cartas</button><button class="op" data-r="comida">🍕 Comida</button></div>
+  <div id="ranking" class="vacio">Cargando...</div>
+</div>
+
+<div class="panel">
+  <h3>📜 Tus últimas partidas</h3>
+  <div id="historial" class="vacio">Poné tu nombre para ver tu historial.</div>
+</div>
+
+<div class="panel">
+  <h3>🫃💬 Mejores frases del Gordo</h3>
+  <div id="frases" class="vacio">Cargando...</div>
 </div>
 
 <div class="panel">
@@ -73,12 +108,13 @@
 <footer>Hecho con mucho choripán 🌭</footer>
 
 <script src="comun.js"></script>
+<script src="db.js"></script>
 <script>
 function render() {
   document.querySelectorAll("[data-d]").forEach(b => b.classList.toggle("on", b.dataset.d === AJUSTES.dificultad));
   const snd = document.getElementById("snd");
   snd.textContent = AJUSTES.sonido ? "🔊 Activado" : "🔇 Apagado"; snd.classList.toggle("on", AJUSTES.sonido);
-  for (const j of ["pelea", "cartas"]) {
+  for (const j of ["pelea", "cartas", "comida"]) {
     const r = AJUSTES.record(j);
     document.getElementById("rec-" + j).textContent = r.g + r.p ? `🏆 ${r.g} ganadas · 💀 ${r.p} perdidas` : "Todavía no jugaste";
   }
@@ -87,6 +123,50 @@ document.querySelectorAll("[data-d]").forEach(b => b.onclick = () => { AJUSTES.d
 document.getElementById("snd").onclick = () => { AJUSTES.sonido = !AJUSTES.sonido; render(); };
 document.getElementById("borrar").onclick = () => { try { localStorage.removeItem("record-pelea"); localStorage.removeItem("record-cartas"); } catch (e) {} render(); };
 render();
+
+// ---- Base de datos ----
+const esc = t => String(t).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let modoRanking = "pelea";
+async function cargarRanking() {
+  const el = document.getElementById("ranking");
+  try {
+    const filas = await DB.ranking(modoRanking);
+    el.className = filas.length ? "" : "vacio";
+    const com = modoRanking === "comida";
+    el.innerHTML = filas.length ? `<table><tr><th>#</th><th>Jugador</th>${com?"<th>⭐ Récord</th><th>Partidas</th>":"<th>🏆</th><th>💀</th>"}</tr>${filas.map((f,i)=>
+      `<tr${f.nombre===DB.nombre?' style="color:#ffd400;font-weight:700"':''}><td>${["🥇","🥈","🥉"][i]||i+1}</td><td>${esc(f.nombre)}</td>${com?`<td>${f.mejor_puntaje}</td><td>${f.ganadas+f.perdidas}</td>`:`<td>${f.ganadas}</td><td>${f.perdidas}</td>`}</tr>`).join("")}</table>`
+      : "Todavía nadie jugó. ¡Sé el primero!";
+  } catch (e) { el.className="vacio"; el.textContent = "No se pudo cargar el ranking."; }
+}
+async function cargarHistorial() {
+  const el = document.getElementById("historial");
+  if (!DB.nombre) return;
+  try {
+    const p = await DB.historial(DB.nombre);
+    el.className = p.length ? "" : "vacio";
+    el.innerHTML = p.length ? `<table><tr><th>Modo</th><th>Dificultad</th><th>Resultado</th><th>Duración</th></tr>${p.map(x=>
+      `<tr><td>${({pelea:"⚡ Pelea",cartas:"🃏 Cartas",comida:"🍕 Comida"})[x.modo]||esc(x.modo)}${x.modo==="comida"?` (${x.puntos} pts)`:""}</td><td>${esc(x.dificultad)}</td><td>${x.gano?"🏆 Ganó":"💀 Perdió"}</td><td>${Math.floor(x.duracion_seg/60)}m ${x.duracion_seg%60}s</td></tr>`).join("")}</table>`
+      : "Todavía no jugaste ninguna partida con este nombre.";
+  } catch (e) { el.className="vacio"; el.textContent = "No se pudo cargar el historial."; }
+}
+async function cargarFrases() {
+  const el = document.getElementById("frases");
+  try {
+    const f = await DB.mejoresFrases();
+    el.className = f.length ? "" : "vacio";
+    if (!f.length) { el.textContent = "El Gordo todavía no dijo nada. ¡Jugá una pelea!"; return; }
+    el.innerHTML = "";
+    f.forEach(x => { const d=document.createElement("div"); d.className="frase";
+      d.innerHTML = `<span>“${esc(x.texto)}”</span><button class="voto">👍 ${x.votos}</button>`;
+      d.querySelector("button").onclick = async ev => { ev.target.disabled = true; try { await DB.votar(x.id); } catch(e){} cargarFrases(); };
+      el.appendChild(d); });
+  } catch (e) { el.className="vacio"; el.textContent = "No se pudieron cargar las frases."; }
+}
+const inp = document.getElementById("nombre"); inp.value = DB.nombre;
+document.getElementById("guardar-nombre").onclick = () => { DB.nombre = inp.value; inp.value = DB.nombre; cargarHistorial(); cargarRanking(); };
+document.querySelectorAll("[data-r]").forEach(b => b.onclick = () => {
+  modoRanking = b.dataset.r; document.querySelectorAll("[data-r]").forEach(x => x.classList.toggle("on", x===b)); cargarRanking(); });
+cargarRanking(); cargarHistorial(); cargarFrases();
 </script>
 </body>
 </html>

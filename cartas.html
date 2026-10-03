@@ -89,6 +89,7 @@
 <div class="final" id="final"><div id="final-txt"></div><button style="margin-top:18px" onclick="nueva()">🔁 Otra partida</button></div>
 
 <script src="comun.js"></script>
+<script src="db.js"></script>
 <script>
 const CARTAS_GOKU = [
   { id:"pina",  ico:"👊", nom:"Piña",            costo:1, desc:"6 de daño",            dmg:6 },
@@ -120,6 +121,7 @@ function nuevoJ(base, vida) { return { vida, max:vida, energia:0, maxEn:0, escud
 function robar(p, n) { for (let i=0;i<n;i++) { if (!p.mazo.length) p.mazo = mazo(p.base); if (p.mano.length<6) p.mano.push(p.mazo.pop()); } }
 
 function nueva() {
+  window.inicio = Date.now();
   J = { goku:nuevoJ(CARTAS_GOKU,60), gordo:nuevoJ(CARTAS_GORDO,70) };
   $("final").style.display="none"; $("log").innerHTML=""; $("cara-goku").textContent="🥋"; $("cara-goku").style.filter="";
   robar(J.goku,4); robar(J.gordo,4);
@@ -189,6 +191,7 @@ function fin() {
   if (J.goku.vida>0 && J.gordo.vida>0) return false;
   const gana = J.gordo.vida<=0; ocupado=true; render();
   AJUSTES.resultado("cartas", gana);
+  DB.guardarPartida("cartas", gana, (Date.now()-window.inicio)/1000);
   aviso(gana?"¡¡K.O.!!":"¡¡PERDISTE!!");
   setTimeout(()=>{ $("final-txt").innerHTML = gana ? "🏆 ¡GANASTE!<br><small>El Gordo se fue a llorar con un alfajor 🍫</small>" : "🫃 ¡GANÓ EL GORDO!<br><small>Te aplastó con cartas y milanesas</small>"; $("final").style.display="flex"; }, 1200);
   return true;
