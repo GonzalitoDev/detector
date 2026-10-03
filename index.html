@@ -103,7 +103,11 @@
   <button data-m="semilla">🫘 Semilla del ermitaño (1 vez)</button>
   <button data-m="mate">🧉 Mate cebado (1 vez)</button>
 </div>
-<div id="habla" style="width:100%;max-width:720px;margin-top:12px;padding:12px;border-radius:12px;background:#3fb6ff22;min-height:48px;font-style:italic">🫃💬 <span id="habla-txt">...</span> <small style="opacity:.6">(IA)</small></div>
+<div id="habla" style="width:100%;max-width:720px;margin-top:12px;padding:12px;border-radius:12px;background:#3fb6ff22;min-height:48px;font-style:italic">🫃💬 <span id="habla-txt">...</span> <small style="opacity:.6">(agente IA: elige sus jugadas)</small></div>
+<div id="roshi" style="width:100%;max-width:720px;margin-top:8px;padding:12px;border-radius:12px;background:#ff8c1a22;min-height:48px">
+  <button id="btn-roshi" style="padding:8px 12px;font-size:14px;background:#ffb36b">🐢 Pedir consejo al Maestro Roshi (IA)</button>
+  <span id="roshi-txt" style="margin-left:8px;font-style:italic"></span>
+</div>
 <div id="log"></div>
 <div id="estrellas"></div><div id="bola"></div><div id="flash"></div><div id="vineta"></div><div id="narrador"></div><div id="rayo"></div>
 <div class="big" id="final"><div id="final-txt"></div><button onclick="reset()">🔁 Revancha</button></div>
@@ -152,6 +156,41 @@ async function hablaGordo(situacion) {
     el.textContent = t;
   } catch (e) { el.textContent = pick(FRASES); }
   hablando = false;
+}
+// ---- AGENTES DE IA GRATIS (Pollinations, sin clave) ----
+async function ia(prompt, ms=7000, json=false) {
+  const ctrl = new AbortController(); const t = setTimeout(()=>ctrl.abort(), ms);
+  try {
+    const r = await fetch("https://text.pollinations.ai/" + encodeURIComponent(prompt) + "?model=openai" + (json?"&json=true":"") + "&seed=" + Math.floor(Math.random()*1e6), { signal: ctrl.signal });
+    if (!r.ok) throw 0; return (await r.text()).trim();
+  } finally { clearTimeout(t); }
+}
+// Agente 1: el cerebro del Gordo elige su jugada y lo que dice
+async function cerebroGordo() {
+  const lista = GORDO.map((g,i)=>`${i}: ${g.txt}`).join("\n");
+  const prompt = `Sos el cerebro de "El Gordo", personaje argentino gracioso que pelea contra Goku. Estado: Goku ${s.goku}/100 vida (${s.ssj?"es Super Saiyajin":"normal"}, ki ${s.ki}), El Gordo ${s.gordo}/130 vida, hambre ${s.hambre}/100. Última jugada: ${$("log").firstChild?.textContent||"ninguna"}.
+Jugadas posibles:\n${lista}
+Elegí la jugada más astuta (si tenés poca vida conviene curarte; si Goku está débil, atacá fuerte). Respondé SOLO un JSON así: {"jugada": numero, "frase": "trash talk corto rioplatense con comida, máx 15 palabras"}`;
+  $("habla-txt").textContent = "pensando la jugada... 🤔";
+  try {
+    const t = await ia(prompt, 6000, true);
+    const j = JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}")+1));
+    const n = parseInt(j.jugada);
+    if (j.frase) $("habla-txt").textContent = String(j.frase).slice(0,160);
+    if (n>=0 && n<GORDO.length) return GORDO[n];
+  } catch (e) { $("habla-txt").textContent = pick(FRASES); }
+  return pick(GORDO);
+}
+// Agente 2: el Maestro Roshi te aconseja
+async function consejoRoshi() {
+  const b=$("btn-roshi"), el=$("roshi-txt"); b.disabled=true; el.textContent="El Maestro Roshi está pensando... 🐢";
+  const libres = Object.keys(MOVES).filter(k => !s.usado[k] && !(MOVES[k].ki>0 && s.ki<MOVES[k].ki)).map(k=>`${k}: ${MOVES[k].txt} (cuesta ${Math.max(0,MOVES[k].ki)} ki)`).join("\n");
+  const prompt = `Sos el Maestro Roshi de Dragon Ball, viejito sabio y chistoso. Aconsejale a Goku qué hacer en su pelea contra "El Gordo". Estado: Goku ${s.goku}/100 vida, ki ${s.ki}${s.ssj?", Super Saiyajin":""}. El Gordo ${s.gordo}/130 vida, hambre ${s.hambre}/100 (al llegar a 100 hace un ataque furioso)${s.escudo?", tiene escudo de facturas":""}.
+Jugadas disponibles:\n${libres}
+Respondé en español rioplatense, máximo 25 palabras: qué jugada usar y por qué, con un chiste.`;
+  try { el.textContent = "🐢 " + (await ia(prompt, 9000)).slice(0,220); }
+  catch (e) { el.textContent = "🐢 " + (s.ki>=50 ? "¡Tirale un Kamehameha, muchacho!" : s.goku<40 && !s.usado.semilla ? "Comete la semilla, que estás hecho bolsa." : "Cargá ki, Goku. La paciencia es la madre de la victoria... y de las siestas."); }
+  b.disabled=false;
 }
 function situacion() { return `Goku tiene ${s.goku} de vida, El Gordo tiene ${s.gordo}. Última jugada: ${$("log").firstChild?.textContent || "empieza la pelea"}`; }
 // ---- DRAMA ----
@@ -252,7 +291,6 @@ async function turno(key) {
   }
   if (s.gordo>0 && s.gordo<=25) narrar("¡¡EL GORDO ESTÁ AL LÍMITE!!");
   if (fin()) return;
-  hablaGordo(situacion());
   await espera(1300);
   gordoTurno();
 }
@@ -282,7 +320,7 @@ async function eventoLoco() {
   await pick(EVENTOS)(); render(); vineta(); await espera(1300);
 }
 async function gordoTurno() {
-  let a = pick(GORDO);
+  let a = await cerebroGordo();
   s.hambre = Math.min(100, s.hambre + 20);
   if (s.hambre >= 100) {
     s.hambre = 0;
@@ -337,6 +375,7 @@ function fin() {
   return true;
 }
 document.querySelectorAll("button[data-m]").forEach(b => b.onclick = () => turno(b.dataset.m));
+$("btn-roshi").onclick = consejoRoshi;
 reset();
 </script>
 </body>
