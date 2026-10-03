@@ -46,6 +46,11 @@
   .stick { position:fixed; bottom:30px; left:30px; width:120px; height:120px; border-radius:50%; background:#ffffff18; border:2px solid #ffffff44; pointer-events:none; display:none; z-index:5; }
   .stick b { position:absolute; left:35px; top:35px; width:50px; height:50px; border-radius:50%; background:#ffffff66; }
   #b-accion { position:fixed; right:30px; bottom:40px; width:96px; height:96px; border-radius:50%; border:0; font-size:36px; background:#ffd400cc; display:none; z-index:5; }
+  #b-auto { position:fixed; right:140px; bottom:50px; width:72px; height:72px; border-radius:50%; border:0; font-size:30px; background:#3b6bffcc; display:none; z-index:5; }
+  body.tactil.poli #b-auto { display:block; }
+  #velocimetro { position:fixed; right:16px; bottom:16px; z-index:5; font-weight:900; font-size:28px; text-shadow:0 2px 4px #000; display:none; pointer-events:none;
+                 background:#000a; border:2px solid #3b6bff; border-radius:14px; padding:6px 14px; }
+  body.tactil #velocimetro { bottom:150px; }
   body.tactil .stick, body.tactil #b-accion { display:block; }
 </style>
 </head>
@@ -57,7 +62,8 @@
 </div>
 <div id="mira"></div><div id="pista"></div><div id="grande"></div><div id="feed"></div>
 <div id="sirena"></div><div id="rejas"></div>
-<div class="stick" id="stick"><b></b></div><button id="b-accion">🚔</button>
+<div class="stick" id="stick"><b></b></div><button id="b-accion">🚔</button><button id="b-auto">🚓</button>
+<div id="velocimetro"></div>
 
 <div class="pantalla" id="menu">
   <h1>🚓 POLIS Y LADRONES 💰</h1>
@@ -65,7 +71,7 @@
   <div class="caja">
     <p style="margin-top:0">Elegí tu bando:</p>
     <div class="equipo">
-      <button class="poli on" data-e="poli">👮 POLICÍA<small>Atrapá a los ladrones: acercate y hacé click. Cuando están todos presos, ganás.</small></button>
+      <button class="poli on" data-e="poli">👮 POLICÍA<small>Atrapá a los ladrones: acercate y hacé click, o pasalos por arriba con el 🚓 patrullero. Cuando están todos presos, ganás.</small></button>
       <button class="ladron" data-e="ladron">🦹 LADRÓN<small>Robá bolsas de plata 💰 del banco y llevalas a la guarida. Juntá $10.000 antes de que termine el tiempo.</small></button>
     </div>
   </div>
@@ -75,7 +81,7 @@
     </div>
     <div style="display:flex;gap:8px;justify-content:center;margin-top:10px"><input id="cod" maxlength="4" placeholder="CÓDIGO"><button class="g" id="unirse">🚪 Unirse</button></div>
     <p id="msg" style="color:#ff8a8a;margin:8px 0 0"></p>
-    <p style="opacity:.7;font-size:13px;margin:10px 0 0">Compu: WASD para moverte, mouse para mirar (hacé click para capturar el mouse), Shift para correr, click o E para atrapar o liberar. Celu: joystick para moverte, arrastrá la pantalla para mirar, botón amarillo para la acción.</p>
+    <p style="opacity:.7;font-size:13px;margin:10px 0 0">Compu: WASD para moverte, mouse para mirar (hacé click para capturar el mouse), Shift para correr, click o E para atrapar o liberar. Los polis suben y bajan del patrullero con F (H prende la sirena). Celu: joystick para moverte, arrastrá la pantalla para mirar, botón amarillo para la acción.</p>
   </div>
 </div>
 
@@ -203,6 +209,70 @@ const geoBolsa = new THREE.SphereGeometry(.45, 12, 10), matBolsa = new THREE.Mes
 for (const b of BOLSAS) { b.mesh = new THREE.Mesh(geoBolsa, matBolsa); b.mesh.position.set(b.x, .5, b.z);
   const s = cartel("$", "#2e9e4f"); s.scale.set(1, .4, 1); s.position.y = .9; b.mesh.add(s); escena.add(b.mesh); }
 
+// ================== PATRULLEROS ==================
+const AUTO_R = 1.3;
+function crearPatrullero() {
+  const g = new THREE.Group();
+  const blanco = new THREE.MeshLambertMaterial({ color: 0xf2f2f2 }), azul = new THREE.MeshLambertMaterial({ color: 0x1e4fd8 }), negro = new THREE.MeshLambertMaterial({ color: 0x111111 });
+  const vidrio = new THREE.MeshLambertMaterial({ color: 0x223344, transparent: true, opacity: .55 });
+  const base = new THREE.Mesh(new THREE.BoxGeometry(2, .6, 4.2), azul); base.position.y = .6; g.add(base);
+  const franja = new THREE.Mesh(new THREE.BoxGeometry(2.02, .22, 2.6), blanco); franja.position.set(0, .7, -.2); g.add(franja);
+  const techo = new THREE.Mesh(new THREE.BoxGeometry(1.8, .55, 2.1), vidrio); techo.position.set(0, 1.18, -.2); g.add(techo);
+  const tapa = new THREE.Mesh(new THREE.BoxGeometry(1.8, .06, 2.1), blanco); tapa.position.set(0, 1.47, -.2); g.add(tapa);
+  const rojo = new THREE.Mesh(new THREE.BoxGeometry(.5, .16, .3), new THREE.MeshBasicMaterial({ color: 0x550000 })); rojo.position.set(-.3, 1.58, -.2); g.add(rojo);
+  const azulL = new THREE.Mesh(new THREE.BoxGeometry(.5, .16, .3), new THREE.MeshBasicMaterial({ color: 0x000055 })); azulL.position.set(.3, 1.58, -.2); g.add(azulL);
+  for (const [x, z] of [[-1, 1.3], [1, 1.3], [-1, -1.3], [1, -1.3]]) { const r = new THREE.Mesh(new THREE.CylinderGeometry(.38, .38, .3, 14), negro); r.rotation.z = Math.PI / 2; r.position.set(x, .38, z); g.add(r); }
+  const faro = new THREE.MeshBasicMaterial({ color: 0xfff3c0 });
+  for (const x of [-.65, .65]) { const f = new THREE.Mesh(new THREE.BoxGeometry(.35, .18, .05), faro); f.position.set(x, .7, 2.11); g.add(f); }
+  const c = cartel("🚓 POLICÍA", "#1e4fd8"); c.scale.set(2.4, .6, 1); c.position.y = 2.3; c.visible = false; g.add(c);
+  g.userData = { rojo, azul: azulL, cartel: c };
+  escena.add(g); return g;
+}
+// Lugares fijos (iguales para todos) cerca de la comisaría
+const autos = (() => {
+  const lista = [], Z = ZONAS.carcel;
+  for (let r = 7; r < 30 && lista.length < 4; r += 1.5)
+    for (let a = 0; a < Math.PI * 2 && lista.length < 4; a += Math.PI / 8) {
+      const x = Z.x + Math.cos(a) * r, z = Z.z + Math.sin(a) * r;
+      if (!choca(x, z, AUTO_R + .4) && lista.every(o => Math.hypot(o.x0 - x, o.z0 - z) > 5)) lista.push({ x0: x, z0: z });
+    }
+  return lista.map((p, i) => ({ i, x0: p.x0, z0: p.z0, x: p.x0, z: p.z0, h: 0, vel: 0, conductor: null, sirena: true, tx: p.x0, tz: p.z0, th: 0, mesh: crearPatrullero() }));
+})();
+function resetAutos() { for (const a of autos) Object.assign(a, { x: a.x0, z: a.z0, tx: a.x0, tz: a.z0, h: 0, th: 0, vel: 0, conductor: null, sirena: true }); }
+let miAuto = null, sirenaT = 0, sirenaAlt = false, mirarAuto = 0;
+function subirAuto(a) {
+  if (a.conductor || yo.equipo !== "poli" || yo.preso) return;
+  a.conductor = yo.id; miAuto = a; yaw = a.h + Math.PI; pitch = -.05;
+  enviar("auto", { i: a.i, quien: yo.id, sube: true });
+  grande("🚓 ¡A PATRULLAR!", "#5a8aff"); beep(500, .1); setTimeout(() => beep(800, .1), 120);
+}
+function bajarAuto() {
+  const a = miAuto; if (!a) return;
+  for (const lado of [1, -1, 2, -2]) { const x = a.x + Math.cos(a.h) * 2 * lado, z = a.z - Math.sin(a.h) * 2 * lado; if (!choca(x, z)) { yo.x = x; yo.z = z; break; } }
+  a.conductor = null; a.vel = 0; miAuto = null; yaw = a.h + Math.PI + mirarAuto; mirarAuto = 0;
+  enviar("auto", { i: a.i, quien: yo.id, sube: false, x: a.x, z: a.z, h: a.h });
+}
+function manejar(a, dt) {
+  const acel = (teclas.KeyW || teclas.ArrowUp ? 1 : 0) - (teclas.KeyS || teclas.ArrowDown ? 1 : 0) - joy.y;
+  const giro = (teclas.KeyA || teclas.ArrowLeft ? 1 : 0) - (teclas.KeyD || teclas.ArrowRight ? 1 : 0) - joy.x;
+  const freno = teclas.Space;
+  a.vel += acel * (acel * a.vel < 0 ? 30 : 16) * dt;
+  a.vel *= Math.pow(freno ? .1 : .55, dt);                 // rozamiento
+  a.vel = Math.max(-8, Math.min(26, a.vel));
+  a.h += giro * dt * Math.min(1, Math.abs(a.vel) / 6) * 2.2 * Math.sign(a.vel || 1);
+  const nx = a.x + Math.sin(a.h) * a.vel * dt, nz = a.z + Math.cos(a.h) * a.vel * dt;
+  if (choca(nx, nz, AUTO_R)) { if (Math.abs(a.vel) > 8) { beep(80, .2, "sawtooth", .06); grande("💥 ¡PUM!", "#ff8a3b"); } a.vel *= -.3; }
+  else { a.x = nx; a.z = nz; }
+  yo.x = a.x; yo.z = a.z;
+}
+function pintarAuto(a, t) {
+  const m = a.mesh; m.position.set(a.x, 0, a.z); m.rotation.y = a.h;
+  const prendida = a.conductor && a.sirena, fase = Math.floor(t / 180) % 2;
+  m.userData.rojo.material.color.setHex(prendida && fase ? 0xff2020 : 0x550000);
+  m.userData.azul.material.color.setHex(prendida && !fase ? 0x2050ff : 0x000055);
+  m.userData.cartel.visible = !!a.conductor && a !== miAuto;
+}
+
 // Personajes (los demás jugadores se ven como muñequitos)
 function crearMuneco(equipo, nombre) {
   const g = new THREE.Group(), col = equipo === "poli" ? 0x1e4fd8 : 0x222222;
@@ -245,12 +315,16 @@ function conectar(cod, host) {
     .on("broadcast", { event: "bolsa" }, ({ payload: p }) => tomarBolsa(p.i, p.quien))
     .on("broadcast", { event: "entrega" }, ({ payload: p }) => entregar(p.quien))
     .on("broadcast", { event: "fin" }, ({ payload: p }) => terminar(p.gana))
+    .on("broadcast", { event: "auto" }, ({ payload: p }) => { const a = autos[p.i]; if (!a) return;
+      if (p.sube) { if (a === miAuto && a.conductor === yo.id && p.quien < yo.id) { bajarAuto(); feed("🚓 Otro poli agarró ese patrullero"); } if (a !== miAuto) a.conductor = p.quien; }
+      else if (a.conductor === p.quien) { a.conductor = null; a.vel = 0; a.x = a.tx = p.x; a.z = a.tz = p.z; a.h = a.th = p.h; } })
     .subscribe(async st => { if (st === "SUBSCRIBED") await canal.track({ nombre: miNombre(), equipo, host }); });
 }
 function recibirPos(p) {
   let s = jug[p.id];
   if (!s) { if (!jugando) return; s = jug[p.id] = nuevoJug(p.id, p.nombre, p.equipo, false); s.mesh = crearMuneco(p.equipo, p.nombre); feed(`👋 Entró ${p.nombre}`); }
-  s.tx = p.x; s.tz = p.z; s.rot = p.rot; s.preso = p.preso; s.bolsa = p.bolsa; s.visto = Date.now();
+  s.tx = p.x; s.tz = p.z; s.rot = p.rot; s.preso = p.preso; s.bolsa = p.bolsa; s.visto = Date.now(); s.auto = p.auto ?? null;
+  if (s.auto !== null && autos[s.auto] && autos[s.auto] !== miAuto) { const a = autos[s.auto]; a.conductor = p.id; a.tx = p.x; a.tz = p.z; a.th = p.ah; a.sirena = p.sir; a.vel = p.av; }
 }
 
 // ================== REGLAS ==================
@@ -298,11 +372,16 @@ function revisarFin() {
 
 // ================== CONTROLES ==================
 const teclas = {}; let yaw = 0, pitch = 0, accionPedida = false;
-addEventListener("keydown", e => { teclas[e.code] = true; if (e.code === "KeyE" || e.code === "Space") accionPedida = true; });
+addEventListener("keydown", e => { teclas[e.code] = true;
+  if (e.code === "KeyE" || (e.code === "Space" && !miAuto)) accionPedida = true;
+  if (e.code === "KeyF" && !e.repeat) autoPedido = true;
+  if (e.code === "KeyH" && miAuto) { miAuto.sirena = !miAuto.sirena; } });
+let autoPedido = false;
 addEventListener("keyup", e => { teclas[e.code] = false; });
 renderer.domElement.addEventListener("click", () => { if (!jugando || document.body.classList.contains("tactil")) return;
   if (document.pointerLockElement !== renderer.domElement) renderer.domElement.requestPointerLock(); else accionPedida = true; });
 addEventListener("mousemove", e => { if (document.pointerLockElement !== renderer.domElement) return;
+  if (miAuto) { mirarAuto = Math.max(-2, Math.min(2, mirarAuto - e.movementX * .0025)); pitch = Math.max(-.6, Math.min(.6, pitch - e.movementY * .0025)); return; }
   yaw -= e.movementX * .0025; pitch = Math.max(-1.2, Math.min(1.2, pitch - e.movementY * .0025)); });
 // Táctil: joystick a la izquierda, arrastrar para mirar a la derecha
 const joy = { x: 0, y: 0 }, toques = {};
@@ -312,10 +391,12 @@ renderer.domElement.addEventListener("touchmove", e => { e.preventDefault();
   for (const t of e.changedTouches) { const q = toques[t.identifier]; if (!q) continue;
     if (q.izq) { let dx = t.clientX - q.x0, dy = t.clientY - q.y0; const l = Math.hypot(dx, dy), m = Math.min(l, 50); if (l) { dx = dx / l * m; dy = dy / l * m; }
       joy.x = dx / 50; joy.y = dy / 50; $("stick").querySelector("b").style.transform = `translate(${dx}px,${dy}px)`; }
+    else if (miAuto) { mirarAuto = Math.max(-2, Math.min(2, mirarAuto - (t.clientX - q.x) * .005)); q.x = t.clientX; q.y = t.clientY; }
     else { yaw -= (t.clientX - q.x) * .005; pitch = Math.max(-1.2, Math.min(1.2, pitch - (t.clientY - q.y) * .005)); q.x = t.clientX; q.y = t.clientY; } } }, { passive: false });
 const soltar = e => { for (const t of e.changedTouches) { const q = toques[t.identifier]; if (q && q.izq) { joy.x = joy.y = 0; $("stick").querySelector("b").style.transform = ""; } delete toques[t.identifier]; } };
 renderer.domElement.addEventListener("touchend", soltar); renderer.domElement.addEventListener("touchcancel", soltar);
 $("b-accion").addEventListener("touchstart", e => { e.preventDefault(); accionPedida = true; });
+$("b-auto").addEventListener("touchstart", e => { e.preventDefault(); autoPedido = true; });
 
 function mover(s, dx, dz, vel, dt) {
   const l = Math.hypot(dx, dz); if (!l) return; dx /= l; dz /= l;
@@ -359,6 +440,7 @@ function empezar(finTs) {
   $("menu").classList.add("oculto"); $("sala").classList.add("oculto"); $("fin").classList.add("oculto");
   for (const s of Object.values(jug)) if (s.mesh) escena.remove(s.mesh);
   jug = {}; botin = 0; BOLSAS.forEach(b => { b.hasta = 0; b.mesh.visible = true; });
+  resetAutos(); miAuto = null; document.body.classList.toggle("poli", equipo === "poli");
   yo = jug[miId] = nuevoJug(miId, miNombre(), equipo, false);
   yaw = equipo === "poli" ? Math.PI * .75 : -Math.PI * .75; pitch = 0;
   if (!online) {
@@ -371,7 +453,7 @@ function empezar(finTs) {
   if (!document.body.classList.contains("tactil")) renderer.domElement.requestPointerLock?.();
 }
 function terminar(gana) {
-  if (!jugando) return; jugando = false; document.exitPointerLock?.();
+  if (!jugando) return; jugando = false; document.exitPointerLock?.(); if (miAuto) { miAuto.conductor = null; miAuto = null; }
   const gane = gana === equipo;
   $("fin-tit").textContent = gana === "poli" ? "👮 ¡GANÓ LA POLICÍA!" : "🦹 ¡GANARON LOS LADRONES!";
   $("fin-txt").innerHTML = `${gane ? "🏆 ¡Ganaste!" : "💀 Perdiste"}<br>Botín robado: $${botin.toLocaleString("es-AR")} de $${META.toLocaleString("es-AR")}<br><br>` +
@@ -387,7 +469,13 @@ function loop(t) {
   const dt = Math.min(.05, (t - ult) / 1000); ult = t;
   if (jugando) {
     // Yo
-    if (!yo.preso) {
+    // Subir / bajar del patrullero
+    let autoCerca = null;
+    if (yo.equipo === "poli" && !miAuto) for (const a of autos) if (!a.conductor && Math.hypot(a.x - yo.x, a.z - yo.z) < 3.2) autoCerca = a;
+    if (autoPedido) { if (miAuto) bajarAuto(); else if (autoCerca) subirAuto(autoCerca); }
+    autoPedido = false;
+    if (miAuto) manejar(miAuto, dt);
+    else if (!yo.preso) {
       const f = (teclas.KeyW || teclas.ArrowUp ? 1 : 0) - (teclas.KeyS || teclas.ArrowDown ? 1 : 0) - joy.y;
       const r = (teclas.KeyD || teclas.ArrowRight ? 1 : 0) - (teclas.KeyA || teclas.ArrowLeft ? 1 : 0) + joy.x;
       const corre = teclas.ShiftLeft || teclas.ShiftRight || Math.hypot(joy.x, joy.y) > .9;
@@ -398,7 +486,12 @@ function loop(t) {
     let pista = "", objetivo = null;
     if (yo.equipo === "poli") {
       for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso && Math.hypot(s.x - yo.x, s.z - yo.z) < ATRAPA) objetivo = s;
-      if (objetivo) pista = `🚔 ¡Click para atrapar a ${objetivo.nombre}!`;
+      if (miAuto) { objetivo = null;
+        for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso && Math.hypot(s.x - yo.x, s.z - yo.z) < 2.8) objetivo = s;
+        if (objetivo && Math.abs(miAuto.vel) > 3) accionPedida = true; }
+      if (objetivo) pista = miAuto ? `🚓 ¡Atropellalo o tocá E para atrapar a ${objetivo.nombre}!` : `🚔 ¡Click para atrapar a ${objetivo.nombre}!`;
+      else if (miAuto) pista = "🚓 F para bajarte · H sirena · Espacio freno";
+      else if (autoCerca) pista = "🚓 Tocá F para subirte al patrullero";
       if (objetivo && accionPedida) { enviar("atrapa", { ladron: objetivo.id, poli: yo.id }); atrapado(objetivo.id, yo.id); }
     } else if (!yo.preso) {
       if (!yo.bolsa) for (const b of BOLSAS) if (b.hasta < Date.now() && Math.hypot(b.x - yo.x, b.z - yo.z) < 1.3) { enviar("bolsa", { i: b.i, quien: yo.id }); tomarBolsa(b.i, yo.id); }
@@ -416,9 +509,22 @@ function loop(t) {
       if (s.bot) pensarBot(s, dt);
       else { s.x += (s.tx - s.x) * Math.min(1, dt * 10); s.z += (s.tz - s.z) * Math.min(1, dt * 10);
         if (online && Date.now() - s.visto > 8000) { feed(`🚪 Se fue ${s.nombre}`); escena.remove(s.mesh); delete jug[s.id]; continue; } }
-      if (s.mesh) { s.mesh.position.set(s.x, 0, s.z); s.mesh.rotation.y = s.rot; s.mesh.userData.bolsa.visible = s.bolsa;
+      if (s.mesh) { s.mesh.visible = !(s.auto !== null && s.auto !== undefined); s.mesh.position.set(s.x, 0, s.z); s.mesh.rotation.y = s.rot; s.mesh.userData.bolsa.visible = s.bolsa;
         s.mesh.position.y = s.preso ? 0 : Math.abs(Math.sin(t / 120)) * .08; }
     }
+    // Patrulleros
+    for (const a of autos) {
+      if (a !== miAuto && a.conductor) {
+        const d = jug[a.conductor];
+        if (!d || (!d.bot && d !== yo && d.auto !== a.i)) { if (!d || Date.now() - d.visto > 3000) a.conductor = null; }
+        a.x += (a.tx - a.x) * Math.min(1, dt * 10); a.z += (a.tz - a.z) * Math.min(1, dt * 10);
+        a.h += Math.atan2(Math.sin(a.th - a.h), Math.cos(a.th - a.h)) * Math.min(1, dt * 10);
+      }
+      pintarAuto(a, t);
+    }
+    if (miAuto && miAuto.sirena && (sirenaT -= dt) <= 0) { sirenaT = .42; sirenaAlt = !sirenaAlt; beep(sirenaAlt ? 950 : 700, .38, "sawtooth", .018); }
+    $("velocimetro").style.display = miAuto ? "block" : "none";
+    if (miAuto) $("velocimetro").textContent = `🚓 ${Math.round(Math.abs(miAuto.vel) * 3.6)} km/h${miAuto.sirena ? " 🚨" : ""}`;
     // Bolsas que vuelven a aparecer
     for (const b of BOLSAS) { const ok = b.hasta < Date.now(); b.mesh.visible = ok; if (ok) { b.mesh.rotation.y += dt * 2; b.mesh.position.y = .5 + Math.sin(t / 300 + b.i) * .1; } }
     // HUD
@@ -430,9 +536,17 @@ function loop(t) {
     $("equipos").innerHTML = `👮 ${Object.values(jug).filter(s => s.equipo === "poli").length} polis<br>🦹 ${L.filter(s => !s.preso).length} libres · ⛓️ ${L.filter(s => s.preso).length} presos`;
     $("b-accion").textContent = yo.equipo === "poli" ? "🚔" : "🔓";
     if (quedan <= 0 && (soyHost || !online)) { const g = botin >= META ? "ladron" : "poli"; enviar("fin", { gana: g }); terminar(g); }
-    if (online && t - ultPos > 80) { ultPos = t; enviar("pos", { id: yo.id, nombre: yo.nombre, equipo: yo.equipo, x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, bolsa: yo.bolsa }); }
+    if (online && t - ultPos > 80) { ultPos = t; enviar("pos", { id: yo.id, nombre: yo.nombre, equipo: yo.equipo, x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, bolsa: yo.bolsa,
+      auto: miAuto ? miAuto.i : null, ah: miAuto ? +miAuto.h.toFixed(2) : 0, av: miAuto ? +miAuto.vel.toFixed(1) : 0, sir: miAuto ? miAuto.sirena : false }); }
   } else { yaw += dt * .1; }
   // Cámara en primera persona
+  if (miAuto) {
+    // Vista desde el asiento del conductor: mirás hacia adelante del auto y el mouse gira la cabeza
+    if (Math.abs(miAuto.vel) > 1) mirarAuto = mirarAuto * Math.pow(.05, dt);   // al andar, la vista vuelve al frente
+    camara.position.set(miAuto.x + Math.sin(miAuto.h) * .2 - Math.cos(miAuto.h) * .4, 1.35, miAuto.z + Math.cos(miAuto.h) * .2 + Math.sin(miAuto.h) * .4);
+    camara.rotation.order = "YXZ"; camara.rotation.y = miAuto.h + Math.PI + mirarAuto; camara.rotation.x = pitch * .5 - .04;
+    renderer.render(escena, camara); return;
+  }
   camara.position.set(yo ? yo.x : 0, yo ? (yo.preso ? 1.4 : 1.65 + (jugando && (teclas.KeyW || joy.y) ? Math.sin(t / 110) * .04 : 0)) : 20, yo ? yo.z : 40);
   camara.rotation.order = "YXZ"; camara.rotation.y = yaw; camara.rotation.x = yo ? pitch : -.35;
   renderer.render(escena, camara);
