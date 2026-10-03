@@ -92,6 +92,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="comun.js"></script>
 <script src="db.js"></script>
+<script src="voz.js"></script>
 <script>
 const SB = supabase.createClient("https://eluxvcixctwnzyysvoor.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsdXh2Y2l4Y3R3bnp5eXN2b29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMTk5NzAsImV4cCI6MjEwMzY5NTk3MH0.Gq29eHc-X1vEfbxM_9E5mlOynIJCh0pBbsSOPX923IQ");
 const $ = id => document.getElementById(id);
@@ -227,6 +228,8 @@ async function aplicar(N, acc) {
 function conectar(cod, rol) {
   codigo = cod; yo = rol;
   canal = SB.channel("sala-" + cod, { config:{ broadcast:{ self:false }, presence:{ key:rol } } });
+  Voz.preparar(canal, rol);
+  Voz.nombre = id => S?.nombres?.[id] || (id === "goku" ? "Goku" : "El Gordo");
   canal.on("broadcast", { event:"jugada" }, ({ payload }) => aplicar(payload.estado, payload.acc))
        .on("broadcast", { event:"burla" }, ({ payload }) => globo(payload.quien, payload.t))
        .on("broadcast", { event:"hola" }, ({ payload }) => { if (yo==="goku" && !S) empezar(payload.nombre); })

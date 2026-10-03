@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chat del Gordo</title>
+<style>
+  :root { --bg0:#1e1f22; --bg1:#2b2d31; --bg2:#313338; --bg3:#383a40; --tx:#dbdee1; --tx2:#949ba4; --acento:#5865f2; --verde:#23a55a; --rojo:#f23f43; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:var(--bg2); color:var(--tx); font-family:"gg sans","Noto Sans",system-ui,sans-serif; }
+  .app { display:flex; height:100%; }
+  /* Columna de servidores */
+  .servers { width:72px; background:var(--bg0); display:flex; flex-direction:column; align-items:center; padding:12px 0; gap:8px; flex-shrink:0; }
+  .srv { width:48px; height:48px; border-radius:50%; background:var(--bg2); display:flex; align-items:center; justify-content:center; font-size:26px; cursor:pointer; transition:border-radius .2s, background .2s; text-decoration:none; }
+  .srv:hover, .srv.on { border-radius:16px; background:var(--acento); }
+  .sep { width:32px; height:2px; background:var(--bg3); }
+  /* Canales */
+  .canales { width:240px; background:var(--bg1); display:flex; flex-direction:column; flex-shrink:0; }
+  .canales header { height:48px; padding:0 16px; display:flex; align-items:center; font-weight:800; border-bottom:1px solid #0003; box-shadow:0 1px 0 #0002; }
+  .lista { flex:1; overflow:auto; padding:8px; }
+  .cat { font-size:12px; font-weight:800; color:var(--tx2); text-transform:uppercase; margin:16px 8px 4px; letter-spacing:.3px; }
+  .can { display:flex; align-items:center; gap:6px; padding:6px 8px; border-radius:6px; color:var(--tx2); cursor:pointer; font-weight:600; position:relative; }
+  .can:hover { background:var(--bg3); color:var(--tx); }
+  .can.on { background:#404249; color:#fff; }
+  .can .ic { width:20px; text-align:center; opacity:.8; }
+  .can .punto { position:absolute; left:-6px; width:8px; height:8px; border-radius:4px; background:#fff; display:none; }
+  .can.nuevo .punto { display:block; } .can.nuevo { color:#fff; }
+  .miembro-voz { display:flex; align-items:center; gap:8px; padding:4px 8px 4px 34px; font-size:14px; color:var(--tx2); }
+  .ava { width:24px; height:24px; border-radius:50%; background:var(--bg3); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; transition:box-shadow .15s; }
+  .ava.habla { box-shadow:0 0 0 2px var(--verde); }
+  /* Panel de voz conectada y usuario */
+  .vozpanel { background:#232428; border-bottom:1px solid #0003; padding:8px 10px; display:none; }
+  .vozpanel.on { display:block; }
+  .vozpanel .est { color:var(--verde); font-weight:800; font-size:14px; }
+  .vozpanel small { color:var(--tx2); }
+  .usuario { background:#232428; padding:8px; display:flex; align-items:center; gap:8px; }
+  .usuario .ava { width:32px; height:32px; font-size:18px; cursor:pointer; }
+  .usuario .nom { flex:1; font-weight:700; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; }
+  .ib { width:34px; height:34px; border:0; border-radius:6px; background:transparent; color:var(--tx); font-size:18px; cursor:pointer; }
+  .ib:hover { background:var(--bg3); } .ib.mal { color:var(--rojo); background:#f23f4322; }
+  .ib:disabled { opacity:.35; cursor:default; }
+  /* Chat */
+  .chat { flex:1; display:flex; flex-direction:column; min-width:0; }
+  .chat header { height:48px; padding:0 16px; display:flex; align-items:center; gap:8px; font-weight:800; border-bottom:1px solid #0003; box-shadow:0 1px 0 #0002; }
+  .chat header .menu { display:none; }
+  .msgs { flex:1; overflow:auto; padding:16px 0; }
+  .msg { display:flex; gap:14px; padding:2px 16px; margin-top:14px; }
+  .msg:hover { background:#2e3035; }
+  .msg .ava { width:40px; height:40px; font-size:22px; }
+  .msg .q { font-weight:700; color:#fff; } .msg .h { font-size:12px; color:var(--tx2); margin-left:6px; }
+  .msg .t { white-space:pre-wrap; word-wrap:break-word; line-height:1.4; }
+  .msg.seguido { margin-top:0; } .msg.seguido .ava { visibility:hidden; height:0; } .msg.seguido .cab { display:none; }
+  .bienvenida { padding:16px; color:var(--tx2); }
+  .bienvenida h2 { color:#fff; margin:0 0 6px; }
+  .escribir { padding:0 16px 20px; }
+  .escribir form { background:var(--bg3); border-radius:8px; display:flex; align-items:center; padding:0 12px; }
+  .escribir input { flex:1; background:transparent; border:0; color:var(--tx); font-size:16px; padding:12px 0; outline:none; }
+  .escribir button { background:transparent; border:0; font-size:20px; cursor:pointer; }
+  /* Pantalla de voz */
+  .salavoz { flex:1; display:none; flex-wrap:wrap; align-content:center; justify-content:center; gap:16px; padding:16px; background:#000; }
+  .salavoz.on { display:flex; }
+  .tarjeta { width:min(220px,42vw); aspect-ratio:16/10; background:var(--bg1); border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; border:3px solid transparent; transition:border-color .15s; }
+  .tarjeta.habla { border-color:var(--verde); }
+  .tarjeta .ava { width:72px; height:72px; font-size:40px; }
+  /* Miembros */
+  .miembros { width:240px; background:var(--bg1); padding:16px 8px; overflow:auto; flex-shrink:0; }
+  .miembros .m { display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:6px; }
+  .miembros .m .ava { width:32px; height:32px; font-size:18px; position:relative; }
+  .miembros .m .ava::after { content:""; position:absolute; right:-2px; bottom:-2px; width:10px; height:10px; border-radius:50%; background:var(--verde); border:3px solid var(--bg1); }
+  /* Modal */
+  .modal { position:fixed; inset:0; background:#000b; display:flex; align-items:center; justify-content:center; z-index:50; padding:16px; }
+  .modal .c { background:var(--bg2); border-radius:10px; padding:20px; width:100%; max-width:380px; }
+  .modal h2 { margin:0 0 6px; color:#fff; text-align:center; }
+  .modal p { color:var(--tx2); text-align:center; margin:0 0 14px; }
+  .modal input { width:100%; padding:10px; border-radius:6px; border:0; background:var(--bg0); color:var(--tx); font-size:16px; margin-bottom:12px; }
+  .avas { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-bottom:14px; }
+  .avas span { font-size:26px; cursor:pointer; padding:4px; border-radius:8px; }
+  .avas span.on { background:var(--acento); }
+  .modal button { width:100%; padding:12px; border:0; border-radius:6px; background:var(--acento); color:#fff; font-weight:800; font-size:16px; cursor:pointer; }
+  @media (max-width:900px) { .miembros { display:none; } }
+  @media (max-width:640px) {
+    .servers { display:none; }
+    .canales { position:fixed; inset:0 auto 0 0; z-index:20; width:85vw; max-width:300px; transform:translateX(-100%); transition:transform .2s; }
+    .app.abierto .canales { transform:none; box-shadow:0 0 0 100vw #0008; }
+    .chat header .menu { display:block; }
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <nav class="servers">
+    <a class="srv" href="./" title="Volver a los juegos">🏠</a>
+    <div class="sep"></div>
+    <div class="srv on" title="Servidor del Gordo">🫃</div>
+  </nav>
+
+  <aside class="canales">
+    <header>🫃 Servidor del Gordo</header>
+    <div class="lista" id="lista"></div>
+    <div class="vozpanel" id="vozpanel">
+      <div style="display:flex;align-items:center;gap:6px">
+        <div style="flex:1"><div class="est">📶 Voz conectada</div><small id="voz-nom"></small></div>
+        <button class="ib" id="b-colgar" title="Desconectarse">📞</button>
+      </div>
+    </div>
+    <div class="usuario">
+      <div class="ava" id="u-ava"></div><div class="nom" id="u-nom" title="Cambiar nombre"></div>
+      <button class="ib" id="b-mic" title="Silenciar micrófono" disabled>🎤</button>
+      <button class="ib" id="b-sordo" title="Ensordecer" disabled>🎧</button>
+    </div>
+  </aside>
+
+  <main class="chat">
+    <header><button class="ib menu" id="b-menu">☰</button><span id="titulo"># general</span></header>
+    <div class="msgs" id="msgs"></div>
+    <div class="escribir" id="escribir"><form id="form"><input id="txt" maxlength="500" autocomplete="off" placeholder="Escribí un mensaje"><button>📨</button></form></div>
+    <div class="salavoz" id="salavoz"></div>
+  </main>
+
+  <aside class="miembros"><div class="cat">En línea — <span id="n-online">0</span></div><div id="online"></div></aside>
+</div>
+
+<div class="modal" id="modal" style="display:none">
+  <div class="c">
+    <h2>¡Bienvenido al servidor!</h2>
+    <p>Elegí tu nombre y tu avatar</p>
+    <input id="m-nom" maxlength="20" placeholder="Tu nombre">
+    <div class="avas" id="m-avas"></div>
+    <button id="m-ok">Entrar</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="comun.js"></script>
+<script src="db.js"></script>
+<script src="voz.js"></script>
+<script>
+const SB = supabase.createClient("https://eluxvcixctwnzyysvoor.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsdXh2Y2l4Y3R3bnp5eXN2b29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMTk5NzAsImV4cCI6MjEwMzY5NTk3MH0.Gq29eHc-X1vEfbxM_9E5mlOynIJCh0pBbsSOPX923IQ");
+const $ = id => document.getElementById(id);
+const esc = t => String(t).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const TEXTO = [ { id:"general", nom:"general" }, { id:"juegos", nom:"juegos" }, { id:"memes", nom:"memes" }, { id:"gordo", nom:"frases-del-gordo" } ];
+const VOZ = [ { id:"v-general", nom:"General" }, { id:"v-partida", nom:"Partida" }, { id:"v-afk", nom:"AFK 😴" } ];
+const AVAS = ["🙂","😎","🥋","🫃","🐔","🍕","🐉","👽","🤖","🥷","🦊","🐸","🔥","💀","👑","🎮"];
+const miId = (() => { try { let v = sessionStorage.getItem("chat-id"); if (!v) { v = Math.random().toString(36).slice(2,10); sessionStorage.setItem("chat-id", v); } return v; } catch(e) { return Math.random().toString(36).slice(2,10); } })();
+let avatar = (() => { try { return localStorage.getItem("avatar") || "🙂"; } catch(e) { return "🙂"; } })();
+let canalTexto = "general", vozActual = null, canalVoz = null, lobby = null, online = {}, ultimoAutor = null, ultimaHora = 0;
+const nuevos = new Set();
+
+// ---------- Lista de canales ----------
+function pintarLista() {
+  let h = `<div class="cat">⌄ Canales de texto</div>`;
+  for (const c of TEXTO) h += `<div class="can ${c.id===canalTexto&&!vozActual?"on":""} ${nuevos.has(c.id)?"nuevo":""}" data-t="${c.id}"><span class="punto"></span><span class="ic">#</span>${c.nom}</div>`;
+  h += `<div class="cat">⌄ Canales de voz</div>`;
+  for (const v of VOZ) {
+    h += `<div class="can ${v.id===vozActual?"on":""}" data-v="${v.id}"><span class="ic">🔊</span>${v.nom}</div>`;
+    for (const p of Object.values(online).filter(p => p.voz === v.id))
+      h += `<div class="miembro-voz"><div class="ava ${p.hablando?"habla":""}">${esc(p.avatar)}</div>${esc(p.nombre)}${p.mute?" 🔇":""}</div>`;
+  }
+  $("lista").innerHTML = h;
+  $("lista").querySelectorAll("[data-t]").forEach(e => e.onclick = () => abrirTexto(e.dataset.t));
+  $("lista").querySelectorAll("[data-v]").forEach(e => e.onclick = () => entrarVoz(e.dataset.v));
+  const ol = Object.values(online);
+  $("n-online").textContent = ol.length;
+  $("online").innerHTML = ol.map(p => `<div class="m"><div class="ava">${esc(p.avatar)}</div><div>${esc(p.nombre)}${p.voz?`<br><small style="color:var(--tx2)">🔊 ${esc(VOZ.find(v=>v.id===p.voz)?.nom||"")}</small>`:""}</div></div>`).join("");
+}
+
+// ---------- Mensajes ----------
+function hora(d) { return new Date(d).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" }); }
+function agregar(m) {
+  const seguido = ultimoAutor === m.nombre && new Date(m.creado) - ultimaHora < 5*60000;
+  ultimoAutor = m.nombre; ultimaHora = new Date(m.creado);
+  const d = document.createElement("div"); d.className = "msg" + (seguido ? " seguido" : "");
+  d.innerHTML = `<div class="ava">${esc(m.avatar)}</div><div><div class="cab"><span class="q">${esc(m.nombre)}</span><span class="h">${hora(m.creado)}</span></div><div class="t">${esc(m.texto)}</div></div>`;
+  const box = $("msgs"), abajo = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+  box.appendChild(d); if (abajo) box.scrollTop = box.scrollHeight;
+}
+async function abrirTexto(id) {
+  canalTexto = id; nuevos.delete(id); $("app").classList.remove("abierto");
+  const c = TEXTO.find(x => x.id === id);
+  $("titulo").textContent = "# " + c.nom; $("txt").placeholder = "Escribir en #" + c.nom;
+  $("salavoz").classList.remove("on"); $("msgs").style.display = ""; $("escribir").style.display = "";
+  verVoz = false; pintarLista();
+  $("msgs").innerHTML = `<div class="bienvenida"><h2>¡Bienvenido a #${c.nom}!</h2>Este es el comienzo del canal #${c.nom}.</div>`;
+  ultimoAutor = null;
+  const { data, error } = await SB.from("mensajes").select("*").eq("canal", id).order("creado", { ascending:false }).limit(60);
+  if (canalTexto !== id) return;
+  if (error) { $("msgs").innerHTML += `<div class="bienvenida">No se pudieron cargar los mensajes.</div>`; return; }
+  data.reverse().forEach(agregar); $("msgs").scrollTop = $("msgs").scrollHeight;
+}
+$("form").onsubmit = async e => {
+  e.preventDefault(); const texto = $("txt").value.trim(); if (!texto) return;
+  $("txt").value = "";
+  const { error } = await SB.from("mensajes").insert({ canal: canalTexto, nombre: DB.nombre, avatar, texto });
+  if (error) { $("txt").value = texto; alert("No se pudo mandar el mensaje."); }
+};
+SB.channel("mensajes-nuevos").on("postgres_changes", { event:"INSERT", schema:"public", table:"mensajes" }, ({ new: m }) => {
+  if (m.canal === canalTexto && !verVoz) agregar(m);
+  else { nuevos.add(m.canal); pintarLista(); }
+  if (m.nombre !== DB.nombre && document.hidden) sonido(660);
+}).subscribe();
+
+// ---------- Presencia (quién está en línea y en qué canal de voz) ----------
+let ultimoTrack = 0, pendiente = null;
+function miEstado() { const e = Voz.estado(); const yo = e.personas.find(p => p.yo);
+  return { nombre: DB.nombre, avatar, voz: vozActual, mute: e.muteado, hablando: !!(yo && yo.hablando) }; }
+function publicar() { // limitado para no saturar
+  const ahora = Date.now(); clearTimeout(pendiente);
+  if (ahora - ultimoTrack < 400) { pendiente = setTimeout(publicar, 400); return; }
+  ultimoTrack = ahora; lobby && lobby.track(miEstado());
+}
+function conectarLobby() {
+  lobby = SB.channel("servidor-gordo", { config:{ presence:{ key: miId } } });
+  lobby.on("presence", { event:"sync" }, () => {
+    online = {}; for (const [id, v] of Object.entries(lobby.presenceState())) online[id] = v[0];
+    pintarLista(); if (verVoz) pintarSalaVoz();
+  }).subscribe(st => { if (st === "SUBSCRIBED") publicar(); });
+}
+
+// ---------- Voz ----------
+let verVoz = false;
+async function entrarVoz(id) {
+  $("app").classList.remove("abierto");
+  if (vozActual === id) { verSala(); return; }
+  if (vozActual) salirVoz();
+  vozActual = id;
+  canalVoz = SB.channel("voz-" + id, { config:{ broadcast:{ self:false } } });
+  Voz.preparar(canalVoz, miId, { ui:false });
+  Voz.nombre = pid => online[pid]?.nombre;
+  await new Promise(ok => canalVoz.subscribe(st => { if (st === "SUBSCRIBED") ok(); }));
+  const bien = await Voz.entrar();
+  if (!bien) { alert("Necesitás dar permiso al micrófono para entrar a la voz."); salirVoz(); return; }
+  sonido(880); $("vozpanel").classList.add("on"); $("voz-nom").textContent = VOZ.find(v => v.id === id).nom + " / Servidor del Gordo";
+  $("b-mic").disabled = $("b-sordo").disabled = false;
+  publicar(); verSala();
+}
+function salirVoz() {
+  if (!vozActual) return;
+  Voz.salir(); SB.removeChannel(canalVoz); canalVoz = null; vozActual = null; sonido(440);
+  $("vozpanel").classList.remove("on"); $("b-mic").disabled = $("b-sordo").disabled = true;
+  $("b-mic").classList.remove("mal"); $("b-sordo").classList.remove("mal");
+  publicar(); abrirTexto(canalTexto);
+}
+function verSala() {
+  verVoz = true; $("titulo").textContent = "🔊 " + VOZ.find(v => v.id === vozActual).nom;
+  $("msgs").style.display = "none"; $("escribir").style.display = "none"; $("salavoz").classList.add("on");
+  pintarLista(); pintarSalaVoz();
+}
+function pintarSalaVoz() {
+  const gente = Object.values(online).filter(p => p.voz === vozActual);
+  $("salavoz").innerHTML = gente.map(p => `<div class="tarjeta ${p.hablando?"habla":""}"><div class="ava">${esc(p.avatar)}</div><b>${esc(p.nombre)}${p.mute?" 🔇":""}</b></div>`).join("")
+    || `<div style="color:var(--tx2)">Conectando...</div>`;
+}
+Voz.onCambio = () => { if (vozActual) publicar(); };
+$("b-colgar").onclick = salirVoz;
+$("b-mic").onclick = () => { Voz.alternarMute(); $("b-mic").classList.toggle("mal", Voz.estado().muteado); $("b-mic").textContent = Voz.estado().muteado ? "🔇" : "🎤"; };
+$("b-sordo").onclick = () => { Voz.alternarSordo(); $("b-sordo").classList.toggle("mal", Voz.estado().sordo); };
+$("b-menu").onclick = () => $("app").classList.toggle("abierto");
+addEventListener("beforeunload", () => { if (vozActual) Voz.salir(); });
+
+function sonido(f) { if (!AJUSTES.sonido) return; try { const a = sonido.c || (sonido.c = new (window.AudioContext||window.webkitAudioContext)()), o = a.createOscillator(), g = a.createGain();
+  o.frequency.value = f; o.type = "sine"; g.gain.value = .08; o.connect(g); g.connect(a.destination); o.start(); g.gain.exponentialRampToValueAtTime(.0001, a.currentTime + .25); o.stop(a.currentTime + .3); } catch(e){} }
+
+// ---------- Perfil ----------
+function pintarUsuario() { $("u-ava").textContent = avatar; $("u-nom").textContent = DB.nombre; }
+function pedirPerfil() {
+  $("modal").style.display = "flex"; $("m-nom").value = DB.nombre;
+  $("m-avas").innerHTML = AVAS.map(a => `<span class="${a===avatar?"on":""}">${a}</span>`).join("");
+  $("m-avas").querySelectorAll("span").forEach(s => s.onclick = () => { avatar = s.textContent; $("m-avas").querySelectorAll("span").forEach(x => x.classList.toggle("on", x === s)); });
+}
+$("m-ok").onclick = () => {
+  const n = $("m-nom").value.trim(); if (!n) { $("m-nom").focus(); return; }
+  DB.nombre = n; try { localStorage.setItem("avatar", avatar); } catch(e) {}
+  $("modal").style.display = "none"; pintarUsuario();
+  if (!lobby) { conectarLobby(); abrirTexto("general"); } else publicar();
+};
+$("u-nom").onclick = $("u-ava").onclick = pedirPerfil;
+
+if (DB.nombre) { pintarUsuario(); conectarLobby(); abrirTexto("general"); } else pedirPerfil();
+</script>
+</body>
+</html>
