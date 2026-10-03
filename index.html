@@ -28,6 +28,13 @@
   #log { width:100%; max-width:720px; margin-top:16px; background:#0005; border-radius:12px; padding:12px;
          min-height:120px; font-size:15px; line-height:1.5; }
   #log p { margin:0 0 4px; }
+  .ssj { filter:drop-shadow(0 0 18px #ffe600) drop-shadow(0 0 30px #ffb300); animation:aura 0.6s infinite alternate; }
+  @keyframes aura { from{filter:drop-shadow(0 0 10px #ffe600)} to{filter:drop-shadow(0 0 32px #ffb300)} }
+  .modo { display:flex; gap:8px; margin-bottom:12px; }
+  .modo button { padding:8px 14px; font-size:14px; background:#ffffff22; color:#fff; }
+  .modo button.on { background:#ffd400; color:#000; }
+  .moves.gordo button { background:var(--gordo); color:#001a2a; }
+  #turno { margin-top:12px; font-weight:700; }
   .big { position:fixed; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column;
          background:#000c; font-size:clamp(28px,8vw,56px); font-weight:900; text-align:center; padding:16px; }
   .big button { margin-top:20px; font-size:20px; }
@@ -35,6 +42,7 @@
 </head>
 <body>
 <h1>⚡ GOKU vs EL GORDO 🍔</h1>
+<div class="modo"><button id="m1" class="on" onclick="setModo(1)">🤖 1 jugador</button><button id="m2" onclick="setModo(2)">👥 2 jugadores</button></div>
 <div class="arena">
   <div class="fighter">
     <div class="avatar" id="av-goku">🥋</div>
@@ -49,11 +57,18 @@
     <div class="bar ki"><div id="ki-gordo"></div></div><small>Hambre</small>
   </div>
 </div>
-<div class="moves">
+<div id="turno"></div>
+<div class="moves" id="mv-goku">
   <button data-m="punio">👊 Piña voladora</button>
   <button data-m="cargar">🔥 Cargar Ki (+35)</button>
   <button data-m="kame">🌊 KAMEHAMEHA (50 ki)</button>
   <button data-m="genki">🌍 Genkidama (100 ki)</button>
+</div>
+<div class="moves gordo" id="mv-gordo" style="display:none">
+  <button data-g="panzazo">🫃 Panzazo sísmico</button>
+  <button data-g="asado">🥩 Comer asado (+vida)</button>
+  <button data-g="eructo">🤢 Eructo 9000 (40 hambre)</button>
+  <button data-g="avalancha">🍔 Avalancha de milanesas (100 hambre)</button>
 </div>
 <div id="log"></div>
 <div class="big" id="final"><div id="final-txt"></div><button onclick="reset()">🔁 Revancha</button></div>
@@ -73,6 +88,14 @@ const GORDO = [
   { heal:[15,25],txt:"El Gordo se come un asado entero y recupera vida 🥩" },
   { dmg:[18,26], txt:"El Gordo se sienta encima de Goku 😵", hungry:true },
 ];
+const GORDO_P2 = {
+  panzazo:   { cost:0,   dmg:[8,14],  hambre:25, txt:"El Gordo te tira un panzazo sísmico 🫃💥" },
+  asado:     { cost:0,   heal:[12,20],hambre:30, txt:"El Gordo se come un asado entero 🥩" },
+  eructo:    { cost:40,  dmg:[18,26], txt:"El Gordo suelta un eructo nivel 9000 🤢" },
+  avalancha: { cost:100, dmg:[30,40], txt:"🍔🍕🌭 ¡AVALANCHA DE MILANESAS!" },
+};
+let modo = 1;
+function setModo(n) { modo=n; $("m1").classList.toggle("on",n==1); $("m2").classList.toggle("on",n==2); reset(); }
 const ZAS = ["¡ZAS!","¡PUM!","¡CRACK!","¡BOOM!","¡PAF!"];
 let s;
 const $ = id => document.getElementById(id);
@@ -80,7 +103,8 @@ const rnd = ([a,b]) => a + Math.floor(Math.random()*(b-a+1));
 const pick = a => a[Math.floor(Math.random()*a.length)];
 
 function reset() {
-  s = { goku:100, gordo:130, ki:20, hambre:0, busy:false };
+  s = { goku:100, gordo:130, ki:20, hambre:0, busy:false, ssj:false, turnoGordo:false };
+  $("av-goku").textContent="🥋"; $("av-goku").classList.remove("ssj");
   $("log").innerHTML = "";
   $("final").style.display = "none";
   log("🔔 ¡Arranca la pelea del siglo!");
@@ -96,8 +120,15 @@ function render() {
   $("ki-gordo").style.width = s.hambre + "%";
   document.querySelectorAll("button[data-m]").forEach(b => {
     const m = MOVES[b.dataset.m];
-    b.disabled = s.busy || (m.ki > 0 && s.ki < m.ki);
+    b.disabled = s.busy || s.turnoGordo || (m.ki > 0 && s.ki < m.ki);
   });
+  const p2 = modo==2 && s.turnoGordo;
+  $("mv-goku").style.display = p2 ? "none" : "grid";
+  $("mv-gordo").style.display = p2 ? "grid" : "none";
+  document.querySelectorAll("button[data-g]").forEach(b => {
+    b.disabled = s.busy || s.hambre < GORDO_P2[b.dataset.g].cost;
+  });
+  $("turno").textContent = modo==1 ? "" : (s.turnoGordo ? "🍔 Turno de EL GORDO" : "🥋 Turno de GOKU");
 }
 function anim(id, cls) { const e=$(id); e.classList.remove(cls); void e.offsetWidth; e.classList.add(cls); setTimeout(()=>e.classList.remove(cls),400); }
 function beep(f) { try { const c=new (window.AudioContext||window.webkitAudioContext)(), o=c.createOscillator(), g=c.createGain();
@@ -113,6 +144,7 @@ function turno(key) {
     let d = rnd(m.dmg);
     const crit = Math.random() < .15;
     if (crit) d = Math.round(d*1.5);
+    if (s.ssj) d = Math.round(d*1.5);
     if (Math.random() < .1) { log("😂 " + m.txt + "... ¡pero El Gordo lo esquiva rodando!"); }
     else {
       s.gordo = Math.max(0, s.gordo - d);
@@ -120,8 +152,9 @@ function turno(key) {
       log(`${pick(ZAS)} ${m.txt} → -${d}${crit?" 💥CRÍTICO":""}`);
     }
   } else { log("⚡ " + m.txt); beep(660); }
-  s.busy = true; render();
   if (fin()) return;
+  if (modo==2) { s.turnoGordo = true; render(); return; }
+  s.busy = true; render();
   setTimeout(gordoTurno, 900);
 }
 function gordoTurno() {
@@ -136,7 +169,24 @@ function gordoTurno() {
   else if (a.dmg[1]) { const d=rnd(a.dmg); s.goku=Math.max(0,s.goku-d); anim("av-goku","hit"); beep(220); log(`${a.txt} → -${d}`); }
   else log(a.txt);
   s.ki = Math.min(100, s.ki + 5);
-  s.busy = false; render(); fin();
+  s.busy = false; render(); if (!fin()) checkSSJ();
+}
+function gordoP2(key) {
+  const a = GORDO_P2[key];
+  s.hambre = Math.max(0, Math.min(100, s.hambre - a.cost + (a.hambre||0)));
+  anim("av-gordo","attack");
+  if (a.heal) { const h=rnd(a.heal); s.gordo=Math.min(130,s.gordo+h); beep(330); log(`${a.txt} → +${h}`); }
+  else { const d=rnd(a.dmg); s.goku=Math.max(0,s.goku-d); anim("av-goku","hit"); beep(220); log(`${pick(ZAS)} ${a.txt} → -${d}`); }
+  s.ki = Math.min(100, s.ki + 5);
+  s.turnoGordo = false; render(); if (!fin()) checkSSJ();
+}
+function checkSSJ() {
+  if (s.ssj || s.goku > 35) return;
+  s.ssj = true; s.goku = Math.min(100, s.goku + 25); s.ki = 100;
+  $("av-goku").textContent = "😡"; $("av-goku").classList.add("ssj");
+  log("💛⚡ ¡¡GOKU SE TRANSFORMÓ EN SUPER SAIYAJIN!! (+25 HP, ki al máximo, daño x1.5)");
+  [440,660,880,1100].forEach((f,i)=>setTimeout(()=>beep(f),i*120));
+  render();
 }
 function fin() {
   if (s.gordo > 0 && s.goku > 0) return false;
@@ -149,6 +199,7 @@ function fin() {
   return true;
 }
 document.querySelectorAll("button[data-m]").forEach(b => b.onclick = () => turno(b.dataset.m));
+document.querySelectorAll("button[data-g]").forEach(b => b.onclick = () => gordoP2(b.dataset.g));
 reset();
 </script>
 </body>
