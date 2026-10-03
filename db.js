@@ -20,7 +20,7 @@ const DB = (() => {
           body: JSON.stringify({ nombre: this.nombre, modo, dificultad: (window.AJUSTES ? AJUSTES.dificultad : "normal"), gano, duracion_seg: Math.round(duracionSeg), puntos }) });
       } catch (e) { console.warn(e); }
     },
-    ranking(modo) { const orden = modo === "comida" ? "mejor_puntaje.desc" : "ganadas.desc,perdidas.asc";
+    ranking(modo) { const orden = (modo === "comida" || modo === "gallina") ? "mejor_puntaje.desc" : "ganadas.desc,perdidas.asc";
       return pedir("ranking?select=*" + (modo ? "&modo=eq." + modo : "") + "&order=" + orden + "&limit=10"); },
     historial(nombre) { return pedir("partidas?select=*&nombre=eq." + encodeURIComponent(nombre) + "&order=creado.desc&limit=10"); },
     // Frases del Gordo
