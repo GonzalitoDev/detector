@@ -67,6 +67,8 @@
   #b-accion { position:fixed; right:30px; bottom:40px; width:96px; height:96px; border-radius:50%; border:0; font-size:36px; background:#ffd400cc; display:none; z-index:5; }
   #b-auto { position:fixed; right:140px; bottom:50px; width:72px; height:72px; border-radius:50%; border:0; font-size:30px; background:#3b6bffcc; display:none; z-index:5; }
   body.tactil.poli #b-auto { display:block; }
+  #b-cam { position:fixed; right:16px; top:110px; width:52px; height:52px; border-radius:50%; border:0; font-size:24px; background:#ffffff33; display:none; z-index:5; }
+  body.tactil #b-cam { display:block; }
   #velocimetro { position:fixed; right:16px; bottom:16px; z-index:5; font-weight:900; font-size:28px; text-shadow:0 2px 4px #000; display:none; pointer-events:none;
                  background:#000a; border:2px solid #3b6bff; border-radius:14px; padding:6px 14px; }
   body.tactil #velocimetro { bottom:150px; }
@@ -81,7 +83,7 @@
 </div>
 <div id="mira"></div><div id="pista"></div><div id="grande"></div><div id="feed"></div>
 <div id="sirena"></div><div id="rejas"></div>
-<div class="stick" id="stick"><b></b></div><button id="b-accion">🚔</button><button id="b-auto">🚓</button>
+<div class="stick" id="stick"><b></b></div><button id="b-accion">🚔</button><button id="b-auto">🚓</button><button id="b-cam">🎥</button>
 <div id="velocimetro"></div><div id="municion"></div><div id="resistencia"><div></div></div><div id="golpe"></div><div id="linterna-txt"></div><div id="granadas"></div><button id="b-granada">💣</button><div id="flashbang"></div><div id="aturdido">😵 ¡ATURDIDO!</div>
 
 <div class="pantalla" id="menu">
@@ -102,7 +104,7 @@
     </div>
     <div style="display:flex;gap:8px;justify-content:center;margin-top:10px"><input id="cod" maxlength="4" placeholder="CÓDIGO"><button class="g" id="unirse">🚪 Unirse</button></div>
     <p id="msg" style="color:#ff8a8a;margin:8px 0 0"></p>
-    <p style="opacity:.7;font-size:13px;margin:10px 0 0">Compu: WASD para moverte, mouse para mirar (hacé click para capturar el mouse), Shift para correr, click o E para atrapar o liberar. Los polis suben y bajan del patrullero con F (H prende la sirena). L prende la linterna. Grupo Halcón: G granada aturdidora, N visión nocturna. SWAT: click sostenido para disparar, R para recargar. Celu: joystick para moverte, arrastrá la pantalla para mirar, botón amarillo para la acción.</p>
+    <p style="opacity:.7;font-size:13px;margin:10px 0 0">Compu: WASD para moverte, mouse para mirar (hacé click para capturar el mouse), Shift para correr, click o E para atrapar o liberar. Los polis suben y bajan del patrullero con F (H prende la sirena). L prende la linterna. Grupo Halcón: G granada aturdidora, N visión nocturna. C cambia la cámara (primera persona, tercera persona o aérea). En el 🚔 Departamento de Policía: taquillas para elegir división y armería para recargar. SWAT: click sostenido para disparar, R para recargar. Celu: joystick para moverte, arrastrá la pantalla para mirar, botón amarillo para la acción.</p>
   </div>
 </div>
 
@@ -257,6 +259,31 @@ zona(ZONAS.muelle, 0x0aa0b0, "🚤 MUELLE");
   for (const z of [-46.5, -41.5]) { const v = new THREE.Mesh(new THREE.PlaneGeometry(1.2, .8), new THREE.MeshBasicMaterial({ color: 0xffc070 }));
     v.position.set(C.x1 - .01, 2, z); v.rotation.y = -Math.PI / 2; escena.add(v); }
 }
+// ---- Departamento de Policía (al lado de la cárcel) ----
+const DEPTO = { x1: -58, x2: -47, z1: 28, z2: 37.5, alto: 4.2, puertaX1: -54.2, puertaX2: -51.8 };
+const TAQUILLAS = { x: -55.5, z: 29.6 }, ARMERIA = { x: -49.5, z: 29.6 };
+{
+  const D = DEPTO, g = .4, matP = new THREE.MeshLambertMaterial({ color: 0xdfe6ee }), matF = new THREE.MeshLambertMaterial({ color: 0x0f1d36 });
+  const paredes = [[D.x1, D.z1, D.x2, D.z1 + g], [D.x1, D.z1, D.x1 + g, D.z2], [D.x2 - g, D.z1, D.x2, D.z2],
+                   [D.x1, D.z2 - g, D.puertaX1, D.z2], [D.puertaX2, D.z2 - g, D.x2, D.z2]];
+  for (const [x1, z1, x2, z2] of paredes) {
+    edificios.push({ x1, z1, x2, z2, h: D.alto });
+    const m = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1, D.alto, z2 - z1), matP); m.position.set((x1 + x2) / 2, D.alto / 2, (z1 + z2) / 2); escena.add(m);
+    const f = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1 + .02, .35, z2 - z1 + .02), new THREE.MeshLambertMaterial({ color: 0x5ec8f2 })); f.position.set((x1 + x2) / 2, 1.2, (z1 + z2) / 2); escena.add(f);
+  }
+  const techo = new THREE.Mesh(new THREE.BoxGeometry(D.x2 - D.x1 + .6, .35, D.z2 - D.z1 + .6), matF); techo.position.set((D.x1 + D.x2) / 2, D.alto + .17, (D.z1 + D.z2) / 2); escena.add(techo);
+  const pisoD = new THREE.Mesh(new THREE.PlaneGeometry(D.x2 - D.x1, D.z2 - D.z1), new THREE.MeshLambertMaterial({ color: 0x9aa3ad })); pisoD.rotation.x = -Math.PI / 2; pisoD.position.set((D.x1 + D.x2) / 2, .02, (D.z1 + D.z2) / 2); escena.add(pisoD);
+  for (const x of [-55, -50]) { const l = new THREE.PointLight(0xe8f4ff, 1.6, 10, 1.5); l.position.set(x, D.alto - .4, 33); escena.add(l);
+    const tubo = new THREE.Mesh(new THREE.BoxGeometry(1.4, .08, .2), new THREE.MeshBasicMaterial({ color: 0xffffff })); tubo.position.copy(l.position); escena.add(tubo); }
+  // Taquillas (cambiar de división) y armería (recargar)
+  const taq = new THREE.Mesh(new THREE.BoxGeometry(3, 2.2, .6), new THREE.MeshLambertMaterial({ color: 0x3b5b7a })); taq.position.set(TAQUILLAS.x, 1.1, D.z1 + .7); escena.add(taq);
+  for (let i = 0; i < 5; i++) { const l = new THREE.Mesh(new THREE.BoxGeometry(.04, 2, .02), new THREE.MeshBasicMaterial({ color: 0x1b2a3a })); l.position.set(TAQUILLAS.x - 1.2 + i * .6, 1.1, D.z1 + 1.01); escena.add(l); }
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(3, 1, 1), new THREE.MeshLambertMaterial({ color: 0x2d2d2d })); arm.position.set(ARMERIA.x, .5, D.z1 + .9); escena.add(arm);
+  edificios.push({ x1: TAQUILLAS.x - 1.5, z1: D.z1, x2: TAQUILLAS.x + 1.5, z2: D.z1 + 1, h: 2.2 }, { x1: ARMERIA.x - 1.5, z1: D.z1, x2: ARMERIA.x + 1.5, z2: D.z1 + 1.4, h: 1 });
+  const c1 = cartel("👕 TAQUILLAS", "#3b5b7a"); c1.scale.set(3, .75, 1); c1.position.set(TAQUILLAS.x, 2.8, D.z1 + 1); escena.add(c1);
+  const c2 = cartel("🔫 ARMERÍA", "#2d2d2d"); c2.scale.set(3, .75, 1); c2.position.set(ARMERIA.x, 2.1, D.z1 + 1); escena.add(c2);
+  const c3 = cartel("🚔 DEPARTAMENTO DE POLICÍA", "#0f1d36"); c3.scale.set(10, 2.5, 1); c3.position.set((D.x1 + D.x2) / 2, D.alto + 2.4, (D.z1 + D.z2) / 2); escena.add(c3);
+}
 // Lancha en el muelle
 { const l = new THREE.Group(); const casco = new THREE.Mesh(new THREE.BoxGeometry(2.2, .7, 5), new THREE.MeshLambertMaterial({ color: 0xf2f2f2 })); casco.position.y = .35; l.add(casco);
   const cab = new THREE.Mesh(new THREE.BoxGeometry(1.6, .8, 1.4), new THREE.MeshLambertMaterial({ color: 0x0aa0b0 })); cab.position.set(0, 1.1, -.6); l.add(cab);
@@ -300,6 +327,23 @@ function crearPatrullero() {
   escena.add(g); return g;
 }
 // Lugares fijos (iguales para todos) cerca de la comisaría
+// Moto policial
+function crearMoto() {
+  const g = new THREE.Group(), blanco = new THREE.MeshLambertMaterial({ color: 0xf2f2f2 }), negro = new THREE.MeshLambertMaterial({ color: 0x111111 }), cel = new THREE.MeshLambertMaterial({ color: 0x5ec8f2 });
+  const cuadro = new THREE.Group(); g.add(cuadro);
+  for (const z of [.75, -.75]) { const r = new THREE.Mesh(new THREE.TorusGeometry(.32, .1, 8, 16), negro); r.rotation.y = Math.PI / 2; r.position.set(0, .42, z); cuadro.add(r); }
+  const tanque = new THREE.Mesh(new THREE.BoxGeometry(.4, .4, 1.1), blanco); tanque.position.set(0, .75, .1); cuadro.add(tanque);
+  const franja = new THREE.Mesh(new THREE.BoxGeometry(.42, .1, 1.12), cel); franja.position.set(0, .72, .1); cuadro.add(franja);
+  const asiento = new THREE.Mesh(new THREE.BoxGeometry(.35, .14, .6), negro); asiento.position.set(0, .98, -.35); cuadro.add(asiento);
+  const manubrio = new THREE.Mesh(new THREE.BoxGeometry(.8, .06, .06), negro); manubrio.position.set(0, 1.12, .62); cuadro.add(manubrio);
+  const parabrisas = new THREE.Mesh(new THREE.BoxGeometry(.45, .35, .04), new THREE.MeshLambertMaterial({ color: 0x223344, transparent: true, opacity: .5 })); parabrisas.position.set(0, 1.25, .7); parabrisas.rotation.x = -.3; cuadro.add(parabrisas);
+  const faro = new THREE.Mesh(new THREE.BoxGeometry(.2, .14, .05), new THREE.MeshBasicMaterial({ color: 0xffffff })); faro.position.set(0, .95, .85); cuadro.add(faro);
+  const rojo = new THREE.Mesh(new THREE.BoxGeometry(.12, .12, .12), new THREE.MeshBasicMaterial({ color: 0x550000 })); rojo.position.set(-.18, 1.12, -.7); cuadro.add(rojo);
+  const azulL = new THREE.Mesh(new THREE.BoxGeometry(.12, .12, .12), new THREE.MeshBasicMaterial({ color: 0x000055 })); azulL.position.set(.18, 1.12, -.7); cuadro.add(azulL);
+  const c = cartel("🏍️ MOTORIZADA", "#0f1d36"); c.scale.set(2.4, .6, 1); c.position.y = 2.2; c.visible = false; g.add(c);
+  g.userData = { rojo, azul: azulL, cartel: c, cuadro };
+  escena.add(g); return g;
+}
 // Camioneta negra de la Policía Especial (para SWAT y Grupo Halcón)
 function crearCamioneta() {
   const g = new THREE.Group();
@@ -328,14 +372,14 @@ function crearCamioneta() {
 const autos = (() => {
   const lista = [], Z = ZONAS.carcel;
   // 4 patrulleros + 3 camionetas de la Policía Especial
-  for (let r = 7; r < 34 && lista.length < 7; r += 1.5)
-    for (let a = 0; a < Math.PI * 2 && lista.length < 7; a += Math.PI / 8) {
+  for (let r = 7; r < 40 && lista.length < 10; r += 1.5)
+    for (let a = 0; a < Math.PI * 2 && lista.length < 10; a += Math.PI / 10) {
       const x = Z.x + Math.cos(a) * r, z = Z.z + Math.sin(a) * r;
       if (!choca(x, z, 1.9) && lista.every(o => Math.hypot(o.x0 - x, o.z0 - z) > 6)) lista.push({ x0: x, z0: z });
     }
-  return lista.map((p, i) => { const tipo = i < 4 ? "patrullero" : "camioneta";
-    return { i, tipo, r: tipo === "camioneta" ? 1.6 : AUTO_R, max: tipo === "camioneta" ? 23 : 26, x0: p.x0, z0: p.z0, x: p.x0, z: p.z0, h: 0, vel: 0, conductor: null, sirena: true,
-      tx: p.x0, tz: p.z0, th: 0, mesh: tipo === "camioneta" ? crearCamioneta() : crearPatrullero() }; });
+  return lista.map((p, i) => { const tipo = i < 4 ? "patrullero" : i < 7 ? "camioneta" : "moto";
+    return { i, tipo, r: tipo === "camioneta" ? 1.6 : tipo === "moto" ? .7 : AUTO_R, max: tipo === "camioneta" ? 23 : tipo === "moto" ? 31 : 26, x0: p.x0, z0: p.z0, x: p.x0, z: p.z0, h: 0, vel: 0, conductor: null, sirena: true,
+      tx: p.x0, tz: p.z0, th: 0, mesh: tipo === "camioneta" ? crearCamioneta() : tipo === "moto" ? crearMoto() : crearPatrullero() }; });
 })();
 function resetAutos() { for (const a of autos) Object.assign(a, { x: a.x0, z: a.z0, tx: a.x0, tz: a.z0, h: 0, th: 0, vel: 0, conductor: null, sirena: true }); }
 let miAuto = null, sirenaT = 0, sirenaAlt = false, mirarAuto = 0;
@@ -344,7 +388,7 @@ function subirAuto(a) {
   if (a.tipo === "camioneta" && !ARMADO(yo.clase)) { grande("🚙 Solo para SWAT y Grupo Halcón", "#f2c200"); return; }
   a.conductor = yo.id; miAuto = a; yaw = a.h + Math.PI; pitch = -.05;
   enviar("auto", { i: a.i, quien: yo.id, sube: true });
-  grande(a.tipo === "camioneta" ? "🚙 POLICÍA ESPECIAL" : "🚓 ¡A PATRULLAR!", a.tipo === "camioneta" ? "#f2c200" : "#5a8aff"); beep(500, .1); setTimeout(() => beep(800, .1), 120);
+  grande(a.tipo === "camioneta" ? "🚙 POLICÍA ESPECIAL" : a.tipo === "moto" ? "🏍️ ¡MOTORIZADA!" : "🚓 ¡A PATRULLAR!", a.tipo === "camioneta" ? "#f2c200" : "#5a8aff"); beep(500, .1); setTimeout(() => beep(800, .1), 120);
 }
 function bajarAuto() {
   const a = miAuto; if (!a) return;
@@ -358,8 +402,11 @@ function manejar(a, dt) {
   const freno = teclas.Space;
   a.vel += acel * (acel * a.vel < 0 ? 30 : 16) * dt;
   a.vel *= Math.pow(freno ? .1 : .55, dt);                 // rozamiento
-  a.vel = Math.max(-8, Math.min(a.max || 26, a.vel));
-  a.h += giro * dt * Math.min(1, Math.abs(a.vel) / 6) * 2.2 * Math.sign(a.vel || 1);
+  a.vel = Math.max(-8, Math.min((a.max || 26) * (a.tipo === "moto" && yo.div === "motorizada" ? 1.15 : 1), a.vel));
+  const bonusMoto = a.tipo === "moto" && yo.div === "motorizada" ? 1.15 : 1;
+  a.vel = Math.min(a.vel, (a.max || 26) * bonusMoto);
+  a.h += giro * dt * Math.min(1, Math.abs(a.vel) / 6) * (a.tipo === "moto" ? 2.9 : 2.2) * Math.sign(a.vel || 1);
+  a.giro = giro;
   const nx = a.x + Math.sin(a.h) * a.vel * dt, nz = a.z + Math.cos(a.h) * a.vel * dt;
   if (choca(nx, nz, a.r || AUTO_R)) { if (Math.abs(a.vel) > 8) { beep(80, .2, "sawtooth", .06); grande("💥 ¡PUM!", "#ff8a3b"); } a.vel *= -.3; }
   else { a.x = nx; a.z = nz; }
@@ -367,6 +414,7 @@ function manejar(a, dt) {
 }
 function pintarAuto(a, t) {
   const m = a.mesh; m.position.set(a.x, 0, a.z); m.rotation.y = a.h;
+  if (m.userData.cuadro) m.userData.cuadro.rotation.z += ((a.conductor ? -(a.giro || 0) * Math.min(.45, Math.abs(a.vel) / 40) : .12) - m.userData.cuadro.rotation.z) * .15;   // la moto se inclina
   const prendida = a.conductor && a.sirena, fase = Math.floor(t / 180) % 2;
   m.userData.rojo.material.color.setHex(prendida && fase ? 0xff2020 : 0x550000);
   m.userData.azul.material.color.setHex(prendida && !fase ? 0x2050ff : 0x000055);
@@ -374,10 +422,17 @@ function pintarAuto(a, t) {
 }
 
 // Personajes (los demás jugadores se ven como muñequitos)
-function crearMuneco(equipo, nombre, clase) {
+function crearMuneco(equipo, nombre, clase, div) {
   const swat = ARMADO(clase), halcon = clase === "halcon";
   const g = new THREE.Group(), col = halcon ? 0x0e0e0e : swat ? 0x1d1f1a : equipo === "poli" ? 0x1b2a4a : 0x222222;
   const cuerpo = new THREE.Mesh(new THREE.CylinderGeometry(.35, .4, 1.1, 12), new THREE.MeshLambertMaterial({ color: col })); cuerpo.position.y = .9; g.add(cuerpo);
+  // Marca para Investigaciones (se ve a través de las paredes)
+  const marca = new THREE.Sprite(new THREE.SpriteMaterial({ map: textura((c, w, h) => { c.fillStyle = "#ff2a2a"; c.beginPath(); c.moveTo(w / 2, h); c.lineTo(0, 0); c.lineTo(w, 0); c.fill(); }, 64, 64), depthTest: false }));
+  marca.scale.set(.8, .8, 1); marca.position.y = 3.3; marca.visible = false; marca.renderOrder = 10; g.add(marca); g.userData.marca = marca;
+  if (div === "canes" && equipo === "poli") { const perro = new THREE.Group(), mp = new THREE.MeshLambertMaterial({ color: 0x5a3a1a });
+    const cu = new THREE.Mesh(new THREE.BoxGeometry(.3, .3, .7), mp); cu.position.y = .4; perro.add(cu);
+    const ca = new THREE.Mesh(new THREE.BoxGeometry(.25, .25, .3), mp); ca.position.set(0, .6, .4); perro.add(ca);
+    perro.position.set(.8, 0, .2); g.add(perro); }
   if (equipo === "ladron") for (let i = 0; i < 3; i++) { const r = new THREE.Mesh(new THREE.CylinderGeometry(.41, .41, .12, 12), new THREE.MeshLambertMaterial({ color: 0xffffff })); r.position.y = .55 + i * .3; g.add(r); }
   const cabeza = new THREE.Mesh(new THREE.SphereGeometry(.3, 14, 12), new THREE.MeshLambertMaterial({ color: 0xf1c27d })); cabeza.position.y = 1.7; g.add(cabeza);
   if (swat) { const casco = new THREE.Mesh(new THREE.SphereGeometry(.34, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: halcon ? 0x050505 : 0x2a2d24 })); casco.position.y = 1.74; g.add(casco);
@@ -390,7 +445,7 @@ function crearMuneco(equipo, nombre, clase) {
                                   : new THREE.Mesh(new THREE.BoxGeometry(.62, .14, .2), new THREE.MeshLambertMaterial({ color: 0x111111 }));
   gorro.position.set(0, equipo === "poli" ? 1.95 : 1.72, equipo === "poli" ? 0 : .22); g.add(gorro);
   const bolsa = new THREE.Mesh(geoBolsa, matBolsa); bolsa.scale.setScalar(.7); bolsa.position.set(0, 1.1, -.45); bolsa.visible = false; g.add(bolsa); g.userData.bolsa = bolsa;
-  const n = cartel(ICONO(clase || equipo) + " " + nombre, halcon ? "#000000" : swat ? "#3a4a1a" : equipo === "poli" ? "#1e4fd8" : "#333333"); n.scale.set(3, .75, 1); n.position.y = 2.5; g.add(n);
+  const n = cartel(ICONO(clase || equipo) + " " + nombre + (div && DIVISIONES[div] && equipo === "poli" && !ARMADO(clase) ? " · " + DIVISIONES[div].ico : ""), halcon ? "#000000" : swat ? "#3a4a1a" : equipo === "poli" ? "#1e4fd8" : "#333333"); n.scale.set(3, .75, 1); n.position.y = 2.5; g.add(n);
   escena.add(g); return g;
 }
 
@@ -399,10 +454,17 @@ const miId = Math.random().toString(36).slice(2, 9);
 let clase = "poli", equipo = "poli", jug = {}, yo = null, jugando = false, online = false, soyHost = false, canal = null, codigo = "", fin = 0, botin = 0, inicioT = 0;
 const miNombre = () => (DB.nombre || (clase === "halcon" ? "Halcón" : clase === "swat" ? "SWAT" : equipo === "poli" ? "Poli" : "Ladrón")).slice(0, 14);
 const ICONO = c => c === "halcon" ? "🦅" : c === "swat" ? "🪖" : c === "poli" ? "👮" : "🦹";
-const ARMADO = c => c === "swat" || c === "halcon";   // tienen ametralladora y pueden reventar puertas
+const ARMADO = c => c === "swat" || c === "halcon";
+// Divisiones de la policía (se eligen en las taquillas del departamento)
+const DIVISIONES = {
+  patrulla:        { nom: "Patrulla",        ico: "🚓", d: "La de siempre: equilibrada." },
+  motorizada:      { nom: "Motorizada",      ico: "🏍️", d: "Más rápido a pie y las motos van 15% más rápido." },
+  investigaciones: { nom: "Investigaciones", ico: "🕵️", d: "Ve una marca roja sobre los ladrones que llevan botín, aunque estén detrás de una pared." },
+  canes:           { nom: "Canes",           ico: "🐕", d: "Atrapa desde más lejos (el perro ayuda)." },
+};   // tienen ametralladora y pueden reventar puertas
 function nuevoJug(id, nombre, eq, bot, cl) {
-  const l = lugarLibre(eq === "poli" ? ZONAS.carcel : ZONAS.guarida, 8);
-  return { id, nombre, equipo: eq, clase: cl || eq, bot, res: 100, x: l.x, z: l.z, rot: 0, preso: false, bolsa: false, mesh: null, tx: l.x, tz: l.z, atrapados: 0, robado: 0, visto: Date.now() };
+  const l = lugarLibre(eq === "poli" ? { x: -52.5, z: 33 } : ZONAS.guarida, eq === "poli" ? 3.5 : 8);
+  return { id, nombre, equipo: eq, clase: cl || eq, div: "patrulla", bot, res: 100, x: l.x, z: l.z, rot: 0, preso: false, bolsa: false, mesh: null, tx: l.x, tz: l.z, atrapados: 0, robado: 0, visto: Date.now() };
 }
 
 // ================== RED ==================
@@ -437,7 +499,8 @@ function conectar(cod, host) {
 }
 function recibirPos(p) {
   let s = jug[p.id];
-  if (!s) { if (!jugando) return; s = jug[p.id] = nuevoJug(p.id, p.nombre, p.equipo, false, p.clase); s.mesh = crearMuneco(p.equipo, p.nombre, p.clase); feed(`👋 Entró ${p.nombre}`); }
+  if (!s) { if (!jugando) return; s = jug[p.id] = nuevoJug(p.id, p.nombre, p.equipo, false, p.clase); s.div = p.div || "patrulla"; s.mesh = crearMuneco(p.equipo, p.nombre, p.clase, s.div); feed(`👋 Entró ${p.nombre}`); }
+  if (p.div && p.div !== s.div) { s.div = p.div; escena.remove(s.mesh); s.mesh = crearMuneco(s.equipo, s.nombre, s.clase, s.div); }
   s.tx = p.x; s.tz = p.z; s.rot = p.rot; if (p.res !== undefined) s.res = p.res; s.preso = p.preso; s.bolsa = p.bolsa; s.paquete = !!p.paq; s.visto = Date.now(); s.auto = p.auto ?? null;
   if (s.auto !== null && autos[s.auto] && autos[s.auto] !== miAuto) { const a = autos[s.auto]; a.conductor = p.id; a.tx = p.x; a.tz = p.z; a.th = p.ah; a.sirena = p.sir; a.vel = p.av; }
 }
@@ -509,11 +572,15 @@ function revisarFin() {
 
 // ================== CONTROLES ==================
 const teclas = {}; let yaw = 0, pitch = 0, accionPedida = false;
+let modoCam = 0;   // 0: primera persona · 1: tercera persona · 2: aérea
+const CAMARAS = ["👁️ Primera persona", "🎥 Tercera persona", "🚁 Vista aérea"];
+function cambiarCamara() { modoCam = (modoCam + 1) % 3; grande(CAMARAS[modoCam], "#ffffff"); camara.rotation.z = 0; }
+addEventListener("keydown", e => { if (e.code === "KeyC" && !e.repeat && jugando) cambiarCamara(); });
 addEventListener("keydown", e => { teclas[e.code] = true;
   if (e.code === "KeyE" || (e.code === "Space" && !miAuto)) accionPedida = true;
   if (e.code === "KeyF" && !e.repeat) autoPedido = true;
   if (e.code === "KeyH" && miAuto) { miAuto.sirena = !miAuto.sirena; } });
-let autoPedido = false;
+let autoPedido = false, pistaDepto = "";
 addEventListener("keyup", e => { teclas[e.code] = false; });
 renderer.domElement.addEventListener("click", () => { if (!jugando || document.body.classList.contains("tactil")) return;
   if (document.pointerLockElement !== renderer.domElement) renderer.domElement.requestPointerLock(); else accionPedida = true; });
@@ -535,6 +602,7 @@ renderer.domElement.addEventListener("touchend", soltar); renderer.domElement.ad
 $("b-accion").addEventListener("touchstart", e => { e.preventDefault(); accionPedida = true; tactilDispara = ARMADO(clase); });
 $("b-accion").addEventListener("touchend", () => { tactilDispara = false; });
 $("b-auto").addEventListener("touchstart", e => { e.preventDefault(); autoPedido = true; });
+$("b-cam").addEventListener("touchstart", e => { e.preventDefault(); cambiarCamara(); });
 
 function mover(s, dx, dz, vel, dt) {
   const l = Math.hypot(dx, dz); if (!l) return; dx /= l; dz /= l;
@@ -616,7 +684,7 @@ function actualizarSwat(dt, t) {
     if (z.t <= 0) { escena.remove(z.l); z.l.geometry.dispose(); trazos.splice(i, 1); } }
   // La resistencia de los ladrones se recupera despacio si no les pegan
   for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso && (s === yo || s.bot) && Date.now() - (s.ultGolpe || 0) > 3000) s.res = Math.min(100, s.res + dt * 8);
-  armaVista.visible = ARMADO(clase) && jugando && !miAuto;
+  armaVista.visible = ARMADO(clase) && jugando && !miAuto && modoCam === 0;
   armaVista.position.z += (-.45 - armaVista.position.z) * Math.min(1, dt * 15);
   armaVista.position.y = -.2 + ((teclas.KeyW || joy.y) && jugando ? Math.sin(t / 110) * .01 : 0);
   if (!ARMADO(clase) || !jugando || yo.preso || miAuto) return;
@@ -742,7 +810,12 @@ function pensarBot(b, dt) {
     if (!b.bolsa) for (const bo of BOLSAS) if (bo.hasta < Date.now() && Math.hypot(bo.x - b.x, bo.z - b.z) < 1.3) tomarBolsa(bo.i, b.id);
     if (presos && dentro(b, ZONAS.carcel, 1)) liberar(b.id);
   }
-  const o = b.objetivo; if (!o || (b.aturdido && Date.now() < b.aturdido)) return;
+  let o = b.objetivo; if (!o || (b.aturdido && Date.now() < b.aturdido)) return;
+  // Para entrar o salir de un edificio, primero pasa por la puerta
+  const adentro = (p, R) => p.x > R.x1 && p.x < R.x2 && p.z > R.z1 && p.z < R.z2;
+  const D = { x1: DEPTO.x1, x2: DEPTO.x2, z1: DEPTO.z1, z2: DEPTO.z2 }, N = { x1: CASA.x1, x2: CASA.x2, z1: CASA.z1, z2: CASA.z2 };
+  if (adentro(b, D) !== adentro(o, D)) o = adentro(b, D) ? (b.z > DEPTO.z2 - 1.2 ? { x: -53, z: 40 } : { x: -53, z: DEPTO.z2 - .4 }) : (Math.abs(b.x + 53) < 1 && b.z > DEPTO.z2 - .5 ? { x: -53, z: 33 } : { x: -53, z: 39.5 });
+  else if (adentro(b, N) !== adentro(o, N)) o = adentro(b, N) ? (b.x < CASA.x1 + 1.2 ? { x: 36.5, z: -44 } : { x: CASA.x1 + .4, z: -44 }) : (Math.abs(b.z + 44) < 1 && b.x < CASA.x1 + .5 ? { x: 44, z: -44.5 } : { x: 37, z: -44 });
   // Camina hacia el objetivo esquivando edificios con un pequeño desvío
   b.desvio = (b.desvio || 0) - dt;
   let dx = o.x - b.x, dz = o.z - b.z;
@@ -757,6 +830,7 @@ function pensarBot(b, dt) {
 function empezar(finTs) {
   $("menu").classList.add("oculto"); $("sala").classList.add("oculto"); $("fin").classList.add("oculto");
   for (const s of Object.values(jug)) if (s.mesh) escena.remove(s.mesh);
+  modoCam = 0;
   jug = {}; botin = 0; BOLSAS.forEach(b => { b.hasta = 0; b.mesh.visible = true; });
   PAQUETES.forEach(p => p.hasta = 0); puerta.cerrada = true; puerta.hasta = 0;
   resetAutos(); miAuto = null; document.body.classList.toggle("poli", equipo === "poli");
@@ -790,6 +864,17 @@ function loop(t) {
   const dt = Math.min(.05, (t - ult) / 1000); ult = t;
   if (jugando) {
     // Yo
+    // Departamento: taquillas (división) y armería (recargar)
+    if (yo.equipo === "poli" && !miAuto && !yo.preso) {
+      if (Math.hypot(yo.x - TAQUILLAS.x, yo.z - (DEPTO.z1 + 1.6)) < 1.8 && !ARMADO(yo.clase)) {
+        pistaDepto = `👕 E: cambiar de división (ahora: ${DIVISIONES[yo.div].ico} ${DIVISIONES[yo.div].nom})`;
+        if (accionPedida) { const ks = Object.keys(DIVISIONES); yo.div = ks[(ks.indexOf(yo.div) + 1) % ks.length]; accionPedida = false;
+          grande(`${DIVISIONES[yo.div].ico} ${DIVISIONES[yo.div].nom.toUpperCase()}`, "#5ec8f2"); feed(`${DIVISIONES[yo.div].ico} ${DIVISIONES[yo.div].d}`); beep(900, .1, "triangle"); }
+      } else if (Math.hypot(yo.x - ARMERIA.x, yo.z - (DEPTO.z1 + 2)) < 1.9) {
+        pistaDepto = ARMADO(yo.clase) ? "🔫 E: recargar todo en la armería" : "🔫 La armería es para SWAT y Grupo Halcón";
+        if (accionPedida && ARMADO(yo.clase)) { balas = CARGADOR; recargando = 0; if (yo.clase === "halcon") granadas = 3; accionPedida = false; grande("🔫 ¡EQUIPO RECARGADO!", "#ffd400"); beep(500, .1); setTimeout(() => beep(800, .1), 120); }
+      } else pistaDepto = "";
+    } else pistaDepto = "";
     // Subir / bajar del patrullero
     let autoCerca = null;
     if (yo.equipo === "poli" && !miAuto) for (const a of autos) if (!a.conductor && Math.hypot(a.x - yo.x, a.z - yo.z) < 3.2) autoCerca = a;
@@ -800,13 +885,13 @@ function loop(t) {
       const f = (teclas.KeyW || teclas.ArrowUp ? 1 : 0) - (teclas.KeyS || teclas.ArrowDown ? 1 : 0) - joy.y;
       const r = (teclas.KeyD || teclas.ArrowRight ? 1 : 0) - (teclas.KeyA || teclas.ArrowLeft ? 1 : 0) + joy.x;
       const corre = teclas.ShiftLeft || teclas.ShiftRight || Math.hypot(joy.x, joy.y) > .9;
-      const vel = (yo.equipo === "poli" ? 6.5 : 6.2) * (corre ? 1.5 : 1);
+      const vel = (yo.equipo === "poli" ? 6.5 : 6.2) * (corre ? 1.5 : 1) * (yo.div === "motorizada" ? 1.1 : 1);
       mover(yo, -Math.sin(yaw) * f + Math.cos(yaw) * r, -Math.cos(yaw) * f - Math.sin(yaw) * r, vel, dt);
     } else if (teclas.KeyW || joy.y) { yo.x += (Math.random() - .5) * .02; }
     // Cerca de alguien / de algo
     let pista = "", objetivo = null;
     if (yo.equipo === "poli") {
-      for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso && Math.hypot(s.x - yo.x, s.z - yo.z) < ATRAPA) objetivo = s;
+      for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso && Math.hypot(s.x - yo.x, s.z - yo.z) < ATRAPA * (yo.div === "canes" ? 1.6 : 1)) objetivo = s;
       if (miAuto) { objetivo = null;
         for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso && Math.hypot(s.x - yo.x, s.z - yo.z) < 2.8) objetivo = s;
         if (objetivo && Math.abs(miAuto.vel) > 3) accionPedida = true; }
@@ -819,7 +904,7 @@ function loop(t) {
       else if (miAuto) pista = "🚓 F para bajarte · H sirena · Espacio freno";
       else if (autoCerca) pista = autoCerca.tipo === "camioneta"
         ? (ARMADO(yo.clase) ? "🚙 Tocá F para subirte a la camioneta de la Policía Especial" : "🚙 Camioneta de la Policía Especial: solo SWAT y Grupo Halcón")
-        : "🚓 Tocá F para subirte al patrullero";
+        : autoCerca.tipo === "moto" ? "🏍️ Tocá F para subirte a la moto" : "🚓 Tocá F para subirte al patrullero";
       if (objetivo && accionPedida) { enviar("atrapa", { ladron: objetivo.id, poli: yo.id }); atrapado(objetivo.id, yo.id); }
     } else if (!yo.preso) {
       if (!yo.bolsa) for (const b of BOLSAS) if (b.hasta < Date.now() && Math.hypot(b.x - yo.x, b.z - yo.z) < 1.3) { enviar("bolsa", { i: b.i, quien: yo.id }); tomarBolsa(b.i, yo.id); }
@@ -831,7 +916,7 @@ function loop(t) {
       if (!pista) pista = yo.paquete ? "📦 Llevá el paquete al 🚤 MUELLE ($2.000)" : yo.bolsa ? "💰 Llevá la bolsa a la 🏚️ GUARIDA" : "🏦 Robá el BANCO o buscá contrabando en la 🏚️ CASA NARCO";
     } else pista = "⛓️ Estás preso. Esperá que un compañero te libere.";
     accionPedida = false;
-    $("pista").textContent = pista; $("mira").classList.toggle("cerca", !!objetivo);
+    $("pista").textContent = pistaDepto || pista; $("mira").classList.toggle("cerca", !!objetivo);
     $("rejas").style.display = yo.preso ? "block" : "none";
     // Otros
     for (const s of Object.values(jug)) {
@@ -840,6 +925,7 @@ function loop(t) {
       else { s.x += (s.tx - s.x) * Math.min(1, dt * 10); s.z += (s.tz - s.z) * Math.min(1, dt * 10);
         if (online && Date.now() - s.visto > 8000) { feed(`🚪 Se fue ${s.nombre}`); escena.remove(s.mesh); delete jug[s.id]; continue; } }
       if (s.mesh) { s.mesh.visible = !(s.auto !== null && s.auto !== undefined); s.mesh.position.set(s.x, 0, s.z); s.mesh.rotation.y = s.rot; s.mesh.userData.bolsa.visible = s.bolsa || !!s.paquete;
+        s.mesh.userData.marca.visible = yo.div === "investigaciones" && yo.equipo === "poli" && s.equipo === "ladron" && !s.preso && (s.bolsa || !!s.paquete);
         s.mesh.position.y = s.preso ? 0 : Math.abs(Math.sin(t / 120)) * .08; }
     }
     actualizarSwat(dt, t); actualizarLuces(t); actualizarGranadas(dt);
@@ -864,7 +950,7 @@ function loop(t) {
     }
     if (miAuto && miAuto.sirena && (sirenaT -= dt) <= 0) { sirenaT = .42; sirenaAlt = !sirenaAlt; beep(sirenaAlt ? 950 : 700, .38, "sawtooth", .018); }
     $("velocimetro").style.display = miAuto ? "block" : "none";
-    if (miAuto) $("velocimetro").textContent = `${miAuto.tipo === "camioneta" ? "🚙" : "🚓"} ${Math.round(Math.abs(miAuto.vel) * 3.6)} km/h${miAuto.sirena ? " 🚨" : ""}`;
+    if (miAuto) $("velocimetro").textContent = `${miAuto.tipo === "camioneta" ? "🚙" : miAuto.tipo === "moto" ? "🏍️" : "🚓"} ${Math.round(Math.abs(miAuto.vel) * 3.6)} km/h${miAuto.sirena ? " 🚨" : ""}`;
     // Bolsas que vuelven a aparecer
     for (const b of BOLSAS) { const ok = b.hasta < Date.now(); b.mesh.visible = ok; if (ok) { b.mesh.rotation.y += dt * 2; b.mesh.position.y = .5 + Math.sin(t / 300 + b.i) * .1; } }
     // HUD
@@ -876,14 +962,31 @@ function loop(t) {
     $("equipos").innerHTML = `👮 ${Object.values(jug).filter(s => s.equipo === "poli").length} polis<br>🦹 ${L.filter(s => !s.preso).length} libres · ⛓️ ${L.filter(s => s.preso).length} presos`;
     $("b-accion").textContent = yo.equipo === "poli" ? "🚔" : "🔓";
     if (quedan <= 0 && (soyHost || !online)) { const g = botin >= META ? "ladron" : "poli"; enviar("fin", { gana: g }); terminar(g); }
-    if (online && t - ultPos > 80) { ultPos = t; enviar("pos", { id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, bolsa: yo.bolsa, paq: !!yo.paquete,
+    if (online && t - ultPos > 80) { ultPos = t; enviar("pos", { id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, bolsa: yo.bolsa, paq: !!yo.paquete,
       auto: miAuto ? miAuto.i : null, ah: miAuto ? +miAuto.h.toFixed(2) : 0, av: miAuto ? +miAuto.vel.toFixed(1) : 0, sir: miAuto ? miAuto.sirena : false }); }
   } else { yaw += dt * .1; }
+  // Mi propio muñeco (se ve en tercera persona o vista aérea)
+  if (yo) {
+    if (!yo.mesh || yo.meshDiv !== yo.div) { if (yo.mesh) escena.remove(yo.mesh); yo.mesh = crearMuneco(yo.equipo, yo.nombre, yo.clase, yo.div); yo.meshDiv = yo.div; }
+    yo.mesh.visible = jugando && modoCam !== 0 && !miAuto;
+    yo.mesh.position.set(yo.x, 0, yo.z); yo.mesh.rotation.y = yaw + Math.PI; yo.mesh.userData.bolsa.visible = yo.bolsa || !!yo.paquete;
+  }
+  if (jugando && yo && modoCam !== 0) {
+    // 3ª persona: detrás y arriba · Aérea: desde arriba
+    const cx = miAuto ? miAuto.x : yo.x, cz = miAuto ? miAuto.z : yo.z;
+    const dir = miAuto ? miAuto.h + Math.PI + mirarAuto : yaw;
+    const dist = modoCam === 1 ? (miAuto ? (miAuto.tipo === "moto" ? 4.5 : 7.5) : 4) : 0, alto = modoCam === 1 ? (miAuto ? 3.4 : 2.4) : 26;
+    let px = cx + Math.sin(dir) * dist, pz = cz + Math.cos(dir) * dist;
+    if (modoCam === 1) for (let k = 1; k <= 8; k++) { const f = k / 8; if (choca(cx + (px - cx) * f, cz + (pz - cz) * f, .2)) { px = cx + (px - cx) * (f - .15); pz = cz + (pz - cz) * (f - .15); break; } }
+    camara.position.set(px, alto, pz);
+    camara.lookAt(cx, modoCam === 1 ? 1.4 + (miAuto ? 0 : pitch * 2) : 0, cz - (modoCam === 2 ? .01 : 0));
+    renderer.render(escena, camara); return;
+  }
   // Cámara en primera persona
   if (miAuto) {
     // Vista desde el asiento del conductor: mirás hacia adelante del auto y el mouse gira la cabeza
     if (Math.abs(miAuto.vel) > 1) mirarAuto = mirarAuto * Math.pow(.05, dt);   // al andar, la vista vuelve al frente
-    camara.position.set(miAuto.x + Math.sin(miAuto.h) * .2 - Math.cos(miAuto.h) * .4, miAuto.tipo === "camioneta" ? 1.95 : 1.35, miAuto.z + Math.cos(miAuto.h) * .2 + Math.sin(miAuto.h) * .4);
+    camara.position.set(miAuto.x + Math.sin(miAuto.h) * .2 - (miAuto.tipo === "moto" ? 0 : Math.cos(miAuto.h) * .4), miAuto.tipo === "camioneta" ? 1.95 : miAuto.tipo === "moto" ? 1.55 : 1.35, miAuto.z + Math.cos(miAuto.h) * .2 + (miAuto.tipo === "moto" ? 0 : Math.sin(miAuto.h) * .4));
     camara.rotation.order = "YXZ"; camara.rotation.y = miAuto.h + Math.PI + mirarAuto; camara.rotation.x = pitch * .5 - .04;
     renderer.render(escena, camara); return;
   }
