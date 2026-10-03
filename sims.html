@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La Vida del Gordo</title>
+<style>
+  * { box-sizing:border-box; user-select:none; -webkit-user-select:none; }
+  html, body { margin:0; height:100%; font-family:system-ui,sans-serif; color:#fff; background:#5a8f3c; overflow:hidden; }
+  #top { position:fixed; top:0; left:0; right:0; height:52px; display:flex; align-items:center; gap:10px; padding:0 12px; background:#1d3b5ccc; backdrop-filter:blur(6px); z-index:20; font-weight:800; }
+  #top a { color:#ffd400; text-decoration:none; }
+  #reloj { font-size:18px; }
+  #plata { margin-left:auto; color:#7dff8a; font-size:18px; }
+  .vel { display:flex; gap:4px; }
+  .vel button { background:#ffffff22; color:#fff; border:0; border-radius:8px; padding:6px 10px; cursor:pointer; font-size:14px; }
+  .vel button.on { background:#3ddc5a; color:#000; }
+  #mundo { position:fixed; top:52px; left:0; right:0; bottom:150px; overflow:auto; display:flex; align-items:center; justify-content:center; }
+  #casa { position:relative; flex-shrink:0; border:6px solid #6b4a2b; border-radius:6px; box-shadow:0 20px 40px #0006; }
+  .cuarto { position:absolute; border:3px solid #6b4a2b; }
+  .cuarto span { position:absolute; left:6px; top:4px; font-size:11px; font-weight:800; color:#0007; }
+  .obj { position:absolute; display:flex; align-items:center; justify-content:center; cursor:pointer; border-radius:8px; transition:transform .15s; }
+  .obj:hover { transform:scale(1.12); background:#ffffff40; }
+  .obj.vacio { border:2px dashed #0004; font-size:16px !important; color:#0006; }
+  #sim { position:absolute; z-index:5; pointer-events:none; display:flex; flex-direction:column; align-items:center; }
+  #sim .cara { transition:transform .2s; }
+  #sim.camina .cara { animation:paso .35s infinite alternate; }
+  @keyframes paso { from{transform:translateY(0) rotate(-6deg)} to{transform:translateY(-6px) rotate(6deg)} }
+  #plumbob { font-size:18px; animation:gira 2s linear infinite; filter:drop-shadow(0 0 6px currentColor); }
+  @keyframes gira { to { transform:rotateY(360deg); } }
+  #globo { position:absolute; bottom:100%; background:#fff; color:#000; border-radius:12px; padding:4px 8px; font-size:13px; font-weight:700; white-space:nowrap; display:none; }
+  #globo.ver { display:block; animation:pop .2s; } @keyframes pop { from { transform:scale(0); } }
+  #barra { position:absolute; top:100%; width:60px; height:6px; background:#0006; border-radius:3px; overflow:hidden; display:none; }
+  #barra div { height:100%; background:#3ddc5a; }
+  #panel { position:fixed; left:0; right:0; bottom:0; height:150px; background:#1d3b5cee; display:flex; gap:12px; padding:10px 12px; z-index:20; }
+  #retrato { display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:90px; }
+  #retrato .c { font-size:44px; }
+  #animo { font-size:12px; font-weight:800; text-align:center; }
+  #necesidades { flex:1; display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:6px 14px; align-content:center; }
+  .nec { font-size:13px; font-weight:700; }
+  .nec .b { height:10px; background:#0006; border-radius:5px; overflow:hidden; margin-top:2px; }
+  .nec .b div { height:100%; transition:width .4s, background .4s; }
+  #acciones { position:fixed; z-index:30; background:#fff; color:#000; border-radius:14px; padding:6px; box-shadow:0 8px 24px #0008; display:none; min-width:180px; }
+  #acciones button { display:block; width:100%; text-align:left; border:0; background:transparent; padding:9px 10px; font-size:15px; font-weight:700; cursor:pointer; border-radius:8px; }
+  #acciones button:hover { background:#e8f0ff; }
+  #acciones button:disabled { opacity:.4; }
+  #avisos { position:fixed; top:60px; right:12px; z-index:25; display:flex; flex-direction:column; gap:6px; align-items:flex-end; pointer-events:none; }
+  #avisos div { background:#1d3b5cee; padding:8px 12px; border-radius:10px; font-weight:700; font-size:14px; animation:aviso 5s forwards; max-width:280px; }
+  @keyframes aviso { 0%{transform:translateX(120%)} 8%{transform:none} 88%{opacity:1} 100%{opacity:0} }
+  .modal { position:fixed; inset:0; z-index:40; background:#000b; display:flex; align-items:center; justify-content:center; padding:16px; }
+  .modal .c { background:#1d3b5c; border-radius:16px; padding:18px; width:100%; max-width:520px; max-height:90vh; overflow:auto; }
+  .modal h2 { margin:0 0 10px; text-align:center; }
+  .modal input { width:100%; padding:10px; border-radius:8px; border:0; font-size:16px; margin-bottom:10px; }
+  .opciones { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-bottom:12px; }
+  .opciones span { padding:6px 10px; border-radius:10px; background:#ffffff22; cursor:pointer; font-size:15px; }
+  .opciones span.big { font-size:30px; padding:4px 8px; }
+  .opciones span.on { background:#3ddc5a; color:#000; }
+  .modal button.ok { width:100%; padding:12px; border:0; border-radius:10px; background:#3ddc5a; font-weight:900; font-size:17px; cursor:pointer; }
+  .tienda { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; }
+  .tienda .it { background:#ffffff14; border-radius:12px; padding:8px; text-align:center; }
+  .tienda .it b { display:block; font-size:34px; }
+  .tienda button { width:100%; margin-top:6px; padding:8px; border:0; border-radius:8px; font-weight:800; cursor:pointer; background:#ffd400; }
+  .tienda button:disabled { opacity:.4; }
+  #muerto { display:none; }
+</style>
+</head>
+<body>
+<div id="top">
+  <a href="./">⬅</a>
+  <span id="reloj"></span>
+  <div class="vel"><button data-v="0">⏸</button><button data-v="1" class="on">▶</button><button data-v="3">⏩</button><button data-v="8">⏭</button></div>
+  <button id="b-tienda" style="background:#ffd400;border:0;border-radius:8px;padding:6px 10px;font-weight:800;cursor:pointer">🛒 Comprar</button>
+  <span id="plata"></span>
+</div>
+<div id="mundo"><div id="casa"></div></div>
+<div id="panel">
+  <div id="retrato"><div class="c" id="r-cara"></div><div id="r-nom" style="font-weight:800"></div><div id="animo"></div></div>
+  <div id="necesidades"></div>
+</div>
+<div id="acciones"></div>
+<div id="avisos"></div>
+
+<div class="modal" id="crear" style="display:none"><div class="c">
+  <h2>✨ Creá tu Sim</h2>
+  <input id="c-nom" maxlength="16" placeholder="Nombre">
+  <div style="font-weight:700;margin-bottom:4px">Cómo se ve:</div>
+  <div class="opciones" id="c-caras"></div>
+  <div style="font-weight:700;margin-bottom:4px">Personalidad:</div>
+  <div class="opciones" id="c-rasgos"></div>
+  <p id="c-desc" style="opacity:.85;font-size:14px;text-align:center;min-height:20px"></p>
+  <button class="ok" id="c-ok">¡A vivir!</button>
+</div></div>
+
+<div class="modal" id="tienda" style="display:none"><div class="c">
+  <h2>🛒 Tienda de muebles</h2>
+  <p style="text-align:center;opacity:.8;margin-top:0">Comprás algo mejor y reemplaza al que tenés: rinde más rápido.</p>
+  <div class="tienda" id="t-items"></div>
+  <button class="ok" style="margin-top:12px" onclick="cerrarTienda()">Listo</button>
+</div></div>
+
+<script src="comun.js"></script>
+<script>
+// ================== DATOS ==================
+// Tamaño de cada casillero, ajustado a la pantalla
+const T = Math.max(26, Math.min(56, Math.floor(Math.min((innerWidth - 24) / 16, (innerHeight - 52 - 150 - 24) / 10))));
+const CASA = { w:16, h:10, cuartos:[
+  { nom:"Cocina",     x:0,  y:0, w:6,  h:5, piso:"#f3e1b6" },
+  { nom:"Living",     x:6,  y:0, w:10, h:5, piso:"#c8a27a" },
+  { nom:"Dormitorio", x:0,  y:5, w:7,  h:5, piso:"#b9c8e8" },
+  { nom:"Baño",       x:7,  y:5, w:4,  h:5, piso:"#d6f0f0" },
+  { nom:"Patio",      x:11, y:5, w:5,  h:5, piso:"#8cc96a" } ] };
+const NEC = [
+  { id:"hambre",  nom:"🍔 Hambre",    baja:1.0 },
+  { id:"energia", nom:"⚡ Energía",   baja:0.6 },
+  { id:"vejiga",  nom:"🚽 Vejiga",    baja:1.2 },
+  { id:"higiene", nom:"🧼 Higiene",   baja:0.5 },
+  { id:"diversion",nom:"🎮 Diversión",baja:0.8 },
+  { id:"social",  nom:"💬 Social",    baja:0.5 } ];
+// Cada lugar de la casa tiene niveles: el nivel 0 viene con la casa
+const LUGARES = [
+  { id:"heladera", x:1,  y:1, niveles:[ { ico:"🧊", nom:"Heladera vieja", precio:0 }, { ico:"🍱", nom:"Heladera grande", precio:400 } ],
+    acc:[ { t:"🥪 Comer algo", dur:20, efecto:{ hambre:35 }, costo:5 }, { t:"🍕 Pedir delivery", dur:35, efecto:{ hambre:70, diversion:5 }, costo:25 } ] },
+  { id:"cocina",   x:3,  y:1, niveles:[ { ico:"🍳", nom:"Cocina común", precio:0 }, { ico:"🔥", nom:"Cocina de chef", precio:600 } ],
+    acc:[ { t:"🍝 Cocinar fideos", dur:45, efecto:{ hambre:65 }, costo:8 }, { t:"🥩 Hacer milanesas", dur:70, efecto:{ hambre:95, diversion:10 }, costo:15 } ] },
+  { id:"mesa",     x:4,  y:3, niveles:[ { ico:"🪑", nom:"Silla", precio:0 } ],
+    acc:[ { t:"🧉 Tomar mate", dur:25, efecto:{ energia:10, diversion:10 }, costo:0 } ] },
+  { id:"sillon",   x:8,  y:2, niveles:[ { ico:"🛋️", nom:"Sillón", precio:0 }, { ico:"👑", nom:"Sillón de rey", precio:350 } ],
+    acc:[ { t:"😴 Siestita", dur:40, efecto:{ energia:25 }, costo:0 } ] },
+  { id:"tele",     x:8,  y:0, niveles:[ { ico:"📺", nom:"Tele de tubo", precio:0 }, { ico:"🖥️", nom:"Smart TV 80\"", precio:700 } ],
+    acc:[ { t:"⚽ Ver fútbol", dur:50, efecto:{ diversion:45 }, costo:0 }, { t:"📺 Ver novela", dur:40, efecto:{ diversion:35, social:5 }, costo:0 } ] },
+  { id:"compu",    x:12, y:1, niveles:[ { ico:"💻", nom:"Compu lenta", precio:0 }, { ico:"🕹️", nom:"PC gamer", precio:900 } ],
+    acc:[ { t:"🎮 Jugar online", dur:50, efecto:{ diversion:50, energia:-5 }, costo:0 }, { t:"💼 Trabajar desde casa", dur:80, efecto:{ energia:-15, diversion:-10 }, plata:60 }, { t:"📱 Chatear con amigos", dur:30, efecto:{ social:35 }, costo:0 } ] },
+  { id:"telefono", x:14, y:3, niveles:[ { ico:"☎️", nom:"Teléfono", precio:0 } ],
+    acc:[ { t:"📞 Llamar a mamá", dur:30, efecto:{ social:40 }, costo:0 }, { t:"🎉 Invitar amigos", dur:90, efecto:{ social:80, diversion:40, hambre:-10 }, costo:30 } ] },
+  { id:"cama",     x:2,  y:7, niveles:[ { ico:"🛏️", nom:"Colchón en el piso", precio:0 }, { ico:"🏨", nom:"Cama king", precio:500 } ],
+    acc:[ { t:"💤 Dormir", dur:240, efecto:{ energia:100 }, costo:0, duerme:true } ] },
+  { id:"inodoro",  x:8,  y:8, niveles:[ { ico:"🚽", nom:"Inodoro", precio:0 } ],
+    acc:[ { t:"🚽 Usar el baño", dur:15, efecto:{ vejiga:100 }, costo:0 } ] },
+  { id:"ducha",    x:9,  y:6, niveles:[ { ico:"🚿", nom:"Ducha", precio:0 }, { ico:"🛁", nom:"Jacuzzi", precio:650 } ],
+    acc:[ { t:"🚿 Bañarse", dur:30, efecto:{ higiene:100 }, costo:0 }, { t:"🎤 Cantar en la ducha", dur:40, efecto:{ higiene:100, diversion:20 }, costo:0 } ] },
+  { id:"parrilla", x:13, y:7, niveles:[ { ico:"⬛", nom:"Lugar vacío", precio:0, vacio:true }, { ico:"🔥", nom:"Parrilla", precio:300 } ],
+    acc:[ { t:"🥩 Hacer un asado", dur:90, efecto:{ hambre:100, social:40, diversion:30 }, costo:40 } ] },
+  { id:"juego",    x:15, y:9, niveles:[ { ico:"⬛", nom:"Lugar vacío", precio:0, vacio:true }, { ico:"🏓", nom:"Mesa de ping pong", precio:250 } ],
+    acc:[ { t:"🏓 Jugar ping pong", dur:40, efecto:{ diversion:45, energia:-10, social:10 }, costo:0 } ] },
+  { id:"puerta",   x:15, y:4, niveles:[ { ico:"🚪", nom:"Puerta", precio:0 } ],
+    acc:[ { t:"💼 Ir a trabajar", trabajo:true }, { t:"🛒 Ir al súper", dur:60, efecto:{ diversion:5, social:10 }, costo:0 }, { t:"🏃 Salir a correr", dur:45, efecto:{ energia:-20, higiene:-25, diversion:15 }, costo:0 } ] },
+];
+const CARAS = ["🫃","🥋","🧑","👩","🧔","👵","👽","🤖"];
+const RASGOS = [
+  { id:"gloton", t:"🍔 Glotón", d:"Le da hambre el doble de rápido, pero comer lo pone feliz.", mod:{ hambre:2 } },
+  { id:"vago",   t:"😴 Vago", d:"Se cansa rápido y en el trabajo gana menos.", mod:{ energia:1.6 } },
+  { id:"fiestero",t:"🎉 Fiestero", d:"Necesita ver gente seguido.", mod:{ social:2 } },
+  { id:"limpio", t:"🧼 Limpito", d:"Se ensucia lento.", mod:{ higiene:.5 } },
+  { id:"gamer",  t:"🎮 Gamer", d:"Se aburre rápido si no juega.", mod:{ diversion:1.8 } },
+];
+const SIMLISH = ["¡Sul sul!","Dag dag","Nooboo!","Firby nooboo","Vadish!","¡Shoo flarn!","Gerbits!","Hum hum","Wabadebado"];
+
+// ================== ESTADO ==================
+const $ = id => document.getElementById(id);
+const leer = () => { try { return JSON.parse(localStorage.getItem("sims")); } catch(e) { return null; } };
+const guardar = () => { try { localStorage.setItem("sims", JSON.stringify(E)); } catch(e) {} };
+let E = leer(), vel = 1, accion = null, cola = [];
+const pos = { x:6, y:3 };
+function nuevoE(nom, cara, rasgo) {
+  return { nom, cara, rasgo, plata:500, min: 8*60, dia:1, nec:{ hambre:80, energia:90, vejiga:70, higiene:80, diversion:60, social:60 }, nivel:{}, trabajo:{ nivel:1, dias:0 } };
+}
+
+// ================== DIBUJO DE LA CASA ==================
+function dibujarCasa() {
+  const c = $("casa"); c.style.width = CASA.w*T + "px"; c.style.height = CASA.h*T + "px"; c.innerHTML = "";
+  for (const r of CASA.cuartos) {
+    const d = document.createElement("div"); d.className = "cuarto";
+    Object.assign(d.style, { left:r.x*T+"px", top:r.y*T+"px", width:r.w*T+"px", height:r.h*T+"px", background:r.piso });
+    d.innerHTML = `<span>${r.nom}</span>`; c.appendChild(d);
+  }
+  for (const L of LUGARES) {
+    const n = L.niveles[E.nivel[L.id] || 0];
+    const d = document.createElement("div"); d.className = "obj" + (n.vacio ? " vacio" : "");
+    Object.assign(d.style, { left:L.x*T+"px", top:L.y*T+"px", width:T+"px", height:T+"px", fontSize:(T*.75)+"px" });
+    d.textContent = n.vacio ? "＋" : n.ico; d.title = n.nom;
+    d.onclick = ev => { ev.stopPropagation(); n.vacio ? abrirTienda() : menu(L, ev); };
+    c.appendChild(d);
+  }
+  const s = document.createElement("div"); s.id = "sim";
+  s.innerHTML = `<div id="plumbob">💎</div><div class="cara" style="font-size:${T*.85}px">${E.cara}</div><div id="globo"></div><div id="barra"><div></div></div>`;
+  c.appendChild(s); colocarSim();
+}
+function colocarSim() { const s = $("sim"); if (!s) return; s.style.left = (pos.x*T - T*.15) + "px"; s.style.top = (pos.y*T - T*.75) + "px"; }
+
+// ================== MENÚ DE ACCIONES ==================
+function menu(L, ev) {
+  const m = $("acciones"); m.innerHTML = `<div style="padding:4px 10px;font-weight:900;opacity:.6">${L.niveles[E.nivel[L.id]||0].nom}</div>`;
+  for (const a of L.acc) {
+    const b = document.createElement("button");
+    b.textContent = a.t + (a.costo ? `  ($${a.costo})` : "") + (a.plata ? `  (+$${a.plata})` : "");
+    if (a.trabajo) { const h = Math.floor(E.min/60); b.disabled = h < 7 || h >= 15 || E.trabajo.hoy === E.dia; b.textContent = `💼 Ir a trabajar (${E.trabajo.hoy===E.dia?"ya fuiste hoy":"de 7 a 15 hs"})`; }
+    if (a.costo && E.plata < a.costo) b.disabled = true;
+    b.onclick = () => { cerrarMenu(); ordenar(L, a); };
+    m.appendChild(b);
+  }
+  m.style.display = "block";
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.min(ev.clientX, innerWidth - r.width - 8) + "px";
+  m.style.top = Math.min(ev.clientY, innerHeight - r.height - 8) + "px";
+}
+function cerrarMenu() { $("acciones").style.display = "none"; }
+addEventListener("click", e => { if (!$("acciones").contains(e.target)) cerrarMenu(); });
+
+// ================== ACCIONES ==================
+function ordenar(L, a) { cola = [{ L, a }]; if (accion) { accion.cancelar = true; } else siguiente(); }
+async function siguiente() {
+  const p = cola.shift(); if (!p) { accion = null; return; }
+  accion = { ...p, prog:0 };
+  await caminar(p.L.x, p.L.y + 1 > CASA.h - 1 ? p.L.y - 1 : p.L.y + 1);
+  if (accion.cancelar) { accion = null; return siguiente(); }
+  if (p.a.trabajo) return irATrabajar();
+  if (p.a.costo) { if (E.plata < p.a.costo) { decir("¡Nooboo! No hay plata"); accion = null; return siguiente(); } E.plata -= p.a.costo; }
+  decir(p.a.t.split(" ")[0] + " " + SIMLISH[Math.floor(Math.random()*SIMLISH.length)]);
+  const nivel = E.nivel[p.L.id] || 0, rapidez = 1 + nivel * .6;
+  $("barra").style.display = "block";
+  accion.total = p.a.dur / rapidez; accion.prog = 0;
+  if (p.a.duerme) $("sim").querySelector(".cara").textContent = "😴";
+}
+function terminarAccion(completa) {
+  const p = accion; $("barra").style.display = "none"; $("sim").querySelector(".cara").textContent = E.cara;
+  if (completa && p.a.plata) { const g = E.rasgo === "vago" ? Math.round(p.a.plata*.7) : p.a.plata; E.plata += g; aviso(`💰 Ganaste $${g} trabajando desde casa`); }
+  if (completa && E.rasgo === "gloton" && p.a.efecto.hambre > 0) E.nec.diversion = Math.min(100, E.nec.diversion + 10);
+  accion = null; guardar(); siguiente();
+}
+function caminar(x, y) {
+  return new Promise(ok => {
+    const s = $("sim"); const d = Math.hypot(x - pos.x, y - pos.y);
+    const ms = d * 220 / Math.max(1, vel) + 50;
+    s.style.transition = `left ${ms}ms linear, top ${ms}ms linear`; s.classList.add("camina");
+    pos.x = x; pos.y = y; colocarSim();
+    setTimeout(() => { s.classList.remove("camina"); ok(); }, ms);
+  });
+}
+function irATrabajar() {
+  const sueldo = 100 + E.trabajo.nivel * 50, sueldoFinal = E.rasgo === "vago" ? Math.round(sueldo*.7) : sueldo;
+  const animo = promedio();
+  $("sim").style.display = "none"; aviso(`💼 ${E.nom} se fue a trabajar. Vuelve a las 17 hs.`);
+  E.trabajo.hoy = E.dia; accion.afuera = true; accion.vuelve = 17*60;
+  accion.alVolver = () => {
+    $("sim").style.display = ""; E.plata += sueldoFinal; E.trabajo.dias++;
+    Object.assign(E.nec, { energia: Math.max(0, E.nec.energia-35), hambre: Math.max(0, E.nec.hambre-30), higiene: Math.max(0, E.nec.higiene-25), diversion: Math.max(0, E.nec.diversion-20), social: Math.min(100, E.nec.social+15) });
+    aviso(`💰 Volvió del trabajo: +$${sueldoFinal}`);
+    if (animo > 60 && E.trabajo.dias % 3 === 0) { E.trabajo.nivel++; aviso(`🎉 ¡ASCENSO! Ahora es nivel ${E.trabajo.nivel}. Gana $${100+E.trabajo.nivel*50} por día.`); }
+    else if (animo <= 60) aviso("😕 Fue de mal humor: así no lo van a ascender.");
+    accion = null; guardar(); siguiente();
+  };
+}
+
+// ================== TIEMPO ==================
+let ult = performance.now(), autonomia = 0, quejaT = 0;
+function tic(t) {
+  const dt = Math.min(.5, (t - ult) / 1000) * vel; ult = t;   // 1 segundo real = 1 minuto del juego (a velocidad 1)
+  if (E && vel > 0) {
+    const durmiendo = accion && accion.a && accion.a.duerme && accion.total;
+    E.min += dt * (durmiendo ? 4 : 1);
+    if (E.min >= 24*60) { E.min -= 24*60; E.dia++; aviso(`🌅 Día ${E.dia}`); guardar(); }
+    // Necesidades bajan
+    const r = RASGOS.find(x => x.id === E.rasgo);
+    if (!(accion && accion.afuera)) for (const n of NEC) {
+      let b = n.baja * (r && r.mod[n.id] || 1) * dt / 6;
+      if (durmiendo && n.id === "energia") continue;
+      E.nec[n.id] = Math.max(0, E.nec[n.id] - b);
+    }
+    // Progreso de la acción actual
+    if (accion && accion.afuera) { if (E.min >= accion.vuelve && E.min < accion.vuelve + 60) accion.alVolver(); }
+    else if (accion && accion.total) {
+      const f = dt * (durmiendo ? 4 : 1) / accion.total;
+      for (const [k, v] of Object.entries(accion.a.efecto)) E.nec[k] = Math.max(0, Math.min(100, E.nec[k] + v * f));
+      accion.prog += f; $("barra").firstChild.style.width = Math.min(100, accion.prog*100) + "%";
+      if (accion.cancelar) terminarAccion(false);
+      else if (accion.prog >= 1 || (accion.a.duerme && E.nec.energia >= 100)) terminarAccion(true);
+    }
+    // Si no hace nada, decide solo (autonomía)
+    autonomia -= dt;
+    if (!accion && autonomia <= 0) { autonomia = 20; autonomo(); }
+    // Quejas
+    quejaT -= dt;
+    const peor = NEC.reduce((a, n) => E.nec[n.id] < E.nec[a.id] ? n : a, NEC[0]);
+    if (E.nec[peor.id] < 15 && quejaT <= 0) { quejaT = 40; decir(`😫 ${peor.nom.split(" ")[0]} ¡Nooboo!`); aviso(`⚠️ ${E.nom} necesita atender: ${peor.nom}`); }
+    if (E.nec.vejiga <= 0) { E.nec.vejiga = 100; E.nec.higiene = 0; E.nec.diversion = Math.max(0, E.nec.diversion - 30); aviso(`💦 ¡Uy! ${E.nom} no llegó al baño...`); decir("😳 ...ups"); }
+    if (E.nec.energia <= 0 && !(accion && accion.a && accion.a.duerme)) { E.nec.energia = 15; aviso(`😵 ${E.nom} se desmayó de cansancio en el piso`); }
+    pintarPanel();
+  }
+  requestAnimationFrame(tic);
+}
+function promedio() { return NEC.reduce((a, n) => a + E.nec[n.id], 0) / NEC.length; }
+function autonomo() {
+  const peor = NEC.reduce((a, n) => E.nec[n.id] < E.nec[a.id] ? n : a, NEC[0]);
+  if (E.nec[peor.id] > 45) return;
+  const opciones = [];
+  for (const L of LUGARES) { if (L.niveles[E.nivel[L.id]||0].vacio) continue;
+    for (const a of L.acc) if (!a.trabajo && !a.plata && (a.efecto[peor.id]||0) > 0 && (!a.costo || a.costo <= E.plata) && !(a.costo > 20)) opciones.push({ L, a, v:a.efecto[peor.id] }); }
+  opciones.sort((x, y) => y.v - x.v);
+  if (opciones[0]) { decir("🤔 ..."); ordenar(opciones[0].L, opciones[0].a); }
+}
+
+// ================== INTERFAZ ==================
+function pintarPanel() {
+  const h = Math.floor(E.min/60), m = Math.floor(E.min%60);
+  $("reloj").textContent = `📅 Día ${E.dia} · ${h<6||h>=20?"🌙":"☀️"} ${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+  $("plata").textContent = "$" + Math.floor(E.plata);
+  $("necesidades").innerHTML = NEC.map(n => { const v = E.nec[n.id], col = v > 60 ? "#3ddc5a" : v > 30 ? "#ffd400" : "#ff4d4d";
+    return `<div class="nec">${n.nom}<div class="b"><div style="width:${v}%;background:${col}"></div></div></div>`; }).join("");
+  const p = promedio(), pb = $("plumbob");
+  const [txt, col] = p > 70 ? ["😄 Muy feliz", "#3ddc5a"] : p > 50 ? ["🙂 Bien", "#a8e05a"] : p > 30 ? ["😐 Más o menos", "#ffd400"] : ["😩 Muy mal", "#ff4d4d"];
+  $("animo").textContent = txt; $("animo").style.color = col;
+  if (pb) { pb.style.color = col; pb.textContent = "💎"; pb.style.filter = `drop-shadow(0 0 6px ${col}) hue-rotate(${p > 50 ? 0 : p > 30 ? -60 : -150}deg)`; }
+  // Noche: oscurece la casa
+  $("casa").style.filter = h < 6 || h >= 20 ? "brightness(.6) saturate(.8)" : h < 8 || h >= 18 ? "brightness(.85)" : "";
+}
+let globoT = null;
+function decir(t) { const g = $("globo"); if (!g) return; g.textContent = t; g.classList.add("ver"); clearTimeout(globoT); globoT = setTimeout(() => g.classList.remove("ver"), 2200); }
+function aviso(t) { const d = document.createElement("div"); d.textContent = t; $("avisos").prepend(d); setTimeout(() => d.remove(), 5000); }
+document.querySelectorAll("[data-v]").forEach(b => b.onclick = () => { vel = +b.dataset.v; document.querySelectorAll("[data-v]").forEach(x => x.classList.toggle("on", x === b)); });
+
+// Tienda
+function abrirTienda() {
+  $("t-items").innerHTML = "";
+  for (const L of LUGARES) L.niveles.forEach((n, i) => {
+    if (i === 0) return;
+    const tengo = (E.nivel[L.id] || 0) >= i, d = document.createElement("div"); d.className = "it";
+    d.innerHTML = `<b>${n.ico}</b>${n.nom}<br><small style="opacity:.75">${L.niveles[0].vacio ? "Nuevo" : "Mejora: rinde más rápido"}</small>`;
+    const b = document.createElement("button"); b.textContent = tengo ? "✅ Lo tenés" : `$${n.precio}`; b.disabled = tengo || E.plata < n.precio;
+    b.onclick = () => { E.plata -= n.precio; E.nivel[L.id] = i; guardar(); dibujarCasa(); abrirTienda(); aviso(`🛒 Compraste: ${n.nom}`); };
+    d.appendChild(b); $("t-items").appendChild(d);
+  });
+  $("tienda").style.display = "flex";
+}
+function cerrarTienda() { $("tienda").style.display = "none"; }
+$("b-tienda").onclick = abrirTienda;
+
+// Crear Sim
+function pantallaCrear() {
+  let cara = CARAS[0], rasgo = RASGOS[0].id;
+  $("crear").style.display = "flex";
+  const pintar = () => {
+    $("c-caras").innerHTML = CARAS.map(c => `<span class="big ${c===cara?"on":""}">${c}</span>`).join("");
+    $("c-rasgos").innerHTML = RASGOS.map(r => `<span data-r="${r.id}" class="${r.id===rasgo?"on":""}">${r.t}</span>`).join("");
+    $("c-desc").textContent = RASGOS.find(r => r.id === rasgo).d;
+    $("c-caras").querySelectorAll("span").forEach(s => s.onclick = () => { cara = s.textContent; pintar(); });
+    $("c-rasgos").querySelectorAll("span").forEach(s => s.onclick = () => { rasgo = s.dataset.r; pintar(); });
+  };
+  pintar();
+  $("c-ok").onclick = () => { const n = $("c-nom").value.trim() || "El Gordo"; E = nuevoE(n, cara, rasgo); guardar(); $("crear").style.display = "none"; arrancar(); aviso(`🏠 ¡Bienvenido a casa, ${n}!`); };
+}
+function arrancar() {
+  $("r-cara").textContent = E.cara; $("r-nom").textContent = E.nom;
+  dibujarCasa(); pintarPanel(); requestAnimationFrame(t => { ult = t; requestAnimationFrame(tic); });
+  setInterval(guardar, 10000);
+}
+// Botón para empezar de nuevo
+$("r-nom").title = "Tocá para crear un Sim nuevo";
+$("r-nom").onclick = () => { if (confirm("¿Empezar de nuevo con otro Sim? Se pierde la partida actual.")) { try { localStorage.removeItem("sims"); } catch(e) {} location.reload(); } };
+if (E) arrancar(); else pantallaCrear();
+</script>
+</body>
+</html>
