@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>El Gordo Come</title>
+<style>
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:#1a1208; color:#fff; font-family:system-ui,sans-serif; overflow:hidden; touch-action:none; }
+  #juego { display:block; width:100vw; height:100vh; background:linear-gradient(#5b3a1e,#2a1a0c); }
+  #hud { position:fixed; top:0; left:0; right:0; display:flex; justify-content:space-between; align-items:center; padding:10px 16px;
+         font-weight:800; font-size:clamp(16px,4.5vw,22px); text-shadow:0 2px 4px #000; pointer-events:none; }
+  #hud a { pointer-events:auto; color:#ffd400; text-decoration:none; }
+  .pantalla { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+              background:#000c; padding:16px; gap:12px; }
+  .pantalla h1 { margin:0; font-size:clamp(30px,9vw,60px); text-shadow:0 0 16px #ff8c1a; }
+  .pantalla p { max-width:440px; margin:0; opacity:.9; line-height:1.4; }
+  .pantalla button { font-size:20px; padding:14px 28px; border:0; border-radius:14px; font-weight:800; background:#ffd400; color:#000; cursor:pointer; }
+  #carga { font-size:14px; opacity:.7; }
+  .galeria { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; max-width:460px; }
+  .galeria img { width:56px; height:56px; object-fit:cover; border-radius:50%; border:2px solid #ffd400; }
+</style>
+</head>
+<body>
+<canvas id="juego"></canvas>
+<div id="hud"><a href="./">⬅ Menú</a><span id="puntos">0 pts</span><span id="vidas">❤️❤️❤️</span></div>
+
+<div class="pantalla" id="inicio">
+  <h1>🫃 EL GORDO COME</h1>
+  <p>Mové al Gordo con el dedo, el mouse o las flechas. <b>Atrapá la comida rica</b> 🍕🍔🥩 y <b>esquivá las verduras</b> 🥦: si comés una, perdés una vida. Si se te cae comida rica, también.</p>
+  <div class="galeria" id="galeria"></div>
+  <div id="carga">Cocinando la comida con IA... 🍳</div>
+  <button id="jugar">¡A COMER!</button>
+</div>
+<div class="pantalla" id="fin" style="display:none">
+  <h1 id="fin-titulo">¡SE LLENÓ!</h1>
+  <p id="fin-txt"></p>
+  <button id="otra">🔁 Otra vez</button>
+</div>
+
+<script src="comun.js"></script>
+<script src="db.js"></script>
+<script>
+// Comida con fotos realistas generadas por IA gratis (Pollinations). Si no cargan, se usa el emoji.
+const RICA = [
+  { n:"pizza de muzzarella", e:"🍕", p:10 }, { n:"hamburguesa doble con queso", e:"🍔", p:10 },
+  { n:"choripán argentino", e:"🌭", p:15 }, { n:"bife de chorizo a la parrilla", e:"🥩", p:20 },
+  { n:"empanada de carne al horno", e:"🥟", p:10 }, { n:"milanesa a la napolitana", e:"🍖", p:15 },
+  { n:"dona glaseada con chispas", e:"🍩", p:10 }, { n:"alfajor de dulce de leche", e:"🍫", p:15 },
+];
+const VERDE = [ { n:"brócoli fresco", e:"🥦" }, { n:"zanahoria cruda", e:"🥕" }, { n:"lechuga verde", e:"🥬" } ];
+const ORO = { n:"torta de chocolate dorada brillante", e:"🎂", p:50, oro:true };
+
+const foto = n => "https://image.pollinations.ai/prompt/" + encodeURIComponent(
+  "realistic professional food photography of a single " + n + ", isolated on plain white background, top view, studio light, high detail") +
+  "?width=256&height=256&nologo=true&seed=7";
+const imgs = {};
+function cargarImagen(c) {
+  return new Promise(ok => {
+    const im = new Image(); im.crossOrigin = "anonymous";
+    const t = setTimeout(() => ok(), 15000);
+    im.onload = () => { clearTimeout(t); imgs[c.n] = recortar(im); ok(); };
+    im.onerror = () => { clearTimeout(t); ok(); };
+    im.src = foto(c.n);
+  });
+}
+// Recorta la foto en círculo para que parezca un objeto cayendo
+function recortar(im) {
+  const c = document.createElement("canvas"); c.width = c.height = 128; const x = c.getContext("2d");
+  x.beginPath(); x.arc(64,64,62,0,7); x.clip(); x.drawImage(im,0,0,128,128); return c;
+}
+
+const cv = $("juego"), cx = cv.getContext("2d");
+function $(id) { return document.getElementById(id); }
+let W, H, gordo, items, parts, puntos, vidas, vel, t0, jugando = false, ultimo = 0, proximo = 0, boca = 0;
+function tam() { W = cv.width = innerWidth * devicePixelRatio; H = cv.height = innerHeight * devicePixelRatio; }
+addEventListener("resize", tam); tam();
+const S = () => Math.min(W, H) / 8; // tamaño base
+
+function beep(f, d=.15) { if (!AJUSTES.sonido) return; try { const a=new (window.AudioContext||window.webkitAudioContext)(), o=a.createOscillator(), g=a.createGain();
+  o.frequency.value=f; o.type="triangle"; g.gain.value=.07; o.connect(g); g.connect(a.destination); o.start();
+  g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+d); o.stop(a.currentTime+d+.05); } catch(e){} }
+
+function empezar() {
+  gordo = { x: W/2, objetivo: W/2, escala: 1 };
+  items = []; parts = []; puntos = 0; vidas = 3; vel = 1 * AJUSTES.mult; t0 = Date.now(); window.inicio = t0; proximo = 0;
+  $("inicio").style.display = "none"; $("fin").style.display = "none";
+  jugando = true; hud(); ultimo = performance.now(); requestAnimationFrame(loop);
+}
+function hud() { $("puntos").textContent = puntos + " pts"; $("vidas").textContent = "❤️".repeat(vidas) + "🖤".repeat(3 - vidas); }
+
+function soltar() {
+  const r = Math.random();
+  const c = r < .04 ? ORO : r < .28 ? VERDE[Math.floor(Math.random()*VERDE.length)] : RICA[Math.floor(Math.random()*RICA.length)];
+  items.push({ c, x: S()/2 + Math.random()*(W - S()), y: -S(), v: (H/5) * (vel + Math.random()*.4), giro: Math.random()*6, dg: (Math.random()-.5)*3 });
+}
+function chispas(x, y, color, n=14) { for (let i=0;i<n;i++) { const a=Math.random()*6.28, s=(.5+Math.random())*S()*3;
+  parts.push({ x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s-S()*2, vida:1, color }); } }
+function texto(x, y, t, color) { parts.push({ x, y, t, color, vida:1.2, vy:-S()*1.5, vx:0 }); }
+
+function loop(ahora) {
+  if (!jugando) return;
+  const dt = Math.min(.05, (ahora - ultimo) / 1000); ultimo = ahora;
+  vel = (1 + (Date.now() - t0) / 40000) * AJUSTES.mult;  // cada vez más rápido
+  if ((proximo -= dt) <= 0) { soltar(); proximo = Math.max(.25, .9 - (vel - 1) * .35); }
+  gordo.x += (gordo.objetivo - gordo.x) * Math.min(1, dt * 12);
+  gordo.escala += (1 + Math.min(puntos, 600) / 800 - gordo.escala) * dt * 3;  // engorda con los puntos
+  boca = Math.max(0, boca - dt * 4);
+  const gy = H - S() * 1.3, radio = S() * .9 * gordo.escala;
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i]; it.y += it.v * dt; it.giro += it.dg * dt;
+    if (Math.hypot(it.x - gordo.x, it.y - gy) < radio + S()*.35) {
+      items.splice(i, 1); boca = 1;
+      if (it.c.p) { const p = it.c.p; puntos += p; texto(it.x, it.y, "+" + p, it.c.oro ? "#ffd400" : "#7dff8a");
+        chispas(it.x, it.y, it.c.oro ? "#ffd400" : "#ffb347", it.c.oro ? 30 : 14); beep(it.c.oro ? 1200 : 600 + Math.random()*300);
+        if (it.c.oro) { vidas = Math.min(3, vidas + 1); texto(gordo.x, gy - S()*1.5, "¡+1 VIDA!", "#ff5a7a"); } }
+      else { vidas--; texto(it.x, it.y, "¡PUAJ!", "#7dff8a"); chispas(it.x, it.y, "#3ddc5a", 20); beep(140, .3); sacudir = .4; }
+      hud(); continue;
+    }
+    if (it.y > H + S()) { items.splice(i, 1); if (it.c.p) { vidas--; texto(it.x, H - S()*.5, "¡SE CAYÓ!", "#ff5a5a"); beep(200, .25); sacudir = .3; hud(); } }
+  }
+  for (let i = parts.length - 1; i >= 0; i--) { const p = parts[i]; p.x += p.vx*dt; p.y += p.vy*dt; p.vy += S()*6*dt*(p.t?0:1); p.vida -= dt*1.4; if (p.vida <= 0) parts.splice(i,1); }
+  dibujar(gy, radio);
+  if (vidas <= 0) return terminar();
+  requestAnimationFrame(loop);
+}
+let sacudir = 0;
+function dibujar(gy, radio) {
+  cx.save();
+  if (sacudir > 0) { sacudir -= .016; cx.translate((Math.random()-.5)*S()*.3, (Math.random()-.5)*S()*.3); }
+  cx.clearRect(-W, -H, W*3, H*3);
+  // mantel
+  const c = S()*.6; for (let y=0; y<H; y+=c) for (let x=0; x<W; x+=c) if (((x/c|0)+(y/c|0))%2==0) { cx.fillStyle="#ffffff08"; cx.fillRect(x,y,c,c); }
+  cx.fillStyle = "#3a230f"; cx.fillRect(0, H - S()*.5, W, S()*.5);
+  // comida
+  for (const it of items) {
+    cx.save(); cx.translate(it.x, it.y); cx.rotate(it.giro);
+    if (it.c.oro) { cx.shadowColor = "#ffd400"; cx.shadowBlur = S()*.6; }
+    const im = imgs[it.c.n], t = S()*.9;
+    if (im) cx.drawImage(im, -t/2, -t/2, t, t);
+    else { cx.font = (t*.85)+"px serif"; cx.textAlign="center"; cx.textBaseline="middle"; cx.fillText(it.c.e, 0, 0); }
+    cx.restore();
+  }
+  // El Gordo
+  cx.save(); cx.translate(gordo.x, gy); cx.scale(gordo.escala, gordo.escala);
+  cx.font = (S()*1.8)+"px serif"; cx.textAlign="center"; cx.textBaseline="middle";
+  cx.fillText(boca > .3 ? "😮" : "😋", 0, -S()*.25);
+  cx.font = (S()*1.1)+"px serif"; cx.fillText("🫃", 0, S()*.75);
+  cx.restore();
+  // partículas
+  for (const p of parts) { cx.globalAlpha = Math.max(0, Math.min(1, p.vida));
+    if (p.t) { cx.fillStyle = p.color; cx.font = "900 " + (S()*.55) + "px system-ui"; cx.textAlign="center"; cx.strokeStyle="#000"; cx.lineWidth=S()*.06; cx.strokeText(p.t,p.x,p.y); cx.fillText(p.t,p.x,p.y); }
+    else { cx.fillStyle = p.color; cx.beginPath(); cx.arc(p.x, p.y, S()*.08, 0, 7); cx.fill(); } }
+  cx.globalAlpha = 1; cx.restore();
+}
+function terminar() {
+  jugando = false; beep(120, .6);
+  const seg = (Date.now() - t0) / 1000, gano = puntos >= 300;
+  $("fin-titulo").textContent = gano ? "🏆 ¡BANQUETE!" : "🤢 ¡SE INDIGESTÓ!";
+  $("fin-txt").innerHTML = `Hiciste <b>${puntos} puntos</b> en ${Math.round(seg)} segundos.<br>${gano ? "El Gordo quedó feliz como lombriz." : "Llegá a 300 puntos para que cuente como victoria."}`;
+  $("fin").style.display = "flex";
+  AJUSTES.resultado("comida", gano);
+  DB.guardarPartida("comida", gano, seg, puntos);
+}
+// Controles
+function mover(clientX) { gordo && (gordo.objetivo = Math.max(S()/2, Math.min(W - S()/2, clientX * devicePixelRatio))); }
+cv.addEventListener("pointermove", e => mover(e.clientX));
+cv.addEventListener("pointerdown", e => mover(e.clientX));
+addEventListener("keydown", e => { if (!gordo) return; if (e.key === "ArrowLeft") gordo.objetivo -= S()*1.2; if (e.key === "ArrowRight") gordo.objetivo += S()*1.2; mover(gordo.objetivo / devicePixelRatio); });
+$("jugar").onclick = empezar; $("otra").onclick = empezar;
+
+// Precarga de fotos (no bloquea: se puede jugar con emojis mientras tanto)
+(async () => {
+  const todas = [...RICA, ...VERDE, ORO]; let n = 0;
+  await Promise.all(todas.map(c => cargarImagen(c).then(() => {
+    n++; $("carga").textContent = `Cocinando la comida con IA... ${n}/${todas.length} 🍳`;
+    if (imgs[c.n]) { const i = document.createElement("img"); try { i.src = imgs[c.n].toDataURL(); } catch (e) { return; } i.title = c.n; $("galeria").appendChild(i); }
+  })));
+  $("carga").textContent = Object.keys(imgs).length ? "¡Comida lista! 🍽️" : "No se pudieron cargar las fotos: se juega con emojis 🍕";
+})();
+</script>
+</body>
+</html>

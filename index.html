@@ -60,6 +60,11 @@
     <p>Kamehameha, Super Saiyajin, eventos locos y El Gordo pensando con IA.</p>
     <small id="rec-pelea"></small>
   </a>
+  <a class="modo" href="comida.html" style="border-color:#3ddc5a;background:linear-gradient(160deg,#3ddc5a33,#ffffff10)">
+    <div class="ico">🍕</div><h2>El Gordo Come</h2>
+    <p>Comida realista hecha con IA cae del cielo. Atrapá la rica, esquivá las verduras.</p>
+    <small id="rec-comida"></small>
+  </a>
   <a class="modo c" href="cartas.html">
     <div class="ico">🃏</div><h2>Cartas</h2>
     <p>Armá tu estrategia con cartas animadas. Energía, escudos y combos.</p>
@@ -75,7 +80,7 @@
 
 <div class="panel">
   <h3>🌍 Ranking mundial</h3>
-  <div class="fila"><button class="op on" data-r="pelea">⚡ Pelea</button><button class="op" data-r="cartas">🃏 Cartas</button></div>
+  <div class="fila"><button class="op on" data-r="pelea">⚡ Pelea</button><button class="op" data-r="cartas">🃏 Cartas</button><button class="op" data-r="comida">🍕 Comida</button></div>
   <div id="ranking" class="vacio">Cargando...</div>
 </div>
 
@@ -109,7 +114,7 @@ function render() {
   document.querySelectorAll("[data-d]").forEach(b => b.classList.toggle("on", b.dataset.d === AJUSTES.dificultad));
   const snd = document.getElementById("snd");
   snd.textContent = AJUSTES.sonido ? "🔊 Activado" : "🔇 Apagado"; snd.classList.toggle("on", AJUSTES.sonido);
-  for (const j of ["pelea", "cartas"]) {
+  for (const j of ["pelea", "cartas", "comida"]) {
     const r = AJUSTES.record(j);
     document.getElementById("rec-" + j).textContent = r.g + r.p ? `🏆 ${r.g} ganadas · 💀 ${r.p} perdidas` : "Todavía no jugaste";
   }
@@ -127,8 +132,9 @@ async function cargarRanking() {
   try {
     const filas = await DB.ranking(modoRanking);
     el.className = filas.length ? "" : "vacio";
-    el.innerHTML = filas.length ? `<table><tr><th>#</th><th>Jugador</th><th>🏆</th><th>💀</th></tr>${filas.map((f,i)=>
-      `<tr${f.nombre===DB.nombre?' style="color:#ffd400;font-weight:700"':''}><td>${["🥇","🥈","🥉"][i]||i+1}</td><td>${esc(f.nombre)}</td><td>${f.ganadas}</td><td>${f.perdidas}</td></tr>`).join("")}</table>`
+    const com = modoRanking === "comida";
+    el.innerHTML = filas.length ? `<table><tr><th>#</th><th>Jugador</th>${com?"<th>⭐ Récord</th><th>Partidas</th>":"<th>🏆</th><th>💀</th>"}</tr>${filas.map((f,i)=>
+      `<tr${f.nombre===DB.nombre?' style="color:#ffd400;font-weight:700"':''}><td>${["🥇","🥈","🥉"][i]||i+1}</td><td>${esc(f.nombre)}</td>${com?`<td>${f.mejor_puntaje}</td><td>${f.ganadas+f.perdidas}</td>`:`<td>${f.ganadas}</td><td>${f.perdidas}</td>`}</tr>`).join("")}</table>`
       : "Todavía nadie jugó. ¡Sé el primero!";
   } catch (e) { el.className="vacio"; el.textContent = "No se pudo cargar el ranking."; }
 }
@@ -139,7 +145,7 @@ async function cargarHistorial() {
     const p = await DB.historial(DB.nombre);
     el.className = p.length ? "" : "vacio";
     el.innerHTML = p.length ? `<table><tr><th>Modo</th><th>Dificultad</th><th>Resultado</th><th>Duración</th></tr>${p.map(x=>
-      `<tr><td>${x.modo==="pelea"?"⚡ Pelea":"🃏 Cartas"}</td><td>${esc(x.dificultad)}</td><td>${x.gano?"🏆 Ganó":"💀 Perdió"}</td><td>${Math.floor(x.duracion_seg/60)}m ${x.duracion_seg%60}s</td></tr>`).join("")}</table>`
+      `<tr><td>${({pelea:"⚡ Pelea",cartas:"🃏 Cartas",comida:"🍕 Comida"})[x.modo]||esc(x.modo)}${x.modo==="comida"?` (${x.puntos} pts)`:""}</td><td>${esc(x.dificultad)}</td><td>${x.gano?"🏆 Ganó":"💀 Perdió"}</td><td>${Math.floor(x.duracion_seg/60)}m ${x.duracion_seg%60}s</td></tr>`).join("")}</table>`
       : "Todavía no jugaste ninguna partida con este nombre.";
   } catch (e) { el.className="vacio"; el.textContent = "No se pudo cargar el historial."; }
 }

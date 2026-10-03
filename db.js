@@ -13,14 +13,15 @@ const DB = (() => {
     get nombre() { return leer("nombre", ""); },
     set nombre(v) { try { localStorage.setItem("nombre", String(v).trim().slice(0, 20)); } catch (e) {} },
     // Guarda una partida terminada
-    async guardarPartida(modo, gano, duracionSeg) {
+    async guardarPartida(modo, gano, duracionSeg, puntos = 0) {
       if (!this.nombre) return;
       try {
         await pedir("partidas", { method: "POST", headers: { Prefer: "return=minimal" },
-          body: JSON.stringify({ nombre: this.nombre, modo, dificultad: (window.AJUSTES ? AJUSTES.dificultad : "normal"), gano, duracion_seg: Math.round(duracionSeg) }) });
+          body: JSON.stringify({ nombre: this.nombre, modo, dificultad: (window.AJUSTES ? AJUSTES.dificultad : "normal"), gano, duracion_seg: Math.round(duracionSeg), puntos }) });
       } catch (e) { console.warn(e); }
     },
-    ranking(modo) { return pedir("ranking?select=*" + (modo ? "&modo=eq." + modo : "") + "&order=ganadas.desc,perdidas.asc&limit=10"); },
+    ranking(modo) { const orden = modo === "comida" ? "mejor_puntaje.desc" : "ganadas.desc,perdidas.asc";
+      return pedir("ranking?select=*" + (modo ? "&modo=eq." + modo : "") + "&order=" + orden + "&limit=10"); },
     historial(nombre) { return pedir("partidas?select=*&nombre=eq." + encodeURIComponent(nombre) + "&order=creado.desc&limit=10"); },
     // Frases del Gordo
     async guardarFrase(texto) {
