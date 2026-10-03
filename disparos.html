@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Tiroteo Online</title>
+<style>
+  * { box-sizing:border-box; user-select:none; -webkit-user-select:none; }
+  html, body { margin:0; height:100%; overflow:hidden; background:#101418; color:#fff; font-family:system-ui,sans-serif; touch-action:none; }
+  canvas { display:block; width:100vw; height:100vh; }
+  #hud { position:fixed; top:0; left:0; right:0; display:flex; justify-content:space-between; align-items:flex-start; padding:8px 12px; pointer-events:none; font-weight:800; text-shadow:0 2px 3px #000; }
+  #hud a { pointer-events:auto; color:#ffd400; text-decoration:none; }
+  #tabla { font-size:13px; background:#0008; border-radius:10px; padding:6px 10px; min-width:130px; }
+  #tabla div { display:flex; justify-content:space-between; gap:10px; }
+  #info { position:fixed; bottom:10px; left:50%; transform:translateX(-50%); background:#0009; padding:6px 14px; border-radius:12px; font-weight:800; pointer-events:none; white-space:nowrap; }
+  #feed { position:fixed; top:46px; left:12px; font-size:13px; pointer-events:none; }
+  #feed div { background:#0008; padding:3px 8px; border-radius:8px; margin-bottom:4px; animation:sale 4s forwards; }
+  @keyframes sale { 85%{opacity:1} 100%{opacity:0} }
+  #grande { position:fixed; left:0; right:0; top:38%; text-align:center; font-size:clamp(28px,8vw,56px); font-weight:900; color:#ffd400; text-shadow:0 0 16px #ff3b00,0 4px 0 #000; pointer-events:none; opacity:0; }
+  #grande.ver { animation:grande 1.4s; }
+  @keyframes grande { 0%{opacity:0;transform:scale(3)} 15%{opacity:1;transform:scale(1)} 80%{opacity:1} 100%{opacity:0} }
+  .pantalla { position:fixed; inset:0; background:radial-gradient(circle at 50% 20%,#3a1d1d,#101418 70%); overflow:auto; padding:16px; display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .pantalla h1 { margin:6px 0 0; font-size:clamp(28px,8vw,48px); text-shadow:0 0 14px #ff3b00; text-align:center; }
+  .caja { width:100%; max-width:760px; background:#0007; border-radius:16px; padding:14px; }
+  .caja h2 { margin:0 0 10px; font-size:20px; }
+  .fila { display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:center; }
+  button { font-size:16px; padding:12px 16px; border:0; border-radius:12px; font-weight:800; cursor:pointer; background:#ffd400; color:#000; }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  input { padding:12px; border-radius:10px; border:2px solid #ffd400; background:#0006; color:#fff; font-size:18px; width:150px; text-align:center; text-transform:uppercase; letter-spacing:4px; }
+  .monedas { font-size:22px; font-weight:900; color:#ffd400; }
+  .tienda { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+  .item { background:#ffffff12; border:2px solid #ffffff22; border-radius:14px; padding:10px; text-align:center; }
+  .item.equipado { border-color:#3ddc5a; box-shadow:0 0 14px #3ddc5a66; }
+  .item .ico { font-size:40px; }
+  .item .nom { font-weight:800; margin:4px 0; }
+  .item .st { font-size:12px; opacity:.8; min-height:32px; }
+  .item button { width:100%; margin-top:6px; padding:8px; font-size:14px; }
+  .codigo { font-size:48px; font-weight:900; letter-spacing:8px; color:#ffd400; text-align:center; }
+  .oculto { display:none !important; }
+  .stick { position:fixed; bottom:30px; width:120px; height:120px; border-radius:50%; background:#ffffff14; border:2px solid #ffffff33; pointer-events:none; display:none; }
+  .stick b { position:absolute; left:35px; top:35px; width:50px; height:50px; border-radius:50%; background:#ffffff55; }
+  body.tactil .stick { display:block; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="hud"><div><a href="./" id="salir">⬅ Menú</a><div id="vida" style="margin-top:6px"></div></div><div id="tabla"></div></div>
+<div id="feed"></div>
+<div id="info"></div>
+<div id="grande"></div>
+<div class="stick" id="st-izq" style="left:30px"><b></b></div>
+<div class="stick" id="st-der" style="right:30px"><b></b></div>
+
+<!-- Menú del juego -->
+<div class="pantalla" id="menu">
+  <h1>🔫 TIROTEO ONLINE</h1>
+  <div><a href="./" style="color:#ffd400">⬅ Volver al menú</a></div>
+  <div class="caja" style="text-align:center">
+    <div class="monedas">🪙 <span id="mon"></span> monedas</div>
+    <small style="opacity:.75">Ganás 15 por cada eliminación y 50 por ganar la partida. Las monedas son del juego, no se compran con plata.</small>
+  </div>
+  <div class="caja">
+    <h2>🎮 Jugar</h2>
+    <div class="fila"><button id="practica">🤖 Práctica contra bots</button><button id="crear">🌐 Crear sala online</button></div>
+    <div class="fila" style="margin-top:10px"><input id="cod" maxlength="4" placeholder="CÓDIGO"><button id="unirse">🚪 Unirse</button></div>
+    <p id="msg" style="text-align:center;color:#ff8a8a;margin:8px 0 0"></p>
+    <p style="text-align:center;opacity:.7;font-size:13px;margin:8px 0 0">Gana el primero en llegar a 10 eliminaciones. Compu: WASD para moverte, mouse para apuntar y click para disparar. Celu: joystick izquierdo para moverte, derecho para apuntar y disparar.</p>
+  </div>
+  <div class="caja"><h2>🧍 Personajes</h2><div class="tienda" id="t-pj"></div></div>
+  <div class="caja"><h2>🔫 Armas</h2><div class="tienda" id="t-arma"></div></div>
+</div>
+
+<!-- Sala de espera -->
+<div class="pantalla oculto" id="sala">
+  <h1>🌐 SALA</h1>
+  <div class="caja" style="text-align:center">
+    <p>Pasales este código a tus amigos (hasta 6 jugadores):</p>
+    <div class="codigo" id="codigo"></div>
+    <p><button id="compartir">📤 Compartir link</button></p>
+    <div id="jugadores" style="font-size:18px;line-height:1.8"></div>
+    <p><button id="arrancar">▶️ ¡Empezar partida!</button></p>
+    <p id="espera-txt" style="opacity:.75"></p>
+  </div>
+</div>
+
+<!-- Fin -->
+<div class="pantalla oculto" id="fin">
+  <h1 id="fin-tit"></h1>
+  <div class="caja" id="fin-tabla" style="font-size:18px;line-height:1.8"></div>
+  <div class="caja" style="text-align:center"><div class="monedas" id="fin-mon"></div></div>
+  <button id="volver">⬅ Volver</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="comun.js"></script>
+<script src="db.js"></script>
+<script>
+// ===================== DATOS =====================
+const PERSONAJES = [
+  { id:"goku",   ico:"🥋", nom:"Goku",        precio:0,    vida:100, vel:240, st:"Equilibrado" },
+  { id:"gordo",  ico:"🫃", nom:"El Gordo",    precio:0,    vida:140, vel:190, st:"Mucha vida, lento" },
+  { id:"ninja",  ico:"🥷", nom:"Ninja",       precio:150,  vida:80,  vel:310, st:"Rapidísimo, poca vida" },
+  { id:"robot",  ico:"🤖", nom:"Robot",       precio:300,  vida:170, vel:200, st:"Tanque de metal" },
+  { id:"alien",  ico:"👽", nom:"Alien",       precio:450,  vida:110, vel:280, st:"Rápido y resistente" },
+  { id:"dragon", ico:"🐉", nom:"Shenron",     precio:900,  vida:180, vel:270, st:"El más poderoso" },
+];
+const ARMAS = [
+  { id:"pistola", ico:"🔫", nom:"Pistola",       precio:0,   dano:14, cad:0.32, vel:700, bal:1, disp:0.04, alc:650,  col:"#ffe14d", st:"Confiable" },
+  { id:"escopeta",ico:"💥", nom:"Escopeta",      precio:120, dano:9,  cad:0.8,  vel:600, bal:6, disp:0.32, alc:330,  col:"#ff9a3b", st:"6 perdigones, corto alcance" },
+  { id:"metra",   ico:"⚙️", nom:"Metralleta",    precio:250, dano:8,  cad:0.09, vel:800, bal:1, disp:0.12, alc:600,  col:"#7fe0ff", st:"Dispara rapidísimo" },
+  { id:"franco",  ico:"🎯", nom:"Francotirador", precio:400, dano:55, cad:1.3,  vel:1500,bal:1, disp:0,    alc:1400, col:"#ff4d6d", st:"Mucho daño, lento" },
+  { id:"chori",   ico:"🌭", nom:"Lanza-Choris",  precio:550, dano:30, cad:0.6,  vel:520, bal:1, disp:0.03, alc:700,  col:"#c8622a", st:"Explota al pegar", explota:90, emoji:"🌭" },
+  { id:"kame",    ico:"🌊", nom:"Kamehameha",    precio:1000,dano:22, cad:0.18, vel:1100,bal:1, disp:0.02, alc:900,  col:"#5ad1ff", st:"Rayo rápido y fuerte" },
+];
+const MAPA = { w:1800, h:1200, muros:[
+  [300,250,220,40],[300,250,40,220],[1280,250,220,40],[1460,250,40,220],
+  [300,910,220,40],[300,730,40,220],[1280,910,220,40],[1460,730,40,220],
+  [820,520,160,160],[600,560,40,80],[1160,560,40,80],[860,200,80,120],[860,880,80,120] ] };
+
+// ===================== GUARDADO =====================
+const G = { leer(k,d){ try { const v=localStorage.getItem("tiro-"+k); return v===null?d:JSON.parse(v); } catch(e){ return d; } },
+            guardar(k,v){ try { localStorage.setItem("tiro-"+k, JSON.stringify(v)); } catch(e){} } };
+let monedas = G.leer("monedas", 100), tengo = G.leer("tengo", ["goku","gordo","pistola"]),
+    miPj = G.leer("pj","goku"), miArma = G.leer("arma","pistola");
+const $ = id => document.getElementById(id);
+const PJ = id => PERSONAJES.find(p=>p.id===id) || PERSONAJES[0];
+const ARMA = id => ARMAS.find(a=>a.id===id) || ARMAS[0];
+
+function tienda() {
+  $("mon").textContent = monedas;
+  for (const [cont, lista, tipo] of [["t-pj",PERSONAJES,"pj"],["t-arma",ARMAS,"arma"]]) {
+    $(cont).innerHTML = "";
+    lista.forEach(x => {
+      const eq = (tipo==="pj"?miPj:miArma) === x.id, lo = tengo.includes(x.id);
+      const d = document.createElement("div"); d.className = "item" + (eq?" equipado":"");
+      const stats = tipo==="pj" ? `❤️ ${x.vida} · 👟 ${x.vel}` : `💢 ${x.dano}${x.bal>1?"×"+x.bal:""} · ⏱️ ${(1/x.cad).toFixed(1)}/s`;
+      d.innerHTML = `<div class="ico">${x.ico}</div><div class="nom">${x.nom}</div><div class="st">${x.st}<br>${stats}</div>`;
+      const b = document.createElement("button");
+      if (eq) { b.textContent = "✅ Equipado"; b.disabled = true; }
+      else if (lo) { b.textContent = "Equipar"; b.onclick = () => { if (tipo==="pj") G.guardar("pj", miPj = x.id); else G.guardar("arma", miArma = x.id); tienda(); }; }
+      else { b.textContent = `🪙 ${x.precio}`; b.disabled = monedas < x.precio;
+        b.onclick = () => { if (monedas < x.precio) return; monedas -= x.precio; tengo.push(x.id); G.guardar("monedas",monedas); G.guardar("tengo",tengo);
+          if (tipo==="pj") G.guardar("pj", miPj = x.id); else G.guardar("arma", miArma = x.id); beep(1200); tienda(); }; }
+      d.appendChild(b); $(cont).appendChild(d);
+    });
+  }
+}
+
+// ===================== RED =====================
+const SB = supabase.createClient("https://eluxvcixctwnzyysvoor.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsdXh2Y2l4Y3R3bnp5eXN2b29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMTk5NzAsImV4cCI6MjEwMzY5NTk3MH0.Gq29eHc-X1vEfbxM_9E5mlOynIJCh0pBbsSOPX923IQ");
+const miId = Math.random().toString(36).slice(2, 9);
+let canal = null, codigo = "", soyHost = false, online = false;
+function enviar(ev, p) { if (canal && online) canal.send({ type:"broadcast", event:ev, payload:p }); }
+
+function conectar(cod, host) {
+  codigo = cod; soyHost = host; online = true;
+  $("menu").classList.add("oculto"); $("sala").classList.remove("oculto"); $("codigo").textContent = cod;
+  $("arrancar").classList.toggle("oculto", !host); $("espera-txt").textContent = host ? "Cuando estén todos, tocá Empezar." : "Esperando que el creador empiece la partida...";
+  canal = SB.channel("tiro-" + cod, { config:{ broadcast:{ self:false }, presence:{ key:miId } } });
+  canal.on("presence", { event:"sync" }, () => {
+      const st = canal.presenceState();
+      $("jugadores").innerHTML = Object.values(st).map(v => v[0]).map(p => `${PJ(p.pj).ico} ${esc(p.nombre)} ${ARMA(p.arma).ico}${p.host?" 👑":""}`).join("<br>");
+    })
+    .on("broadcast", { event:"empieza" }, () => { if (!soyHost) empezarPartida(); })
+    .on("broadcast", { event:"pos" }, ({ payload:p }) => recibirPos(p))
+    .on("broadcast", { event:"tiro" }, ({ payload:p }) => { if (jug[p.id]) crearBalas(p, false); })
+    .on("broadcast", { event:"golpe" }, ({ payload:p }) => recibirGolpe(p))
+    .on("broadcast", { event:"muerte" }, ({ payload:p }) => recibirMuerte(p))
+    .on("broadcast", { event:"fin" }, ({ payload:p }) => terminar(p.ganador))
+    .subscribe(async st => { if (st === "SUBSCRIBED") await canal.track({ nombre: miNombre(), pj: miPj, arma: miArma, host }); });
+}
+const esc = t => String(t).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const miNombre = () => (DB.nombre || "Jugador").slice(0, 14);
+
+// ===================== JUEGO =====================
+const cv = $("cv"), cx = cv.getContext("2d");
+let W, H, jug = {}, balas = [], parts = [], yo = null, jugando = false, ult = 0, camX = 0, camY = 0, enfriar = 0, ultPos = 0, inicioT = 0, ganadas = 0;
+const teclas = {}, raton = { x:0, y:0, abajo:false }, joy = { mx:0, my:0, ax:0, ay:0, dispara:false };
+function tam() { W = cv.width = innerWidth; H = cv.height = innerHeight; } addEventListener("resize", tam); tam();
+function beep(f, d=.08, t="square", v=.04) { if (!AJUSTES.sonido) return; try { const a=beep.c||(beep.c=new (window.AudioContext||window.webkitAudioContext)()), o=a.createOscillator(), g=a.createGain();
+  o.frequency.value=f; o.type=t; g.gain.value=v; o.connect(g); g.connect(a.destination); o.start(); g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+d); o.stop(a.currentTime+d+.02); } catch(e){} }
+function grande(t) { const g=$("grande"); g.textContent=t; g.classList.remove("ver"); void g.offsetWidth; g.classList.add("ver"); }
+function feed(t) { const d=document.createElement("div"); d.textContent=t; $("feed").prepend(d); setTimeout(()=>d.remove(),4000); }
+
+function choca(x, y, r) {
+  if (x < r || y < r || x > MAPA.w - r || y > MAPA.h - r) return true;
+  return MAPA.muros.some(([mx,my,mw,mh]) => x + r > mx && x - r < mx + mw && y + r > my && y - r < my + mh);
+}
+function lugarLibre() { for (let i=0;i<50;i++) { const x=100+Math.random()*(MAPA.w-200), y=100+Math.random()*(MAPA.h-200); if (!choca(x,y,30)) return {x,y}; } return {x:100,y:100}; }
+function nuevoJugador(id, nombre, pj, arma, bot) {
+  const p = PJ(pj), l = lugarLibre();
+  return { id, nombre, pj, arma, bot, x:l.x, y:l.y, a:0, hp:p.vida, max:p.vida, vel:p.vel, kills:0, muertes:0, vivo:true, tx:l.x, ty:l.y, flash:0, cd:0 };
+}
+
+function empezarPartida() {
+  $("menu").classList.add("oculto"); $("sala").classList.add("oculto"); $("fin").classList.add("oculto");
+  jug = {}; balas = []; parts = []; ganadas = 0;
+  yo = jug[miId] = nuevoJugador(miId, miNombre(), miPj, miArma, false);
+  if (!online) { const nombres = ["Bot Krilin","Bot Vegeta","Bot Cell","Bot Freezer"];
+    nombres.forEach((n,i) => { const id="bot"+i; jug[id] = nuevoJugador(id, n, PERSONAJES[(i+1)%PERSONAJES.length].id, ARMAS[i%4].id, true); }); }
+  inicioT = Date.now(); jugando = true; grande("¡A LOS TIROS!"); ult = performance.now(); requestAnimationFrame(loop);
+}
+
+function crearBalas(p, mio) {
+  const a = ARMA(p.arma);
+  p.angs.forEach(ang => balas.push({ x:p.x, y:p.y, vx:Math.cos(ang)*a.vel, vy:Math.sin(ang)*a.vel, dano:a.dano, de:p.id, rec:0, alc:a.alc, col:a.col, explota:a.explota, emoji:a.emoji }));
+  const s = jug[p.id]; if (s) s.flash = .08;
+  if (mio || Math.hypot(p.x - yo.x, p.y - yo.y) < 700) beep(a.id==="franco"?180:a.id==="escopeta"?120:a.id==="kame"?900:400, .06, "square", mio?.04:.02);
+}
+function disparar(s, ang) {
+  const a = ARMA(s.arma); if (s.cd > 0 || !s.vivo) return; s.cd = a.cad;
+  const angs = []; for (let i=0;i<a.bal;i++) angs.push(ang + (Math.random()-.5)*a.disp*2);
+  const x = s.x + Math.cos(ang)*28, y = s.y + Math.sin(ang)*28, p = { id:s.id, x, y, arma:s.arma, angs };
+  crearBalas(p, s === yo);
+  if (s === yo) enviar("tiro", p);
+}
+
+// La víctima decide si le pegaron (así cada uno controla su propio personaje)
+function impacto(victima, dano, de) {
+  if (!victima.vivo) return;
+  victima.hp -= dano; victima.golpeado = .15;
+  chispas(victima.x, victima.y, "#ff4d4d", 8);
+  if (victima === yo) { beep(150, .1, "sawtooth", .05); enviar("golpe", { id:yo.id, hp:yo.hp }); }
+  if (victima.hp <= 0) morir(victima, de);
+}
+function morir(v, de) {
+  v.vivo = false; v.hp = 0; v.muertes++;
+  const asesino = jug[de]; if (asesino && asesino !== v) asesino.kills++;
+  chispas(v.x, v.y, "#ffd400", 30);
+  feed(`${asesino?asesino.nombre:"?"} ${ARMA(asesino?asesino.arma:"pistola").ico} ${v.nombre}`);
+  if (v === yo) { grande("💀 ¡TE BAJARON!"); enviar("muerte", { id:v.id, de }); }
+  if (asesino === yo && v !== yo) { grande("🎯 ¡ELIMINADO!"); ganarMonedas(15); beep(1000,.15,"triangle",.06); }
+  if (asesino && asesino.kills >= 10) { enviar("fin", { ganador: asesino.id }); terminar(asesino.id); return; }
+  setTimeout(() => { if (!jugando) return; const l = lugarLibre(); Object.assign(v, { x:l.x, y:l.y, tx:l.x, ty:l.y, hp:v.max, vivo:true }); }, 2500);
+}
+function recibirPos(p) {
+  let s = jug[p.id];
+  if (!s) { if (!jugando) return; s = jug[p.id] = nuevoJugador(p.id, p.nombre, p.pj, p.arma, false); feed(`👋 Entró ${p.nombre}`); }
+  if (p.vivo && !s.vivo) { s.vivo = true; s.x = p.x; s.y = p.y; }
+  s.tx = p.x; s.ty = p.y; s.a = p.a; s.hp = p.hp; s.kills = p.kills; s.nombre = p.nombre; s.visto = Date.now();
+}
+function recibirGolpe(p) { const s = jug[p.id]; if (s) { s.hp = p.hp; s.golpeado = .15; chispas(s.x, s.y, "#ff4d4d", 8); } }
+function recibirMuerte(p) { const s = jug[p.id]; if (s && s.vivo) morir(s, p.de); }
+function ganarMonedas(n) { monedas += n; ganadas += n; G.guardar("monedas", monedas); }
+
+function chispas(x, y, col, n) { for (let i=0;i<n;i++) { const a=Math.random()*6.28, v=60+Math.random()*220; parts.push({ x, y, vx:Math.cos(a)*v, vy:Math.sin(a)*v, t:.5+Math.random()*.4, col }); } }
+
+// ---- Bots (solo en práctica) ----
+function pensarBot(b, dt) {
+  if (!b.vivo) return;
+  let obj = null, d = 1e9;
+  for (const o of Object.values(jug)) if (o !== b && o.vivo) { const dd = Math.hypot(o.x-b.x, o.y-b.y); if (dd < d) { d = dd; obj = o; } }
+  if (!obj) return;
+  const ang = Math.atan2(obj.y-b.y, obj.x-b.x);
+  b.a += Math.atan2(Math.sin(ang - b.a), Math.cos(ang - b.a)) * Math.min(1, dt * 4);
+  b.giro = (b.giro || 0) - dt; if (b.giro < 0) { b.lado = Math.random() < .5 ? 1 : -1; b.giro = 1 + Math.random()*2; }
+  const lejos = d > ARMA(b.arma).alc * .7 ? 1 : d < 200 ? -1 : 0;
+  const mx = Math.cos(ang)*lejos + Math.cos(ang + Math.PI/2)*b.lado*.7, my = Math.sin(ang)*lejos + Math.sin(ang + Math.PI/2)*b.lado*.7;
+  mover(b, mx, my, dt * .75 * AJUSTES.mult);
+  if (d < ARMA(b.arma).alc && Math.random() < .5 * AJUSTES.mult) disparar(b, b.a + (Math.random()-.5)*.25 / AJUSTES.mult);
+}
+function mover(s, mx, my, dt) {
+  const l = Math.hypot(mx, my); if (!l) return; mx /= l; my /= l;
+  const nx = s.x + mx * s.vel * dt, ny = s.y + my * s.vel * dt;
+  if (!choca(nx, s.y, 22)) s.x = nx; if (!choca(s.x, ny, 22)) s.y = ny;
+}
+
+function loop(t) {
+  if (!jugando) return;
+  const dt = Math.min(.05, (t - ult) / 1000); ult = t;
+  // Yo
+  if (yo.vivo) {
+    let mx = (teclas.KeyD||teclas.ArrowRight?1:0) - (teclas.KeyA||teclas.ArrowLeft?1:0) + joy.mx;
+    let my = (teclas.KeyS||teclas.ArrowDown?1:0) - (teclas.KeyW||teclas.ArrowUp?1:0) + joy.my;
+    mover(yo, mx, my, dt);
+    if (joy.dispara) yo.a = Math.atan2(joy.ay, joy.ax);
+    else yo.a = Math.atan2(raton.y + camY - yo.y, raton.x + camX - yo.x);
+    if (raton.abajo || joy.dispara) disparar(yo, yo.a);
+  }
+  for (const s of Object.values(jug)) {
+    s.cd = Math.max(0, s.cd - dt); s.flash = Math.max(0, s.flash - dt); s.golpeado = Math.max(0, (s.golpeado||0) - dt);
+    if (s.bot) pensarBot(s, dt);
+    else if (s !== yo) { s.x += (s.tx - s.x) * Math.min(1, dt*12); s.y += (s.ty - s.y) * Math.min(1, dt*12);
+      if (online && s.visto && Date.now() - s.visto > 6000) { feed(`🚪 Se fue ${s.nombre}`); delete jug[s.id]; } }
+  }
+  // Balas
+  for (let i = balas.length-1; i >= 0; i--) {
+    const b = balas[i]; const px = b.x, py = b.y; b.x += b.vx*dt; b.y += b.vy*dt; b.rec += Math.hypot(b.vx, b.vy)*dt;
+    let fuera = b.rec > b.alc || choca(b.x, b.y, 2), golpeado = null;
+    if (!fuera) for (const s of Object.values(jug)) {
+      if (s.id === b.de || !s.vivo) continue;
+      if (Math.hypot(s.x - b.x, s.y - b.y) < 24) { golpeado = s; break; }
+    }
+    if (fuera || golpeado) {
+      balas.splice(i, 1); chispas(px, py, b.col, 5);
+      // Daño: solo lo calcula quien controla a la víctima (yo o mis bots)
+      const control = s => s === yo || s.bot;
+      if (b.explota) { chispas(b.x, b.y, "#ff7a00", 25); beep(80,.2,"sawtooth",.04);
+        for (const s of Object.values(jug)) if (control(s) && s.vivo && s.id !== b.de && Math.hypot(s.x-b.x, s.y-b.y) < b.explota) impacto(s, b.dano, b.de); }
+      else if (golpeado && control(golpeado)) impacto(golpeado, b.dano, b.de);
+    }
+  }
+  for (let i = parts.length-1; i >= 0; i--) { const p = parts[i]; p.x += p.vx*dt; p.y += p.vy*dt; p.vx *= .92; p.vy *= .92; p.t -= dt; if (p.t <= 0) parts.splice(i, 1); }
+  // Red: mando mi posición 12 veces por segundo
+  if (online && t - ultPos > 80) { ultPos = t; enviar("pos", { id:yo.id, nombre:yo.nombre, pj:yo.pj, arma:yo.arma, x:Math.round(yo.x), y:Math.round(yo.y), a:+yo.a.toFixed(2), hp:Math.round(yo.hp), vivo:yo.vivo, kills:yo.kills }); }
+  dibujar(); hud();
+  requestAnimationFrame(loop);
+}
+
+function dibujar() {
+  camX += (yo.x - W/2 - camX) * .15; camY += (yo.y - H/2 - camY) * .15;
+  cx.fillStyle = "#101418"; cx.fillRect(0, 0, W, H);
+  cx.save(); cx.translate(-camX, -camY);
+  // piso
+  cx.fillStyle = "#2b3a2b"; cx.fillRect(0, 0, MAPA.w, MAPA.h);
+  cx.strokeStyle = "#ffffff0d"; cx.lineWidth = 1;
+  for (let x=0; x<=MAPA.w; x+=60) { cx.beginPath(); cx.moveTo(x,0); cx.lineTo(x,MAPA.h); cx.stroke(); }
+  for (let y=0; y<=MAPA.h; y+=60) { cx.beginPath(); cx.moveTo(0,y); cx.lineTo(MAPA.w,y); cx.stroke(); }
+  cx.strokeStyle = "#ff3b3b"; cx.lineWidth = 6; cx.strokeRect(0, 0, MAPA.w, MAPA.h);
+  for (const [x,y,w,h] of MAPA.muros) { cx.fillStyle = "#6b5a45"; cx.fillRect(x, y, w, h); cx.fillStyle = "#86735a"; cx.fillRect(x, y, w, 8); }
+  // balas
+  for (const b of balas) {
+    if (b.emoji) { cx.font = "22px serif"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(b.emoji, b.x, b.y); continue; }
+    cx.strokeStyle = b.col; cx.lineWidth = 4; cx.shadowColor = b.col; cx.shadowBlur = 10;
+    cx.beginPath(); cx.moveTo(b.x, b.y); cx.lineTo(b.x - b.vx*.025, b.y - b.vy*.025); cx.stroke(); cx.shadowBlur = 0;
+  }
+  // jugadores
+  for (const s of Object.values(jug)) {
+    if (!s.vivo) { cx.globalAlpha = .4; cx.font = "34px serif"; cx.textAlign="center"; cx.textBaseline="middle"; cx.fillText("💀", s.x, s.y); cx.globalAlpha = 1; continue; }
+    cx.save(); cx.translate(s.x, s.y);
+    cx.fillStyle = "#0005"; cx.beginPath(); cx.ellipse(0, 20, 22, 8, 0, 0, 7); cx.fill();
+    // arma
+    cx.save(); cx.rotate(s.a); cx.font = "26px serif"; cx.textBaseline = "middle";
+    if (Math.cos(s.a) < 0) cx.scale(1, -1);
+    cx.fillText(ARMA(s.arma).ico, 14, 2);
+    if (s.flash > 0) { cx.fillStyle = "#ffeb6b"; cx.beginPath(); cx.arc(48, 0, 9, 0, 7); cx.fill(); }
+    cx.restore();
+    cx.font = "40px serif"; cx.textAlign = "center"; cx.textBaseline = "middle";
+    if (s.golpeado > 0) { cx.shadowColor = "#f00"; cx.shadowBlur = 20; }
+    cx.fillText(PJ(s.pj).ico, 0, 0); cx.shadowBlur = 0;
+    // barra de vida y nombre
+    cx.fillStyle = "#000a"; cx.fillRect(-26, -40, 52, 7); cx.fillStyle = s === yo ? "#3ddc5a" : "#ff5a5a"; cx.fillRect(-26, -40, 52 * Math.max(0, s.hp)/s.max, 7);
+    cx.fillStyle = "#fff"; cx.font = "bold 12px system-ui"; cx.fillText(s.nombre, 0, -50);
+    cx.restore();
+  }
+  for (const p of parts) { cx.globalAlpha = Math.max(0, p.t*1.5); cx.fillStyle = p.col; cx.fillRect(p.x-2, p.y-2, 4, 4); } cx.globalAlpha = 1;
+  cx.restore();
+  // mira
+  if (!document.body.classList.contains("tactil")) { cx.strokeStyle = "#fff"; cx.lineWidth = 2; cx.beginPath(); cx.arc(raton.x, raton.y, 10, 0, 7); cx.moveTo(raton.x-16, raton.y); cx.lineTo(raton.x+16, raton.y); cx.moveTo(raton.x, raton.y-16); cx.lineTo(raton.x, raton.y+16); cx.stroke(); }
+}
+function hud() {
+  $("vida").textContent = `${PJ(yo.pj).ico} ❤️ ${Math.max(0,Math.round(yo.hp))}/${yo.max}  ${ARMA(yo.arma).ico}`;
+  $("tabla").innerHTML = Object.values(jug).sort((a,b)=>b.kills-a.kills).slice(0,6)
+    .map(s => `<div${s===yo?' style="color:#ffd400"':''}><span>${PJ(s.pj).ico} ${esc(s.nombre)}</span><b>${s.kills}</b></div>`).join("");
+  $("info").textContent = `🎯 ${yo.kills}/10 · 🪙 ${monedas}`;
+}
+
+function terminar(ganadorId) {
+  if (!jugando) return; jugando = false;
+  const gane = ganadorId === miId, g = jug[ganadorId];
+  if (gane) ganarMonedas(50);
+  $("fin-tit").textContent = gane ? "🏆 ¡GANASTE!" : `💀 Ganó ${g ? g.nombre : "otro"}`;
+  $("fin-tabla").innerHTML = Object.values(jug).sort((a,b)=>b.kills-a.kills).map((s,i) => `${["🥇","🥈","🥉"][i]||"▫️"} ${PJ(s.pj).ico} ${esc(s.nombre)} — 🎯 ${s.kills} · 💀 ${s.muertes}`).join("<br>");
+  $("fin-mon").textContent = `+${ganadas} 🪙 en esta partida (total: ${monedas})`;
+  $("fin").classList.remove("oculto");
+  AJUSTES.resultado("disparos", gane);
+  DB.guardarPartida("disparos", gane, (Date.now() - inicioT) / 1000, yo.kills);
+}
+
+// ===================== CONTROLES =====================
+addEventListener("keydown", e => { teclas[e.code] = true; });
+addEventListener("keyup", e => { teclas[e.code] = false; });
+cv.addEventListener("mousemove", e => { raton.x = e.clientX; raton.y = e.clientY; });
+cv.addEventListener("mousedown", () => raton.abajo = true);
+addEventListener("mouseup", () => raton.abajo = false);
+// Joysticks táctiles: mitad izquierda mueve, mitad derecha apunta y dispara
+const toques = {};
+cv.addEventListener("touchstart", e => { document.body.classList.add("tactil"); e.preventDefault();
+  for (const t of e.changedTouches) toques[t.identifier] = { lado: t.clientX < W/2 ? "izq" : "der", x0:t.clientX, y0:t.clientY }; }, { passive:false });
+cv.addEventListener("touchmove", e => { e.preventDefault();
+  for (const t of e.changedTouches) { const q = toques[t.identifier]; if (!q) continue;
+    let dx = t.clientX - q.x0, dy = t.clientY - q.y0; const l = Math.hypot(dx, dy), m = Math.min(l, 50);
+    if (l) { dx = dx/l*m; dy = dy/l*m; }
+    $("st-"+q.lado).querySelector("b").style.transform = `translate(${dx}px,${dy}px)`;
+    if (q.lado === "izq") { joy.mx = dx/50; joy.my = dy/50; } else if (l > 12) { joy.ax = dx; joy.ay = dy; joy.dispara = true; } } }, { passive:false });
+const soltar = e => { for (const t of e.changedTouches) { const q = toques[t.identifier]; if (!q) continue;
+    $("st-"+q.lado).querySelector("b").style.transform = "";
+    if (q.lado === "izq") joy.mx = joy.my = 0; else joy.dispara = false; delete toques[t.identifier]; } };
+cv.addEventListener("touchend", soltar); cv.addEventListener("touchcancel", soltar);
+
+// ===================== BOTONES =====================
+const nuevoCodigo = () => Array.from({length:4}, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random()*32)]).join("");
+$("practica").onclick = () => { online = false; empezarPartida(); };
+$("crear").onclick = () => conectar(nuevoCodigo(), true);
+$("unirse").onclick = () => { const c = $("cod").value.trim().toUpperCase(); if (c.length !== 4) { $("msg").textContent = "El código tiene 4 letras."; return; } conectar(c, false); };
+$("arrancar").onclick = () => { enviar("empieza", {}); empezarPartida(); };
+$("compartir").onclick = async () => { const url = location.href.split("?")[0] + "?sala=" + codigo;
+  try { if (navigator.share) await navigator.share({ title:"Tiroteo online", text:"¡Vení a los tiros! Código: " + codigo, url }); else { await navigator.clipboard.writeText(url); $("compartir").textContent = "✅ Link copiado"; } } catch(e){} };
+$("volver").onclick = () => { $("fin").classList.add("oculto");
+  if (online && canal) { $("sala").classList.remove("oculto"); } else $("menu").classList.remove("oculto"); tienda(); };
+tienda();
+const sala = new URLSearchParams(location.search).get("sala");
+if (sala) { $("cod").value = sala; $("unirse").click(); }
+</script>
+</body>
+</html>
