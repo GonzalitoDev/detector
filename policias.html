@@ -176,7 +176,7 @@ function generarCiudad() {
     }
 }
 // Terrenos reservados: ahí no se construye nada de la ciudad (departamento de policía y casa narco), con 2 m de vereda alrededor
-const RESERVADOS = [ { x1: -58, x2: -47, z1: 28, z2: 37.5 }, { x1: 39, x2: 49, z1: -48, z2: -40 } ];
+const RESERVADOS = [ { x1: -58, x2: -47, z1: -4, z2: 5.5 }, { x1: 39, x2: 49, z1: -48, z2: -40 } ];
 function poner(e) { if (!RESERVADOS.some(R => e.x1 < R.x2 + 2 && e.x2 > R.x1 - 2 && e.z1 < R.z2 + 2 && e.z2 > R.z1 - 2)) edificios.push(e); }
 generarCiudad();
 function choca(x, z, r = RADIO, eq = null) {
@@ -275,8 +275,10 @@ zona(ZONAS.muelle, 0x0aa0b0, "🚤 MUELLE");
     v.position.set(C.x1 - .01, 2, z); v.rotation.y = -Math.PI / 2; escena.add(v); }
 }
 // ---- Departamento de Policía (al lado de la cárcel) ----
-const DEPTO = { x1: -58, x2: -47, z1: 28, z2: 37.5, alto: 4.2, puertaX1: -54.2, puertaX2: -51.8 };
-const TAQUILLAS = { x: -55.5, z: 29.6 }, ARMERIA = { x: -49.5, z: 29.6 };
+// Lado oeste de la ciudad, lejos de los lugares de los ladrones (guarida, banco, casa narco y muelle)
+const DEPTO = { x1: -58, x2: -47, z1: -4, z2: 5.5, alto: 4.2, puertaX1: -53.7, puertaX2: -51.3 };
+DEPTO.cx = (DEPTO.x1 + DEPTO.x2) / 2; DEPTO.cz = (DEPTO.z1 + DEPTO.z2) / 2; DEPTO.px = (DEPTO.puertaX1 + DEPTO.puertaX2) / 2;
+const TAQUILLAS = { x: DEPTO.x1 + 2.5, z: DEPTO.z1 + 1.6 }, ARMERIA = { x: DEPTO.x2 - 2.5, z: DEPTO.z1 + 1.6 };
 {
   const D = DEPTO, g = .4, matP = new THREE.MeshLambertMaterial({ color: 0xdfe6ee }), matF = new THREE.MeshLambertMaterial({ color: 0x0f1d36 });
   const paredes = [[D.x1, D.z1, D.x2, D.z1 + g], [D.x1, D.z1, D.x1 + g, D.z2], [D.x2 - g, D.z1, D.x2, D.z2],
@@ -288,7 +290,7 @@ const TAQUILLAS = { x: -55.5, z: 29.6 }, ARMERIA = { x: -49.5, z: 29.6 };
   }
   const techo = new THREE.Mesh(new THREE.BoxGeometry(D.x2 - D.x1 + .6, .35, D.z2 - D.z1 + .6), matF); techo.position.set((D.x1 + D.x2) / 2, D.alto + .17, (D.z1 + D.z2) / 2); escena.add(techo);
   const pisoD = new THREE.Mesh(new THREE.PlaneGeometry(D.x2 - D.x1, D.z2 - D.z1), new THREE.MeshLambertMaterial({ color: 0x9aa3ad })); pisoD.rotation.x = -Math.PI / 2; pisoD.position.set((D.x1 + D.x2) / 2, .02, (D.z1 + D.z2) / 2); escena.add(pisoD);
-  for (const x of [-55, -50]) { const l = new THREE.PointLight(0xe8f4ff, 1.6, 10, 1.5); l.position.set(x, D.alto - .4, 33); escena.add(l);
+  for (const x of [D.cx - 2.5, D.cx + 2.5]) { const l = new THREE.PointLight(0xe8f4ff, 1.6, 10, 1.5); l.position.set(x, D.alto - .4, D.cz); escena.add(l);
     const tubo = new THREE.Mesh(new THREE.BoxGeometry(1.4, .08, .2), new THREE.MeshBasicMaterial({ color: 0xffffff })); tubo.position.copy(l.position); escena.add(tubo); }
   // Taquillas (cambiar de división) y armería (recargar)
   const taq = new THREE.Mesh(new THREE.BoxGeometry(3, 2.2, .6), new THREE.MeshLambertMaterial({ color: 0x3b5b7a })); taq.position.set(TAQUILLAS.x, 1.1, D.z1 + .7); escena.add(taq);
@@ -385,7 +387,7 @@ function crearCamioneta() {
   escena.add(g); return g;
 }
 const autos = (() => {
-  const lista = [], Z = ZONAS.carcel;
+  const lista = [], Z = { x: DEPTO.px, z: DEPTO.z2 + 4 };   // estacionados frente al departamento
   // 4 patrulleros + 3 camionetas de la Policía Especial
   for (let r = 7; r < 40 && lista.length < 10; r += 1.5)
     for (let a = 0; a < Math.PI * 2 && lista.length < 10; a += Math.PI / 10) {
@@ -501,7 +503,7 @@ const DIVISIONES = {
   canes:           { nom: "Canes",           ico: "🐕", d: "Atrapa desde más lejos (el perro ayuda)." },
 };   // tienen ametralladora y pueden reventar puertas
 function nuevoJug(id, nombre, eq, bot, cl) {
-  const l = lugarLibre(eq === "poli" ? { x: -52.5, z: 33 } : ZONAS.guarida, eq === "poli" ? 3.5 : 8);
+  const l = lugarLibre(eq === "poli" ? { x: DEPTO.cx, z: DEPTO.cz } : ZONAS.guarida, eq === "poli" ? 3.5 : 8);
   return { id, nombre, equipo: eq, clase: cl || eq, div: "patrulla", uni: "azul", bot, res: 100, x: l.x, z: l.z, rot: 0, preso: false, bolsa: false, mesh: null, tx: l.x, tz: l.z, atrapados: 0, robado: 0, visto: Date.now() };
 }
 
@@ -866,7 +868,8 @@ function pensarBot(b, dt) {
   // Para entrar o salir de un edificio, primero pasa por la puerta
   const adentro = (p, R) => p.x > R.x1 && p.x < R.x2 && p.z > R.z1 && p.z < R.z2;
   const D = { x1: DEPTO.x1, x2: DEPTO.x2, z1: DEPTO.z1, z2: DEPTO.z2 }, N = { x1: CASA.x1, x2: CASA.x2, z1: CASA.z1, z2: CASA.z2 };
-  if (adentro(b, D) !== adentro(o, D)) o = adentro(b, D) ? (b.z > DEPTO.z2 - 1.2 ? { x: -53, z: 40 } : { x: -53, z: DEPTO.z2 - .4 }) : (Math.abs(b.x + 53) < 1 && b.z > DEPTO.z2 - .5 ? { x: -53, z: 33 } : { x: -53, z: 39.5 });
+  if (adentro(b, D) !== adentro(o, D)) o = adentro(b, D) ? (b.z > DEPTO.z2 - 1.2 ? { x: DEPTO.px, z: DEPTO.z2 + 2.5 } : { x: DEPTO.px, z: DEPTO.z2 - .4 })
+                                                      : (Math.abs(b.x - DEPTO.px) < 1 && b.z > DEPTO.z2 - .5 ? { x: DEPTO.px, z: DEPTO.cz } : { x: DEPTO.px, z: DEPTO.z2 + 2 });
   else if (adentro(b, N) !== adentro(o, N)) o = adentro(b, N) ? (b.x < CASA.x1 + 1.2 ? { x: 36.5, z: -44 } : { x: CASA.x1 + .4, z: -44 }) : (Math.abs(b.z + 44) < 1 && b.x < CASA.x1 + .5 ? { x: 44, z: -44.5 } : { x: 37, z: -44 });
   // Camina hacia el objetivo esquivando edificios con un pequeño desvío
   b.desvio = (b.desvio || 0) - dt;
