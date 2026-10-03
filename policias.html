@@ -62,6 +62,10 @@
   input { padding:12px; border-radius:10px; border:2px solid #ffd400; background:#0006; color:#fff; font-size:18px; width:150px; text-align:center; text-transform:uppercase; letter-spacing:4px; }
   .codigo { font-size:48px; font-weight:900; letter-spacing:8px; color:#ffd400; }
   .oculto { display:none !important; }
+  .tq { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; }
+  .tq button { background:#ffffff14; color:#fff; border:2px solid transparent; border-radius:12px; padding:10px; cursor:pointer; font-weight:700; text-align:center; }
+  .tq button.on { border-color:#5ec8f2; background:#5ec8f233; }
+  .tq button small { display:block; font-weight:400; opacity:.75; font-size:11px; margin-top:4px; }
   .stick { position:fixed; bottom:30px; left:30px; width:120px; height:120px; border-radius:50%; background:#ffffff18; border:2px solid #ffffff44; pointer-events:none; display:none; z-index:5; }
   .stick b { position:absolute; left:35px; top:35px; width:50px; height:50px; border-radius:50%; background:#ffffff66; }
   #b-accion { position:fixed; right:30px; bottom:40px; width:96px; height:96px; border-radius:50%; border:0; font-size:36px; background:#ffd400cc; display:none; z-index:5; }
@@ -80,6 +84,14 @@
   <div class="izq"><span id="rol"></span><span id="botin"></span><span id="estado"></span></div>
   <div id="reloj"></div>
   <div id="equipos"></div>
+</div>
+<div id="taquillas" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
+  <div style="max-width:640px;margin:0 auto;background:#0f1d36;border:2px solid #5ec8f2;border-radius:16px;padding:16px">
+    <h2 style="margin:0 0 10px;text-align:center">👕 Taquillas</h2>
+    <div style="font-weight:800;margin-bottom:6px">🎖️ División</div><div id="tq-div" class="tq"></div>
+    <div style="font-weight:800;margin:14px 0 6px">👔 Uniforme</div><div id="tq-uni" class="tq"></div>
+    <button class="g" id="tq-ok" style="width:100%;margin-top:14px">✅ Listo</button>
+  </div>
 </div>
 <div id="mira"></div><div id="pista"></div><div id="grande"></div><div id="feed"></div>
 <div id="sirena"></div><div id="rejas"></div>
@@ -104,7 +116,7 @@
     </div>
     <div style="display:flex;gap:8px;justify-content:center;margin-top:10px"><input id="cod" maxlength="4" placeholder="CÓDIGO"><button class="g" id="unirse">🚪 Unirse</button></div>
     <p id="msg" style="color:#ff8a8a;margin:8px 0 0"></p>
-    <p style="opacity:.7;font-size:13px;margin:10px 0 0">Compu: WASD para moverte, mouse para mirar (hacé click para capturar el mouse), Shift para correr, click o E para atrapar o liberar. Los polis suben y bajan del patrullero con F (H prende la sirena). L prende la linterna. Grupo Halcón: G granada aturdidora, N visión nocturna. C cambia la cámara (primera persona, tercera persona o aérea). En el 🚔 Departamento de Policía: taquillas para elegir división y armería para recargar. SWAT: click sostenido para disparar, R para recargar. Celu: joystick para moverte, arrastrá la pantalla para mirar, botón amarillo para la acción.</p>
+    <p style="opacity:.7;font-size:13px;margin:10px 0 0">Compu: WASD para moverte, mouse para mirar (hacé click para capturar el mouse), Shift para correr, click o E para atrapar o liberar. Los polis suben y bajan del patrullero con F (H prende la sirena). L prende la linterna. Grupo Halcón: G granada aturdidora, N visión nocturna. C cambia la cámara (primera persona, tercera persona o aérea). En el 🚔 Departamento de Policía: taquillas para elegir división y uniforme, y armería para recargar. SWAT: click sostenido para disparar, R para recargar. Celu: joystick para moverte, arrastrá la pantalla para mirar, botón amarillo para la acción.</p>
   </div>
 </div>
 
@@ -155,14 +167,17 @@ function generarCiudad() {
       if (Object.values(ZONAS).some(Z => Math.hypot(Z.x - cx, Z.z - cz) < 13)) continue;   // plazas libres
       // Cada manzana: 1 a 4 edificios
       const partes = azar() < .5 ? 1 : 4, m = 1;
-      if (partes === 1) edificios.push({ x1: x + m, z1: z + m, x2: x + CIUDAD.cuadra - m, z2: z + CIUDAD.cuadra - m, h: 6 + azar() * 22 });
+      if (partes === 1) poner({ x1: x + m, z1: z + m, x2: x + CIUDAD.cuadra - m, z2: z + CIUDAD.cuadra - m, h: 6 + azar() * 22 });
       else for (const [dx, dz] of [[0,0],[1,0],[0,1],[1,1]]) {
         const s = CIUDAD.cuadra / 2;
         if (azar() < .15) continue;
-        edificios.push({ x1: x + dx*s + m, z1: z + dz*s + m, x2: x + dx*s + s - m, z2: z + dz*s + s - m, h: 4 + azar() * 14 });
+        poner({ x1: x + dx*s + m, z1: z + dz*s + m, x2: x + dx*s + s - m, z2: z + dz*s + s - m, h: 4 + azar() * 14 });
       }
     }
 }
+// Terrenos reservados: ahí no se construye nada de la ciudad (departamento de policía y casa narco), con 2 m de vereda alrededor
+const RESERVADOS = [ { x1: -58, x2: -47, z1: -4, z2: 5.5 }, { x1: 39, x2: 49, z1: -48, z2: -40 } ];
+function poner(e) { if (!RESERVADOS.some(R => e.x1 < R.x2 + 2 && e.x2 > R.x1 - 2 && e.z1 < R.z2 + 2 && e.z2 > R.z1 - 2)) edificios.push(e); }
 generarCiudad();
 function choca(x, z, r = RADIO, eq = null) {
   const mitad = CIUDAD.tam / 2;
@@ -260,8 +275,10 @@ zona(ZONAS.muelle, 0x0aa0b0, "🚤 MUELLE");
     v.position.set(C.x1 - .01, 2, z); v.rotation.y = -Math.PI / 2; escena.add(v); }
 }
 // ---- Departamento de Policía (al lado de la cárcel) ----
-const DEPTO = { x1: -58, x2: -47, z1: 28, z2: 37.5, alto: 4.2, puertaX1: -54.2, puertaX2: -51.8 };
-const TAQUILLAS = { x: -55.5, z: 29.6 }, ARMERIA = { x: -49.5, z: 29.6 };
+// Lado oeste de la ciudad, lejos de los lugares de los ladrones (guarida, banco, casa narco y muelle)
+const DEPTO = { x1: -58, x2: -47, z1: -4, z2: 5.5, alto: 4.2, puertaX1: -53.7, puertaX2: -51.3 };
+DEPTO.cx = (DEPTO.x1 + DEPTO.x2) / 2; DEPTO.cz = (DEPTO.z1 + DEPTO.z2) / 2; DEPTO.px = (DEPTO.puertaX1 + DEPTO.puertaX2) / 2;
+const TAQUILLAS = { x: DEPTO.x1 + 2.5, z: DEPTO.z1 + 1.6 }, ARMERIA = { x: DEPTO.x2 - 2.5, z: DEPTO.z1 + 1.6 };
 {
   const D = DEPTO, g = .4, matP = new THREE.MeshLambertMaterial({ color: 0xdfe6ee }), matF = new THREE.MeshLambertMaterial({ color: 0x0f1d36 });
   const paredes = [[D.x1, D.z1, D.x2, D.z1 + g], [D.x1, D.z1, D.x1 + g, D.z2], [D.x2 - g, D.z1, D.x2, D.z2],
@@ -273,7 +290,7 @@ const TAQUILLAS = { x: -55.5, z: 29.6 }, ARMERIA = { x: -49.5, z: 29.6 };
   }
   const techo = new THREE.Mesh(new THREE.BoxGeometry(D.x2 - D.x1 + .6, .35, D.z2 - D.z1 + .6), matF); techo.position.set((D.x1 + D.x2) / 2, D.alto + .17, (D.z1 + D.z2) / 2); escena.add(techo);
   const pisoD = new THREE.Mesh(new THREE.PlaneGeometry(D.x2 - D.x1, D.z2 - D.z1), new THREE.MeshLambertMaterial({ color: 0x9aa3ad })); pisoD.rotation.x = -Math.PI / 2; pisoD.position.set((D.x1 + D.x2) / 2, .02, (D.z1 + D.z2) / 2); escena.add(pisoD);
-  for (const x of [-55, -50]) { const l = new THREE.PointLight(0xe8f4ff, 1.6, 10, 1.5); l.position.set(x, D.alto - .4, 33); escena.add(l);
+  for (const x of [D.cx - 2.5, D.cx + 2.5]) { const l = new THREE.PointLight(0xe8f4ff, 1.6, 10, 1.5); l.position.set(x, D.alto - .4, D.cz); escena.add(l);
     const tubo = new THREE.Mesh(new THREE.BoxGeometry(1.4, .08, .2), new THREE.MeshBasicMaterial({ color: 0xffffff })); tubo.position.copy(l.position); escena.add(tubo); }
   // Taquillas (cambiar de división) y armería (recargar)
   const taq = new THREE.Mesh(new THREE.BoxGeometry(3, 2.2, .6), new THREE.MeshLambertMaterial({ color: 0x3b5b7a })); taq.position.set(TAQUILLAS.x, 1.1, D.z1 + .7); escena.add(taq);
@@ -370,12 +387,13 @@ function crearCamioneta() {
   escena.add(g); return g;
 }
 const autos = (() => {
-  const lista = [], Z = ZONAS.carcel;
+  const lista = [], Z = { x: DEPTO.px, z: DEPTO.z2 + 4 };   // estacionados frente al departamento
   // 4 patrulleros + 3 camionetas de la Policía Especial
   for (let r = 7; r < 40 && lista.length < 10; r += 1.5)
     for (let a = 0; a < Math.PI * 2 && lista.length < 10; a += Math.PI / 10) {
       const x = Z.x + Math.cos(a) * r, z = Z.z + Math.sin(a) * r;
-      if (!choca(x, z, 1.9) && lista.every(o => Math.hypot(o.x0 - x, o.z0 - z) > 6)) lista.push({ x0: x, z0: z });
+      const enEdificio = RESERVADOS.some(R => x > R.x1 - 2 && x < R.x2 + 2 && z > R.z1 - 2 && z < R.z2 + 2);
+      if (!enEdificio && !choca(x, z, 1.9) && lista.every(o => Math.hypot(o.x0 - x, o.z0 - z) > 6)) lista.push({ x0: x, z0: z });
     }
   return lista.map((p, i) => { const tipo = i < 4 ? "patrullero" : i < 7 ? "camioneta" : "moto";
     return { i, tipo, r: tipo === "camioneta" ? 1.6 : tipo === "moto" ? .7 : AUTO_R, max: tipo === "camioneta" ? 23 : tipo === "moto" ? 31 : 26, x0: p.x0, z0: p.z0, x: p.x0, z: p.z0, h: 0, vel: 0, conductor: null, sirena: true,
@@ -422,9 +440,10 @@ function pintarAuto(a, t) {
 }
 
 // Personajes (los demás jugadores se ven como muñequitos)
-function crearMuneco(equipo, nombre, clase, div) {
+function crearMuneco(equipo, nombre, clase, div, uni) {
+  const U = equipo === "poli" && !ARMADO(clase) ? (UNIFORMES[uni] || UNIFORMES.azul) : null;
   const swat = ARMADO(clase), halcon = clase === "halcon";
-  const g = new THREE.Group(), col = halcon ? 0x0e0e0e : swat ? 0x1d1f1a : equipo === "poli" ? 0x1b2a4a : 0x222222;
+  const g = new THREE.Group(), col = halcon ? 0x0e0e0e : swat ? 0x1d1f1a : equipo === "poli" ? U.cuerpo : 0x222222;
   const cuerpo = new THREE.Mesh(new THREE.CylinderGeometry(.35, .4, 1.1, 12), new THREE.MeshLambertMaterial({ color: col })); cuerpo.position.y = .9; g.add(cuerpo);
   // Marca para Investigaciones (se ve a través de las paredes)
   const marca = new THREE.Sprite(new THREE.SpriteMaterial({ map: textura((c, w, h) => { c.fillStyle = "#ff2a2a"; c.beginPath(); c.moveTo(w / 2, h); c.lineTo(0, 0); c.lineTo(w, 0); c.fill(); }, 64, 64), depthTest: false }));
@@ -441,9 +460,19 @@ function crearMuneco(equipo, nombre, clase, div) {
       const gog = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, .14, 8), new THREE.MeshBasicMaterial({ color: 0x3dff6a })); gog.rotation.x = Math.PI / 2; gog.position.set(0, 1.92, .26); g.add(gog); }
     const visor = new THREE.Mesh(new THREE.BoxGeometry(.5, .1, .1), new THREE.MeshBasicMaterial({ color: 0x223344 })); visor.position.set(0, 1.7, .27); g.add(visor);
     const arma = new THREE.Mesh(new THREE.BoxGeometry(.12, .16, .8), new THREE.MeshLambertMaterial({ color: 0x111111 })); arma.position.set(.3, 1.05, .45); g.add(arma); g.userData.arma = arma; }
-  const gorro = swat ? new THREE.Object3D() : equipo === "poli" ? new THREE.Mesh(new THREE.CylinderGeometry(.32, .32, .18, 12), new THREE.MeshLambertMaterial({ color: 0x0f1d36 }))
+  if (U && U.extra) {
+    const m = c => new THREE.MeshLambertMaterial({ color: c });
+    if (U.extra === "chaleco" || U.extra === "chaleco-negro") { const ch = new THREE.Mesh(new THREE.CylinderGeometry(.38, .42, .7, 12), U.extra === "chaleco" ? new THREE.MeshBasicMaterial({ color: 0xd8ff1a }) : m(0x161616)); ch.position.y = 1.05; g.add(ch);
+      if (U.extra === "chaleco") { const fr = new THREE.Mesh(new THREE.CylinderGeometry(.385, .425, .08, 12), new THREE.MeshBasicMaterial({ color: 0xdddddd })); fr.position.y = 1; g.add(fr); } }
+    if (U.extra === "medallas") for (let i = 0; i < 3; i++) { const md = new THREE.Mesh(new THREE.SphereGeometry(.045, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffd400 })); md.position.set(-.12 + i * .08, 1.25, .35); g.add(md); }
+    if (U.extra === "cuello") { const cu = new THREE.Mesh(new THREE.TorusGeometry(.26, .07, 8, 14), m(0x2a2a2a)); cu.rotation.x = Math.PI / 2; cu.position.y = 1.45; g.add(cu); }
+  }
+  const gorro = swat ? new THREE.Object3D() : U && U.extra === "sombrero" ? (() => { const sg = new THREE.Group(); const ala = new THREE.Mesh(new THREE.CylinderGeometry(.5, .5, .04, 16), new THREE.MeshLambertMaterial({ color: U.gorro }));
+      const copa = new THREE.Mesh(new THREE.CylinderGeometry(.24, .28, .25, 12), new THREE.MeshLambertMaterial({ color: U.gorro })); copa.position.y = .14; sg.add(ala, copa); return sg; })()
+    : U && U.extra === "casco" ? new THREE.Mesh(new THREE.SphereGeometry(.35, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: U.gorro }))
+    : equipo === "poli" ? new THREE.Mesh(new THREE.CylinderGeometry(.32, .32, .18, 12), new THREE.MeshLambertMaterial({ color: U ? U.gorro : 0x0f1d36 }))
                                   : new THREE.Mesh(new THREE.BoxGeometry(.62, .14, .2), new THREE.MeshLambertMaterial({ color: 0x111111 }));
-  gorro.position.set(0, equipo === "poli" ? 1.95 : 1.72, equipo === "poli" ? 0 : .22); g.add(gorro);
+  gorro.position.set(0, equipo === "poli" ? (U && U.extra === "casco" ? 1.72 : 1.95) : 1.72, equipo === "poli" ? 0 : .22); g.add(gorro);
   const bolsa = new THREE.Mesh(geoBolsa, matBolsa); bolsa.scale.setScalar(.7); bolsa.position.set(0, 1.1, -.45); bolsa.visible = false; g.add(bolsa); g.userData.bolsa = bolsa;
   const n = cartel(ICONO(clase || equipo) + " " + nombre + (div && DIVISIONES[div] && equipo === "poli" && !ARMADO(clase) ? " · " + DIVISIONES[div].ico : ""), halcon ? "#000000" : swat ? "#3a4a1a" : equipo === "poli" ? "#1e4fd8" : "#333333"); n.scale.set(3, .75, 1); n.position.y = 2.5; g.add(n);
   escena.add(g); return g;
@@ -455,6 +484,17 @@ let clase = "poli", equipo = "poli", jug = {}, yo = null, jugando = false, onlin
 const miNombre = () => (DB.nombre || (clase === "halcon" ? "Halcón" : clase === "swat" ? "SWAT" : equipo === "poli" ? "Poli" : "Ladrón")).slice(0, 14);
 const ICONO = c => c === "halcon" ? "🦅" : c === "swat" ? "🪖" : c === "poli" ? "👮" : "🦹";
 const ARMADO = c => c === "swat" || c === "halcon";
+// Uniformes de la policía (se eligen en las taquillas)
+const UNIFORMES = {
+  azul:     { nom: "Azul reglamentario", ico: "👮", cuerpo: 0x1b2a4a, gorro: 0x0f1d36, extra: null },
+  celeste:  { nom: "Camisa celeste",     ico: "👔", cuerpo: 0x8fcbe8, gorro: 0x0f1d36, extra: null },
+  gala:     { nom: "De gala",            ico: "🎖️", cuerpo: 0x0b1530, gorro: 0xffffff, extra: "medallas" },
+  transito: { nom: "Tránsito (chaleco)", ico: "🦺", cuerpo: 0x1b2a4a, gorro: 0xf2f2f2, extra: "chaleco" },
+  invierno: { nom: "Campera de invierno",ico: "🧥", cuerpo: 0x151515, gorro: 0x151515, extra: "cuello" },
+  rural:    { nom: "Policía rural",      ico: "🤠", cuerpo: 0x8a7a55, gorro: 0x5a4a2a, extra: "sombrero" },
+  tactico:  { nom: "Táctico verde",      ico: "🪖", cuerpo: 0x4a5a3a, gorro: 0x3a4a2a, extra: "chaleco-negro" },
+  motorista:{ nom: "Motorista",          ico: "⛑️", cuerpo: 0x1b2a4a, gorro: 0xffffff, extra: "casco" },
+};
 // Divisiones de la policía (se eligen en las taquillas del departamento)
 const DIVISIONES = {
   patrulla:        { nom: "Patrulla",        ico: "🚓", d: "La de siempre: equilibrada." },
@@ -463,8 +503,8 @@ const DIVISIONES = {
   canes:           { nom: "Canes",           ico: "🐕", d: "Atrapa desde más lejos (el perro ayuda)." },
 };   // tienen ametralladora y pueden reventar puertas
 function nuevoJug(id, nombre, eq, bot, cl) {
-  const l = lugarLibre(eq === "poli" ? { x: -52.5, z: 33 } : ZONAS.guarida, eq === "poli" ? 3.5 : 8);
-  return { id, nombre, equipo: eq, clase: cl || eq, div: "patrulla", bot, res: 100, x: l.x, z: l.z, rot: 0, preso: false, bolsa: false, mesh: null, tx: l.x, tz: l.z, atrapados: 0, robado: 0, visto: Date.now() };
+  const l = lugarLibre(eq === "poli" ? { x: DEPTO.cx, z: DEPTO.cz } : ZONAS.guarida, eq === "poli" ? 3.5 : 8);
+  return { id, nombre, equipo: eq, clase: cl || eq, div: "patrulla", uni: "azul", bot, res: 100, x: l.x, z: l.z, rot: 0, preso: false, bolsa: false, mesh: null, tx: l.x, tz: l.z, atrapados: 0, robado: 0, visto: Date.now() };
 }
 
 // ================== RED ==================
@@ -499,8 +539,8 @@ function conectar(cod, host) {
 }
 function recibirPos(p) {
   let s = jug[p.id];
-  if (!s) { if (!jugando) return; s = jug[p.id] = nuevoJug(p.id, p.nombre, p.equipo, false, p.clase); s.div = p.div || "patrulla"; s.mesh = crearMuneco(p.equipo, p.nombre, p.clase, s.div); feed(`👋 Entró ${p.nombre}`); }
-  if (p.div && p.div !== s.div) { s.div = p.div; escena.remove(s.mesh); s.mesh = crearMuneco(s.equipo, s.nombre, s.clase, s.div); }
+  if (!s) { if (!jugando) return; s = jug[p.id] = nuevoJug(p.id, p.nombre, p.equipo, false, p.clase); s.div = p.div || "patrulla"; s.uni = p.uni || "azul"; s.mesh = crearMuneco(p.equipo, p.nombre, p.clase, s.div, s.uni); feed(`👋 Entró ${p.nombre}`); }
+  if ((p.div && p.div !== s.div) || (p.uni && p.uni !== s.uni)) { s.div = p.div || s.div; s.uni = p.uni || s.uni; escena.remove(s.mesh); s.mesh = crearMuneco(s.equipo, s.nombre, s.clase, s.div, s.uni); }
   s.tx = p.x; s.tz = p.z; s.rot = p.rot; if (p.res !== undefined) s.res = p.res; s.preso = p.preso; s.bolsa = p.bolsa; s.paquete = !!p.paq; s.visto = Date.now(); s.auto = p.auto ?? null;
   if (s.auto !== null && autos[s.auto] && autos[s.auto] !== miAuto) { const a = autos[s.auto]; a.conductor = p.id; a.tx = p.x; a.tz = p.z; a.th = p.ah; a.sirena = p.sir; a.vel = p.av; }
 }
@@ -774,6 +814,20 @@ function actualizarLuces(t) {
   $("sirena").style.opacity = cerca ? .55 : 0; $("sirena").classList.toggle("on", cerca);
 }
 
+// ================== TAQUILLAS ==================
+function abrirTaquillas() {
+  document.exitPointerLock?.(); $("taquillas").style.display = "block";
+  const pintar = () => {
+    $("tq-div").innerHTML = Object.entries(DIVISIONES).map(([k, d]) => `<button data-div="${k}" class="${yo.div === k ? "on" : ""}">${d.ico} ${d.nom}<small>${d.d}</small></button>`).join("");
+    $("tq-uni").innerHTML = Object.entries(UNIFORMES).map(([k, u]) => `<button data-uni="${k}" class="${yo.uni === k ? "on" : ""}" style="border-left:8px solid #${u.cuerpo.toString(16).padStart(6, "0")}">${u.ico} ${u.nom}</button>`).join("");
+    $("tq-div").querySelectorAll("[data-div]").forEach(b => b.onclick = () => { yo.div = b.dataset.div; beep(900, .08, "triangle"); pintar(); });
+    $("tq-uni").querySelectorAll("[data-uni]").forEach(b => b.onclick = () => { yo.uni = b.dataset.uni; beep(700, .08, "triangle"); pintar(); });
+  };
+  pintar();
+}
+$("tq-ok").onclick = () => { $("taquillas").style.display = "none"; grande(`${DIVISIONES[yo.div].ico} ${DIVISIONES[yo.div].nom.toUpperCase()}`, "#5ec8f2");
+  if (!document.body.classList.contains("tactil")) renderer.domElement.requestPointerLock?.(); };
+
 // ================== BOTS (práctica) ==================
 function pensarBot(b, dt) {
   if (ARMADO(b.clase) && puerta.cerrada && Math.hypot(b.x - (CASA.x1 - 1), b.z - (CASA.puertaZ1 + 1.1)) < 2) irrupcion(b.id);
@@ -814,7 +868,8 @@ function pensarBot(b, dt) {
   // Para entrar o salir de un edificio, primero pasa por la puerta
   const adentro = (p, R) => p.x > R.x1 && p.x < R.x2 && p.z > R.z1 && p.z < R.z2;
   const D = { x1: DEPTO.x1, x2: DEPTO.x2, z1: DEPTO.z1, z2: DEPTO.z2 }, N = { x1: CASA.x1, x2: CASA.x2, z1: CASA.z1, z2: CASA.z2 };
-  if (adentro(b, D) !== adentro(o, D)) o = adentro(b, D) ? (b.z > DEPTO.z2 - 1.2 ? { x: -53, z: 40 } : { x: -53, z: DEPTO.z2 - .4 }) : (Math.abs(b.x + 53) < 1 && b.z > DEPTO.z2 - .5 ? { x: -53, z: 33 } : { x: -53, z: 39.5 });
+  if (adentro(b, D) !== adentro(o, D)) o = adentro(b, D) ? (b.z > DEPTO.z2 - 1.2 ? { x: DEPTO.px, z: DEPTO.z2 + 2.5 } : { x: DEPTO.px, z: DEPTO.z2 - .4 })
+                                                      : (Math.abs(b.x - DEPTO.px) < 1 && b.z > DEPTO.z2 - .5 ? { x: DEPTO.px, z: DEPTO.cz } : { x: DEPTO.px, z: DEPTO.z2 + 2 });
   else if (adentro(b, N) !== adentro(o, N)) o = adentro(b, N) ? (b.x < CASA.x1 + 1.2 ? { x: 36.5, z: -44 } : { x: CASA.x1 + .4, z: -44 }) : (Math.abs(b.z + 44) < 1 && b.x < CASA.x1 + .5 ? { x: 44, z: -44.5 } : { x: 37, z: -44 });
   // Camina hacia el objetivo esquivando edificios con un pequeño desvío
   b.desvio = (b.desvio || 0) - dt;
@@ -867,9 +922,8 @@ function loop(t) {
     // Departamento: taquillas (división) y armería (recargar)
     if (yo.equipo === "poli" && !miAuto && !yo.preso) {
       if (Math.hypot(yo.x - TAQUILLAS.x, yo.z - (DEPTO.z1 + 1.6)) < 1.8 && !ARMADO(yo.clase)) {
-        pistaDepto = `👕 E: cambiar de división (ahora: ${DIVISIONES[yo.div].ico} ${DIVISIONES[yo.div].nom})`;
-        if (accionPedida) { const ks = Object.keys(DIVISIONES); yo.div = ks[(ks.indexOf(yo.div) + 1) % ks.length]; accionPedida = false;
-          grande(`${DIVISIONES[yo.div].ico} ${DIVISIONES[yo.div].nom.toUpperCase()}`, "#5ec8f2"); feed(`${DIVISIONES[yo.div].ico} ${DIVISIONES[yo.div].d}`); beep(900, .1, "triangle"); }
+        pistaDepto = `👕 E: abrir las taquillas (división y uniforme)`;
+        if (accionPedida) { accionPedida = false; abrirTaquillas(); }
       } else if (Math.hypot(yo.x - ARMERIA.x, yo.z - (DEPTO.z1 + 2)) < 1.9) {
         pistaDepto = ARMADO(yo.clase) ? "🔫 E: recargar todo en la armería" : "🔫 La armería es para SWAT y Grupo Halcón";
         if (accionPedida && ARMADO(yo.clase)) { balas = CARGADOR; recargando = 0; if (yo.clase === "halcon") granadas = 3; accionPedida = false; grande("🔫 ¡EQUIPO RECARGADO!", "#ffd400"); beep(500, .1); setTimeout(() => beep(800, .1), 120); }
@@ -962,12 +1016,12 @@ function loop(t) {
     $("equipos").innerHTML = `👮 ${Object.values(jug).filter(s => s.equipo === "poli").length} polis<br>🦹 ${L.filter(s => !s.preso).length} libres · ⛓️ ${L.filter(s => s.preso).length} presos`;
     $("b-accion").textContent = yo.equipo === "poli" ? "🚔" : "🔓";
     if (quedan <= 0 && (soyHost || !online)) { const g = botin >= META ? "ladron" : "poli"; enviar("fin", { gana: g }); terminar(g); }
-    if (online && t - ultPos > 80) { ultPos = t; enviar("pos", { id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, bolsa: yo.bolsa, paq: !!yo.paquete,
+    if (online && t - ultPos > 80) { ultPos = t; enviar("pos", { id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, uni: yo.uni, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, bolsa: yo.bolsa, paq: !!yo.paquete,
       auto: miAuto ? miAuto.i : null, ah: miAuto ? +miAuto.h.toFixed(2) : 0, av: miAuto ? +miAuto.vel.toFixed(1) : 0, sir: miAuto ? miAuto.sirena : false }); }
   } else { yaw += dt * .1; }
   // Mi propio muñeco (se ve en tercera persona o vista aérea)
   if (yo) {
-    if (!yo.mesh || yo.meshDiv !== yo.div) { if (yo.mesh) escena.remove(yo.mesh); yo.mesh = crearMuneco(yo.equipo, yo.nombre, yo.clase, yo.div); yo.meshDiv = yo.div; }
+    if (!yo.mesh || yo.meshDiv !== yo.div + yo.uni) { if (yo.mesh) escena.remove(yo.mesh); yo.mesh = crearMuneco(yo.equipo, yo.nombre, yo.clase, yo.div, yo.uni); yo.meshDiv = yo.div + yo.uni; }
     yo.mesh.visible = jugando && modoCam !== 0 && !miAuto;
     yo.mesh.position.set(yo.x, 0, yo.z); yo.mesh.rotation.y = yaw + Math.PI; yo.mesh.userData.bolsa.visible = yo.bolsa || !!yo.paquete;
   }
