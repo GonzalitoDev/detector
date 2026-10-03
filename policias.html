@@ -37,6 +37,15 @@
   .equipo button { flex:1; min-width:180px; padding:18px; border-radius:16px; border:3px solid transparent; font-size:18px; font-weight:900; cursor:pointer; color:#fff; }
   .equipo .poli { background:linear-gradient(160deg,#1e4fd8,#0b2a7a); }
   .equipo .ladron { background:linear-gradient(160deg,#444,#111); }
+  .equipo .swat { background:linear-gradient(160deg,#2b2f24,#0c0e09); }
+  #municion { position:fixed; right:16px; bottom:70px; z-index:5; font-weight:900; font-size:22px; text-shadow:0 2px 4px #000; display:none; pointer-events:none;
+              background:#000a; border:2px solid #9bb15a; border-radius:12px; padding:6px 12px; }
+  body.swat #municion { display:block; }
+  #resistencia { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); width:220px; height:14px; background:#0008; border-radius:7px; overflow:hidden; z-index:5; display:none; }
+  #resistencia div { height:100%; background:#3ddc5a; transition:width .2s; }
+  body.ladron #resistencia { display:block; }
+  #golpe { position:fixed; inset:0; pointer-events:none; z-index:4; box-shadow:inset 0 0 90px 30px #ffffff; opacity:0; transition:opacity .25s; }
+  #linterna-txt { position:fixed; right:16px; top:60px; z-index:5; font-size:13px; opacity:.7; pointer-events:none; }
   .equipo button.on { border-color:#ffd400; box-shadow:0 0 20px #ffd40088; }
   .equipo small { display:block; font-weight:500; opacity:.85; margin-top:6px; font-size:13px; }
   button.g { font-size:17px; padding:12px 18px; border:0; border-radius:12px; font-weight:800; cursor:pointer; background:#ffd400; color:#000; }
@@ -63,7 +72,7 @@
 <div id="mira"></div><div id="pista"></div><div id="grande"></div><div id="feed"></div>
 <div id="sirena"></div><div id="rejas"></div>
 <div class="stick" id="stick"><b></b></div><button id="b-accion">🚔</button><button id="b-auto">🚓</button>
-<div id="velocimetro"></div>
+<div id="velocimetro"></div><div id="municion"></div><div id="resistencia"><div></div></div><div id="golpe"></div><div id="linterna-txt"></div>
 
 <div class="pantalla" id="menu">
   <h1>🚓 POLIS Y LADRONES 💰</h1>
@@ -72,6 +81,7 @@
     <p style="margin-top:0">Elegí tu bando:</p>
     <div class="equipo">
       <button class="poli on" data-e="poli">👮 POLICÍA<small>Atrapá a los ladrones: acercate y hacé click, o pasalos por arriba con el 🚓 patrullero. Cuando están todos presos, ganás.</small></button>
+      <button class="swat" data-e="swat">🪖 SWAT<small>Equipo especial con ametralladora: disparale a los ladrones hasta que se rindan (sin sangre, se quedan sin resistencia y van presos). Click para disparar, R para recargar.</small></button>
       <button class="ladron" data-e="ladron">🦹 LADRÓN<small>Robá bolsas de plata 💰 del banco y llevalas a la guarida. Juntá $10.000 antes de que termine el tiempo.</small></button>
     </div>
   </div>
@@ -81,7 +91,7 @@
     </div>
     <div style="display:flex;gap:8px;justify-content:center;margin-top:10px"><input id="cod" maxlength="4" placeholder="CÓDIGO"><button class="g" id="unirse">🚪 Unirse</button></div>
     <p id="msg" style="color:#ff8a8a;margin:8px 0 0"></p>
-    <p style="opacity:.7;font-size:13px;margin:10px 0 0">Compu: WASD para moverte, mouse para mirar (hacé click para capturar el mouse), Shift para correr, click o E para atrapar o liberar. Los polis suben y bajan del patrullero con F (H prende la sirena). Celu: joystick para moverte, arrastrá la pantalla para mirar, botón amarillo para la acción.</p>
+    <p style="opacity:.7;font-size:13px;margin:10px 0 0">Compu: WASD para moverte, mouse para mirar (hacé click para capturar el mouse), Shift para correr, click o E para atrapar o liberar. Los polis suben y bajan del patrullero con F (H prende la sirena). L prende la linterna. SWAT: click sostenido para disparar, R para recargar. Celu: joystick para moverte, arrastrá la pantalla para mirar, botón amarillo para la acción.</p>
   </div>
 </div>
 
@@ -274,26 +284,31 @@ function pintarAuto(a, t) {
 }
 
 // Personajes (los demás jugadores se ven como muñequitos)
-function crearMuneco(equipo, nombre) {
-  const g = new THREE.Group(), col = equipo === "poli" ? 0x1e4fd8 : 0x222222;
+function crearMuneco(equipo, nombre, clase) {
+  const swat = clase === "swat";
+  const g = new THREE.Group(), col = swat ? 0x1d1f1a : equipo === "poli" ? 0x1e4fd8 : 0x222222;
   const cuerpo = new THREE.Mesh(new THREE.CylinderGeometry(.35, .4, 1.1, 12), new THREE.MeshLambertMaterial({ color: col })); cuerpo.position.y = .9; g.add(cuerpo);
   if (equipo === "ladron") for (let i = 0; i < 3; i++) { const r = new THREE.Mesh(new THREE.CylinderGeometry(.41, .41, .12, 12), new THREE.MeshLambertMaterial({ color: 0xffffff })); r.position.y = .55 + i * .3; g.add(r); }
   const cabeza = new THREE.Mesh(new THREE.SphereGeometry(.3, 14, 12), new THREE.MeshLambertMaterial({ color: 0xf1c27d })); cabeza.position.y = 1.7; g.add(cabeza);
-  const gorro = equipo === "poli" ? new THREE.Mesh(new THREE.CylinderGeometry(.32, .32, .18, 12), new THREE.MeshLambertMaterial({ color: 0x0b2a7a }))
+  if (swat) { const casco = new THREE.Mesh(new THREE.SphereGeometry(.34, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x2a2d24 })); casco.position.y = 1.74; g.add(casco);
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(.5, .1, .1), new THREE.MeshBasicMaterial({ color: 0x223344 })); visor.position.set(0, 1.7, .27); g.add(visor);
+    const arma = new THREE.Mesh(new THREE.BoxGeometry(.12, .16, .8), new THREE.MeshLambertMaterial({ color: 0x111111 })); arma.position.set(.3, 1.05, .45); g.add(arma); g.userData.arma = arma; }
+  const gorro = swat ? new THREE.Object3D() : equipo === "poli" ? new THREE.Mesh(new THREE.CylinderGeometry(.32, .32, .18, 12), new THREE.MeshLambertMaterial({ color: 0x0b2a7a }))
                                   : new THREE.Mesh(new THREE.BoxGeometry(.62, .14, .2), new THREE.MeshLambertMaterial({ color: 0x111111 }));
   gorro.position.set(0, equipo === "poli" ? 1.95 : 1.72, equipo === "poli" ? 0 : .22); g.add(gorro);
   const bolsa = new THREE.Mesh(geoBolsa, matBolsa); bolsa.scale.setScalar(.7); bolsa.position.set(0, 1.1, -.45); bolsa.visible = false; g.add(bolsa); g.userData.bolsa = bolsa;
-  const n = cartel((equipo === "poli" ? "👮 " : "🦹 ") + nombre, equipo === "poli" ? "#1e4fd8" : "#333333"); n.scale.set(3, .75, 1); n.position.y = 2.5; g.add(n);
+  const n = cartel(ICONO(clase || equipo) + " " + nombre, swat ? "#3a4a1a" : equipo === "poli" ? "#1e4fd8" : "#333333"); n.scale.set(3, .75, 1); n.position.y = 2.5; g.add(n);
   escena.add(g); return g;
 }
 
 // ================== ESTADO ==================
 const miId = Math.random().toString(36).slice(2, 9);
-let equipo = "poli", jug = {}, yo = null, jugando = false, online = false, soyHost = false, canal = null, codigo = "", fin = 0, botin = 0, inicioT = 0;
-const miNombre = () => (DB.nombre || (equipo === "poli" ? "Poli" : "Ladrón")).slice(0, 14);
-function nuevoJug(id, nombre, eq, bot) {
+let clase = "poli", equipo = "poli", jug = {}, yo = null, jugando = false, online = false, soyHost = false, canal = null, codigo = "", fin = 0, botin = 0, inicioT = 0;
+const miNombre = () => (DB.nombre || (clase === "swat" ? "SWAT" : equipo === "poli" ? "Poli" : "Ladrón")).slice(0, 14);
+const ICONO = c => c === "swat" ? "🪖" : c === "poli" ? "👮" : "🦹";
+function nuevoJug(id, nombre, eq, bot, cl) {
   const l = lugarLibre(eq === "poli" ? ZONAS.carcel : ZONAS.guarida, 8);
-  return { id, nombre, equipo: eq, bot, x: l.x, z: l.z, rot: 0, preso: false, bolsa: false, mesh: null, tx: l.x, tz: l.z, atrapados: 0, robado: 0, visto: Date.now() };
+  return { id, nombre, equipo: eq, clase: cl || eq, bot, res: 100, x: l.x, z: l.z, rot: 0, preso: false, bolsa: false, mesh: null, tx: l.x, tz: l.z, atrapados: 0, robado: 0, visto: Date.now() };
 }
 
 // ================== RED ==================
@@ -306,10 +321,12 @@ function conectar(cod, host) {
   canal = SB.channel("polis-" + cod, { config: { broadcast: { self: false }, presence: { key: miId } } });
   Voz.preparar(canal, miId); Voz.nombre = id => jug[id]?.nombre;
   canal.on("presence", { event: "sync" }, () => {
-      $("jugadores").innerHTML = Object.values(canal.presenceState()).map(v => v[0]).map(p => `${p.equipo === "poli" ? "👮" : "🦹"} ${esc(p.nombre)}${p.host ? " 👑" : ""}`).join("<br>");
+      $("jugadores").innerHTML = Object.values(canal.presenceState()).map(v => v[0]).map(p => `${ICONO(p.clase || p.equipo)} ${esc(p.nombre)}${p.host ? " 👑" : ""}`).join("<br>");
     })
     .on("broadcast", { event: "empieza" }, ({ payload }) => { if (!soyHost) empezar(payload.fin); })
     .on("broadcast", { event: "pos" }, ({ payload: p }) => recibirPos(p))
+    .on("broadcast", { event: "disparo" }, ({ payload: p }) => verDisparo(p))
+    .on("broadcast", { event: "dano" }, ({ payload: p }) => recibirDano(p.ladron, p.de, p.dmg))
     .on("broadcast", { event: "atrapa" }, ({ payload: p }) => atrapado(p.ladron, p.poli))
     .on("broadcast", { event: "libera" }, ({ payload: p }) => liberar(p.quien))
     .on("broadcast", { event: "bolsa" }, ({ payload: p }) => tomarBolsa(p.i, p.quien))
@@ -318,12 +335,12 @@ function conectar(cod, host) {
     .on("broadcast", { event: "auto" }, ({ payload: p }) => { const a = autos[p.i]; if (!a) return;
       if (p.sube) { if (a === miAuto && a.conductor === yo.id && p.quien < yo.id) { bajarAuto(); feed("🚓 Otro poli agarró ese patrullero"); } if (a !== miAuto) a.conductor = p.quien; }
       else if (a.conductor === p.quien) { a.conductor = null; a.vel = 0; a.x = a.tx = p.x; a.z = a.tz = p.z; a.h = a.th = p.h; } })
-    .subscribe(async st => { if (st === "SUBSCRIBED") await canal.track({ nombre: miNombre(), equipo, host }); });
+    .subscribe(async st => { if (st === "SUBSCRIBED") await canal.track({ nombre: miNombre(), equipo, clase, host }); });
 }
 function recibirPos(p) {
   let s = jug[p.id];
-  if (!s) { if (!jugando) return; s = jug[p.id] = nuevoJug(p.id, p.nombre, p.equipo, false); s.mesh = crearMuneco(p.equipo, p.nombre); feed(`👋 Entró ${p.nombre}`); }
-  s.tx = p.x; s.tz = p.z; s.rot = p.rot; s.preso = p.preso; s.bolsa = p.bolsa; s.visto = Date.now(); s.auto = p.auto ?? null;
+  if (!s) { if (!jugando) return; s = jug[p.id] = nuevoJug(p.id, p.nombre, p.equipo, false, p.clase); s.mesh = crearMuneco(p.equipo, p.nombre, p.clase); feed(`👋 Entró ${p.nombre}`); }
+  s.tx = p.x; s.tz = p.z; s.rot = p.rot; if (p.res !== undefined) s.res = p.res; s.preso = p.preso; s.bolsa = p.bolsa; s.visto = Date.now(); s.auto = p.auto ?? null;
   if (s.auto !== null && autos[s.auto] && autos[s.auto] !== miAuto) { const a = autos[s.auto]; a.conductor = p.id; a.tx = p.x; a.tz = p.z; a.th = p.ah; a.sirena = p.sir; a.vel = p.av; }
 }
 
@@ -336,7 +353,7 @@ function sirena() { [700, 950, 700, 950].forEach((f, i) => setTimeout(() => beep
 
 function atrapado(idLadron, idPoli) {
   const l = jug[idLadron], p = jug[idPoli]; if (!l || l.preso) return;
-  l.preso = true; if (l.bolsa) { l.bolsa = false; }
+  l.preso = true; l.res = 100; if (l.bolsa) { l.bolsa = false; }
   if (p) p.atrapados++;
   const c = lugarLibre(ZONAS.carcel, 2.5); l.x = l.tx = c.x; l.z = l.tz = c.z;
   feed(`🚔 ${p ? p.nombre : "La poli"} atrapó a ${l.nombre}`);
@@ -395,7 +412,8 @@ renderer.domElement.addEventListener("touchmove", e => { e.preventDefault();
     else { yaw -= (t.clientX - q.x) * .005; pitch = Math.max(-1.2, Math.min(1.2, pitch - (t.clientY - q.y) * .005)); q.x = t.clientX; q.y = t.clientY; } } }, { passive: false });
 const soltar = e => { for (const t of e.changedTouches) { const q = toques[t.identifier]; if (q && q.izq) { joy.x = joy.y = 0; $("stick").querySelector("b").style.transform = ""; } delete toques[t.identifier]; } };
 renderer.domElement.addEventListener("touchend", soltar); renderer.domElement.addEventListener("touchcancel", soltar);
-$("b-accion").addEventListener("touchstart", e => { e.preventDefault(); accionPedida = true; });
+$("b-accion").addEventListener("touchstart", e => { e.preventDefault(); accionPedida = true; tactilDispara = clase === "swat"; });
+$("b-accion").addEventListener("touchend", () => { tactilDispara = false; });
 $("b-auto").addEventListener("touchstart", e => { e.preventDefault(); autoPedido = true; });
 
 function mover(s, dx, dz, vel, dt) {
@@ -405,8 +423,128 @@ function mover(s, dx, dz, vel, dt) {
 }
 const dentro = (s, Z, extra = 0) => Math.hypot(s.x - Z.x, s.z - Z.z) < Z.r + extra;
 
+// ================== SWAT: AMETRALLADORA ==================
+// Arcade y sin sangre: cada impacto le baja "resistencia" al ladrón; en 0 se rinde y va preso.
+const CARGADOR = 30, CADENCIA = .09, DANO = 9, ALCANCE = 45;
+let balas = 0, recargando = 0, enfriar = 0, disparando = false;
+addEventListener("mousedown", e => { if (e.button === 0 && document.pointerLockElement === renderer.domElement) disparando = true; });
+addEventListener("mouseup", () => disparando = false);
+addEventListener("keydown", e => { if (e.code === "KeyR" && clase === "swat") recargar(); if (e.code === "KeyL") linterna.visible = !linterna.visible; });
+function recargar() { if (recargando || balas === CARGADOR) return; recargando = 1.5; beep(300, .08); setTimeout(() => beep(500, .08), 600); }
+// Arma en la mano (se ve en primera persona)
+escena.add(camara);
+const armaVista = new THREE.Group();
+{ const negro = new THREE.MeshLambertMaterial({ color: 0x151515 }), gris = new THREE.MeshLambertMaterial({ color: 0x3a3a3a });
+  const cuerpo = new THREE.Mesh(new THREE.BoxGeometry(.09, .12, .5), negro); armaVista.add(cuerpo);
+  const canon = new THREE.Mesh(new THREE.CylinderGeometry(.022, .022, .3, 8), gris); canon.rotation.x = Math.PI / 2; canon.position.z = -.38; armaVista.add(canon);
+  const mango = new THREE.Mesh(new THREE.BoxGeometry(.07, .16, .08), negro); mango.position.set(0, -.12, .08); mango.rotation.x = .3; armaVista.add(mango);
+  const carg = new THREE.Mesh(new THREE.BoxGeometry(.06, .18, .07), gris); carg.position.set(0, -.13, -.1); armaVista.add(carg); }
+const fogonazo = new THREE.Mesh(new THREE.SphereGeometry(.06, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffd36b })); fogonazo.position.z = -.56; fogonazo.visible = false; armaVista.add(fogonazo);
+const luzFogonazo = new THREE.PointLight(0xffc060, 0, 8); luzFogonazo.position.z = -.6; armaVista.add(luzFogonazo);
+armaVista.position.set(.22, -.2, -.45); armaVista.visible = false; camara.add(armaVista);
+// Linterna (todos la pueden usar con L)
+const linterna = new THREE.SpotLight(0xfff4d0, 2.2, 35, .42, .5, 1.2); linterna.visible = false;
+linterna.position.set(0, 0, 0); camara.add(linterna); linterna.target.position.set(0, 0, -1); camara.add(linterna.target);
+// Trazos de las balas
+const trazos = [];
+function trazo(o, d, largo) {
+  const fin = o.clone().add(d.clone().multiplyScalar(largo));
+  const geo = new THREE.BufferGeometry().setFromPoints([o, fin]);
+  const l = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xfff1a0, transparent: true, opacity: .9 }));
+  escena.add(l); trazos.push({ l, t: .08 });
+}
+// ¿La línea del tiro choca con un edificio antes de distancia "hasta"?
+function paredEnMedio(o, d, hasta) {
+  for (let k = .5; k < hasta; k += .5) { const x = o.x + d.x * k, z = o.z + d.z * k, y = o.y + d.y * k;
+    if (y < 0) return k; if (edificios.some(e => x > e.x1 && x < e.x2 && z > e.z1 && z < e.z2 && y < e.h)) return k; }
+  return null;
+}
+// Busca a qué ladrón le pega un disparo desde "o" en dirección "d"
+function apuntar(o, d, deEquipo) {
+  let mejor = null, dist = ALCANCE;
+  for (const s of Object.values(jug)) {
+    if (s.equipo === deEquipo || s.preso) continue;
+    const vx = s.x - o.x, vz = s.z - o.z, k = vx * d.x + vz * d.z; if (k < 0 || k > dist) continue;
+    const px = o.x + d.x * k, pz = o.z + d.z * k, py = o.y + d.y * k;
+    if (Math.hypot(px - s.x, pz - s.z) < .45 && py > 0 && py < 2) { mejor = s; dist = k; }
+  }
+  const pared = paredEnMedio(o, d, dist);
+  return pared !== null ? { s: null, dist: pared } : { s: mejor, dist };
+}
+function disparar(tirador, o, d) {
+  const r = apuntar(o, d, tirador.equipo);
+  trazo(o, d, r.dist);
+  if (tirador === yo) { fogonazo.visible = true; luzFogonazo.intensity = 3; setTimeout(() => { fogonazo.visible = false; luzFogonazo.intensity = 0; }, 45);
+    armaVista.position.z = -.4; beep(140 + Math.random() * 40, .05, "square", .05);
+    enviar("disparo", { de: tirador.id, o: [o.x, o.y, o.z].map(v => +v.toFixed(2)), d: [d.x, d.y, d.z].map(v => +v.toFixed(3)), l: +r.dist.toFixed(1) }); }
+  else if (Math.hypot(o.x - yo.x, o.z - yo.z) < 40) beep(160, .04, "square", .015);
+  if (r.s) { enviar("dano", { ladron: r.s.id, de: tirador.id, dmg: DANO }); recibirDano(r.s.id, tirador.id, DANO); }
+}
+function verDisparo(p) { const o = new THREE.Vector3(...p.o), d = new THREE.Vector3(...p.d); trazo(o, d, p.l);
+  if (Math.hypot(o.x - yo.x, o.z - yo.z) < 40) beep(160, .04, "square", .015); }
+function recibirDano(idLadron, idDe, dmg) {
+  const l = jug[idLadron]; if (!l || l.preso) return;
+  // Solo descuenta quien controla al ladrón (él mismo, o el dueño del bot); el resto lo ve por "pos"
+  if (l !== yo && !l.bot) { if (l.mesh) { l.mesh.scale.setScalar(1.08); setTimeout(() => l.mesh && l.mesh.scale.setScalar(1), 80); } return; }
+  l.res = Math.max(0, l.res - dmg); l.ultGolpe = Date.now();
+  if (l === yo) { $("golpe").style.opacity = .55; setTimeout(() => $("golpe").style.opacity = 0, 90); beep(90, .06, "sawtooth", .04); }
+  if (l.res <= 0) { feed(`🪖 ${jug[idDe]?.nombre || "El SWAT"} redujo a ${l.nombre}`); enviar("atrapa", { ladron: l.id, poli: idDe }); atrapado(l.id, idDe); }
+}
+function actualizarSwat(dt, t) {
+  for (let i = trazos.length - 1; i >= 0; i--) { const z = trazos[i]; z.t -= dt; z.l.material.opacity = Math.max(0, z.t / .08);
+    if (z.t <= 0) { escena.remove(z.l); z.l.geometry.dispose(); trazos.splice(i, 1); } }
+  // La resistencia de los ladrones se recupera despacio si no les pegan
+  for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso && (s === yo || s.bot) && Date.now() - (s.ultGolpe || 0) > 3000) s.res = Math.min(100, s.res + dt * 8);
+  armaVista.visible = clase === "swat" && jugando && !miAuto;
+  armaVista.position.z += (-.45 - armaVista.position.z) * Math.min(1, dt * 15);
+  armaVista.position.y = -.2 + ((teclas.KeyW || joy.y) && jugando ? Math.sin(t / 110) * .01 : 0);
+  if (clase !== "swat" || !jugando || yo.preso || miAuto) return;
+  enfriar -= dt;
+  if (recargando > 0) { recargando -= dt; if (recargando <= 0) { recargando = 0; balas = CARGADOR; } }
+  const quiere = disparando || tactilDispara;
+  if (quiere && !recargando && enfriar <= 0) {
+    if (balas <= 0) { recargar(); }
+    else { balas--; enfriar = CADENCIA;
+      const d = new THREE.Vector3(); camara.getWorldDirection(d);
+      d.x += (Math.random() - .5) * .03; d.y += (Math.random() - .5) * .03; d.normalize();
+      const o = new THREE.Vector3(); camara.getWorldPosition(o);
+      pitch += .006;   // retroceso
+      disparar(yo, o, d); }
+  }
+  $("municion").textContent = recargando ? "🔄 Recargando..." : `🔫 ${balas} / ${CARGADOR}`;
+}
+let tactilDispara = false;
+
+// ================== LUCES DE POLICÍA ==================
+// Cada patrullero tiene una luz real que ilumina la calle en rojo y azul cuando la sirena está prendida
+for (const a of autos) { const luz = new THREE.PointLight(0xff0000, 0, 18, 1.6); luz.position.set(0, 2.2, 0); a.mesh.add(luz); a.mesh.userData.luz = luz; }
+// Balizas fijas en la comisaría
+const balizasCarcel = [0, 1].map(i => { const l = new THREE.PointLight(i ? 0x2050ff : 0xff2020, 1.2, 16, 1.5);
+  l.position.set(ZONAS.carcel.x + (i ? 3 : -3), 4, ZONAS.carcel.z - ZONAS.carcel.r - 1); escena.add(l);
+  const b = new THREE.Mesh(new THREE.SphereGeometry(.35, 10, 8), new THREE.MeshBasicMaterial({ color: i ? 0x2050ff : 0xff2020 })); b.position.copy(l.position); escena.add(b);
+  return { l, b }; });
+function actualizarLuces(t) {
+  const fase = Math.floor(t / 180) % 2;
+  for (const a of autos) { const luz = a.mesh.userData.luz, on = a.conductor && a.sirena;
+    luz.intensity = on ? 3.2 : 0; luz.color.setHex(fase ? 0xff1a1a : 0x1a4dff); }
+  balizasCarcel.forEach((z, i) => { const on = (Math.floor(t / 400) + i) % 2 === 0; z.l.intensity = on ? 1.6 : .1; z.b.visible = on; });
+  // Si hay patrulleros con sirena cerca, la pantalla también titila un poco
+  const cerca = autos.some(a => a.conductor && a.sirena && Math.hypot(a.x - yo.x, a.z - yo.z) < 14);
+  $("sirena").style.opacity = cerca ? .55 : 0; $("sirena").classList.toggle("on", cerca);
+}
+
 // ================== BOTS (práctica) ==================
 function pensarBot(b, dt) {
+  if (b.clase === "swat") {
+    b.cd = (b.cd || 0) - dt;
+    let obj = null, d = 1e9;
+    for (const o of Object.values(jug)) if (o.equipo === "ladron" && !o.preso) { const dd = Math.hypot(o.x - b.x, o.z - b.z); if (dd < d) { d = dd; obj = o; } }
+    if (obj && d < 25 && b.cd <= 0) {
+      const o = new THREE.Vector3(b.x, 1.4, b.z), dir = new THREE.Vector3(obj.x - b.x, 1.1 - 1.4, obj.z - b.z).normalize();
+      const err = .09 / AJUSTES.mult; dir.x += (Math.random() - .5) * err; dir.z += (Math.random() - .5) * err; dir.normalize();
+      if (paredEnMedio(o, dir, d) === null) { disparar(b, o, dir); b.cd = Math.random() < .12 ? 1.2 : .14; }
+    }
+  }
   if (b.equipo === "poli") {
     let obj = null, d = 1e9;
     for (const o of Object.values(jug)) if (o.equipo === "ladron" && !o.preso) { const dd = Math.hypot(o.x - b.x, o.z - b.z) - (o.bolsa ? 10 : 0); if (dd < d) { d = dd; obj = o; } }
@@ -441,12 +579,14 @@ function empezar(finTs) {
   for (const s of Object.values(jug)) if (s.mesh) escena.remove(s.mesh);
   jug = {}; botin = 0; BOLSAS.forEach(b => { b.hasta = 0; b.mesh.visible = true; });
   resetAutos(); miAuto = null; document.body.classList.toggle("poli", equipo === "poli");
-  yo = jug[miId] = nuevoJug(miId, miNombre(), equipo, false);
+  yo = jug[miId] = nuevoJug(miId, miNombre(), equipo, false, clase);
+  balas = clase === "swat" ? CARGADOR : 0; recargando = 0;
+  document.body.classList.toggle("swat", clase === "swat"); document.body.classList.toggle("ladron", equipo === "ladron");
   yaw = equipo === "poli" ? Math.PI * .75 : -Math.PI * .75; pitch = 0;
   if (!online) {
     const n = equipo === "poli" ? [["ladron", "Ladrón Bot 1"], ["ladron", "Ladrón Bot 2"], ["ladron", "Ladrón Bot 3"], ["poli", "Poli Bot"]]
-                               : [["poli", "Poli Bot 1"], ["poli", "Poli Bot 2"], ["ladron", "Ladrón Bot"]];
-    n.forEach(([eq, nom], i) => { const id = "bot" + i; jug[id] = nuevoJug(id, nom, eq, true); jug[id].mesh = crearMuneco(eq, nom); });
+                               : [["poli", "Poli Bot"], ["swat", "SWAT Bot"], ["ladron", "Ladrón Bot"]];
+    n.forEach(([cl, nom], i) => { const id = "bot" + i, eq = cl === "swat" ? "poli" : cl; jug[id] = nuevoJug(id, nom, eq, true, cl); jug[id].mesh = crearMuneco(eq, nom, cl); });
   }
   fin = finTs || Date.now() + DURACION * 1000; inicioT = Date.now(); jugando = true;
   grande(equipo === "poli" ? "👮 ¡ATRAPALOS A TODOS!" : "🦹 ¡ROBÁ EL BANCO!", equipo === "poli" ? "#5a8aff" : "#7dff8a");
@@ -512,6 +652,10 @@ function loop(t) {
       if (s.mesh) { s.mesh.visible = !(s.auto !== null && s.auto !== undefined); s.mesh.position.set(s.x, 0, s.z); s.mesh.rotation.y = s.rot; s.mesh.userData.bolsa.visible = s.bolsa;
         s.mesh.position.y = s.preso ? 0 : Math.abs(Math.sin(t / 120)) * .08; }
     }
+    actualizarSwat(dt, t); actualizarLuces(t);
+    $("resistencia").firstChild.style.width = yo.res + "%";
+    $("resistencia").firstChild.style.background = yo.res > 60 ? "#3ddc5a" : yo.res > 30 ? "#ffd400" : "#ff4d4d";
+    $("linterna-txt").textContent = linterna.visible ? "🔦 Linterna prendida (L)" : "🔦 L: linterna";
     // Patrulleros
     for (const a of autos) {
       if (a !== miAuto && a.conductor) {
@@ -530,13 +674,13 @@ function loop(t) {
     // HUD
     const quedan = Math.max(0, Math.ceil((fin - Date.now()) / 1000));
     $("reloj").textContent = `⏱️ ${Math.floor(quedan / 60)}:${String(quedan % 60).padStart(2, "0")}`;
-    $("rol").textContent = yo.equipo === "poli" ? `👮 ${yo.nombre} · 🚔 ${yo.atrapados}` : `🦹 ${yo.nombre}${yo.bolsa ? " · 💰" : ""}`;
+    $("rol").textContent = yo.equipo === "poli" ? `${ICONO(yo.clase)} ${yo.nombre} · 🚔 ${yo.atrapados}` : `🦹 ${yo.nombre}${yo.bolsa ? " · 💰" : ""}`;
     $("botin").textContent = `💰 Botín: $${botin.toLocaleString("es-AR")} / $${META.toLocaleString("es-AR")}`;
     const L = Object.values(jug).filter(s => s.equipo === "ladron");
     $("equipos").innerHTML = `👮 ${Object.values(jug).filter(s => s.equipo === "poli").length} polis<br>🦹 ${L.filter(s => !s.preso).length} libres · ⛓️ ${L.filter(s => s.preso).length} presos`;
     $("b-accion").textContent = yo.equipo === "poli" ? "🚔" : "🔓";
     if (quedan <= 0 && (soyHost || !online)) { const g = botin >= META ? "ladron" : "poli"; enviar("fin", { gana: g }); terminar(g); }
-    if (online && t - ultPos > 80) { ultPos = t; enviar("pos", { id: yo.id, nombre: yo.nombre, equipo: yo.equipo, x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, bolsa: yo.bolsa,
+    if (online && t - ultPos > 80) { ultPos = t; enviar("pos", { id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, bolsa: yo.bolsa,
       auto: miAuto ? miAuto.i : null, ah: miAuto ? +miAuto.h.toFixed(2) : 0, av: miAuto ? +miAuto.vel.toFixed(1) : 0, sir: miAuto ? miAuto.sirena : false }); }
   } else { yaw += dt * .1; }
   // Cámara en primera persona
@@ -554,7 +698,7 @@ function loop(t) {
 requestAnimationFrame(loop);
 
 // ================== MENÚ ==================
-document.querySelectorAll("[data-e]").forEach(b => b.onclick = () => { equipo = b.dataset.e; document.querySelectorAll("[data-e]").forEach(x => x.classList.toggle("on", x === b)); });
+document.querySelectorAll("[data-e]").forEach(b => b.onclick = () => { clase = b.dataset.e; equipo = clase === "swat" ? "poli" : clase; document.querySelectorAll("[data-e]").forEach(x => x.classList.toggle("on", x === b)); });
 const nuevoCodigo = () => Array.from({ length: 4 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join("");
 $("practica").onclick = () => { online = false; empezar(); };
 $("crear").onclick = () => conectar(nuevoCodigo(), true);
