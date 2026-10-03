@@ -114,6 +114,7 @@
 <div class="big" id="final"><div id="final-txt"></div><button onclick="reset()">🔁 Revancha</button></div>
 
 <script src="comun.js"></script>
+<script src="db.js"></script>
 <script>
 const MOVES = {
   punio:  { ki:0,   dmg:[8,15],  txt:"Goku le encaja una piña voladora" },
@@ -155,7 +156,7 @@ async function hablaGordo(situacion) {
     if (!r.ok) throw 0;
     const t = (await r.text()).trim().replace(/^"|"$/g,"").slice(0,160);
     if (!t) throw 0;
-    el.textContent = t;
+    el.textContent = t; DB.guardarFrase(t);
   } catch (e) { el.textContent = pick(FRASES); }
   hablando = false;
 }
@@ -178,7 +179,7 @@ Elegí la jugada más astuta (si tenés poca vida conviene curarte; si Goku est�
     const t = await ia(prompt, 6000, true);
     const j = JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}")+1));
     const n = parseInt(j.jugada);
-    if (j.frase) $("habla-txt").textContent = String(j.frase).slice(0,160);
+    if (j.frase) { $("habla-txt").textContent = String(j.frase).slice(0,160); DB.guardarFrase(j.frase); }
     if (n>=0 && n<GORDO.length) return GORDO[n];
   } catch (e) { $("habla-txt").textContent = pick(FRASES); }
   return pick(GORDO);
@@ -222,6 +223,7 @@ function confeti() { for (let i=0;i<60;i++) setTimeout(()=>{ const p=document.cr
   p.style.animationDuration="2s"; p.style.setProperty("--x",(Math.random()*100-50)+"px"); p.style.setProperty("--y",innerHeight+"px");
   document.body.appendChild(p); setTimeout(()=>p.remove(),2100); }, i*30); }
 function reset() {
+  window.inicio = Date.now();
   s = { goku:100, gordo:130, ki:20, hambre:0, busy:false, ssj:false, turnoGordo:false, usado:{}, mate:false, escudo:0, cambio:false };
   $("av-gordo").style.fontSize=""; $("av-gordo").textContent="🫃";
   $("av-goku").textContent="🥋"; $("av-goku").classList.remove("ssj","muerto","gana"); $("av-gordo").classList.remove("muerto","gana");
@@ -366,6 +368,7 @@ function fin() {
   if (s.gordo > 0 && s.goku > 0) return false;
   const gana = s.gordo <= 0;
   AJUSTES.resultado("pelea", gana);
+  DB.guardarPartida("pelea", gana, (Date.now()-window.inicio)/1000);
   $("final-txt").innerHTML = gana
     ? "🏆 ¡GANÓ GOKU!<br><small>El Gordo se fue a comer un pancho para consolarse 🌭</small>"
     : "🍔 ¡GANÓ EL GORDO!<br><small>Goku quedó aplastado. Se viene la revancha 😤</small>";
