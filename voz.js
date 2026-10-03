@@ -2,7 +2,7 @@
 // Uso: Voz.preparar(canal, miId) ANTES de canal.subscribe(); después el botón 🎤 hace el resto.
 const Voz = (() => {
   const ICE = { iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] };
-  let canal = null, yo = null, mic = null, activo = false, muteado = false;
+  let canal = null, yo = null, mic = null, activo = false, muteado = false, sordo = false;
   const pares = {};   // id -> RTCPeerConnection
   const audios = {};  // id -> <audio>
   const hablando = {}; // id -> true/false (para mostrar quién habla)
@@ -17,7 +17,7 @@ const Voz = (() => {
     pc.onicecandidate = e => { if (e.candidate) mandar("ice", { a: id, ice: e.candidate }); };
     pc.ontrack = e => {
       let au = audios[id];
-      if (!au) { au = audios[id] = new Audio(); au.autoplay = true; au.playsInline = true; document.body.appendChild(au); }
+      if (!au) { au = audios[id] = new Audio(); au.autoplay = true; au.playsInline = true; au.muted = sordo; document.body.appendChild(au); }
       au.srcObject = e.streams[0]; au.play().catch(() => {});
       medir(id, e.streams[0]);
     };
@@ -61,7 +61,7 @@ const Voz = (() => {
       ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
       const an = ctx.createAnalyser(); an.fftSize = 256; ctx.createMediaStreamSource(stream).connect(an);
       const datos = new Uint8Array(an.frequencyBinCount);
-      const tic = () => { if (!pares[id] && id !== yo) return; an.getByteFrequencyData(datos);
+      const tic = () => { if (!activo || (!pares[id] && id !== yo)) return; an.getByteFrequencyData(datos);
         const v = datos.reduce((a, b) => a + b, 0) / datos.length; const h = v > 18 && !(id === yo && muteado);
         if (h !== hablando[id]) { hablando[id] = h; actualizar(); } requestAnimationFrame(tic); };
       tic();
@@ -78,6 +78,7 @@ const Voz = (() => {
   caja.append(lista, btn);
 
   function actualizar() {
+    try { Voz.onCambio && Voz.onCambio(estado()); } catch (e) {}
     if (!activo) { btn.textContent = "🎙️ Entrar a la voz"; btn.style.background = "#3fb6ff"; btn.style.color = "#001a2a"; lista.style.display = "none"; return; }
     btn.textContent = muteado ? "🔇 Micrófono apagado" : "🎤 Hablando (tocá para silenciar)";
     btn.style.background = muteado ? "#ff5a5a" : "#3ddc5a"; btn.style.color = "#000";
@@ -87,21 +88,28 @@ const Voz = (() => {
       [yo, ...conectados].map(id => `${hablando[id] ? "🟢" : "⚪"} ${id === yo ? "Vos" : (Voz.nombre(id) || "Jugador")}`).join("<br>");
   }
 
-  btn.onclick = async () => {
-    if (!canal) return;
-    if (!activo) {
-      try { mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
-      catch (e) { btn.textContent = "❌ Sin permiso de micrófono"; return; }
-      activo = true; muteado = false; medir(yo, mic); mandar("hola", {}); actualizar();
-    } else {
-      muteado = !muteado; mic.getAudioTracks().forEach(t => t.enabled = !muteado); actualizar();
-    }
-  };
+  async function entrar() {
+    if (!canal || activo) return true;
+    try { mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
+    catch (e) { btn.textContent = "❌ Sin permiso de micrófono"; return false; }
+    activo = true; muteado = false; medir(yo, mic); mandar("hola", {}); actualizar(); return true;
+  }
+  function alternarMute() { if (!activo) return; muteado = !muteado; mic.getAudioTracks().forEach(t => t.enabled = !muteado); actualizar(); }
+  function alternarSordo() { sordo = !sordo; Object.values(audios).forEach(a => a.muted = sordo); actualizar(); }
+  function estado() {
+    const conectados = Object.keys(pares).filter(id => pares[id].connectionState === "connected");
+    return { activo, muteado, sordo, personas: activo ? [yo, ...conectados].map(id => ({ id, yo: id === yo, hablando: !!hablando[id] })) : [] };
+  }
+  btn.onclick = () => activo ? alternarMute() : entrar();
   addEventListener("beforeunload", () => { if (activo) mandar("chau", {}); });
 
   return {
-    nombre: () => null,  // cada juego puede reemplazarlo para mostrar nombres
-    preparar(c, id) { canal = c; yo = id; c.on("broadcast", { event: "voz" }, recibir); if (!caja.isConnected) document.body.appendChild(caja); actualizar(); },
-    salir() { if (!activo) return; mandar("chau", {}); Object.keys(pares).forEach(cerrarPar); mic && mic.getTracks().forEach(t => t.stop()); activo = false; actualizar(); },
+    nombre: () => null,   // cada juego puede reemplazarlo para mostrar nombres
+    onCambio: null,       // se llama cada vez que cambia quién está / quién habla
+    // ui:false para usar tu propia interfaz (como en el chat estilo Discord)
+    preparar(c, id, op = {}) { canal = c; yo = id; c.on("broadcast", { event: "voz" }, recibir);
+      if (op.ui === false) caja.remove(); else if (!caja.isConnected) document.body.appendChild(caja); actualizar(); },
+    entrar, alternarMute, alternarSordo, estado,
+    salir() { if (!activo) return; mandar("chau", {}); Object.keys(pares).forEach(cerrarPar); mic && mic.getTracks().forEach(t => t.stop()); activo = false; muteado = false; actualizar(); },
   };
 })();
