@@ -74,6 +74,8 @@
   <button data-m="cargar">🔥 Cargar Ki (+35)</button>
   <button data-m="kame">🌊 KAMEHAMEHA (50 ki)</button>
   <button data-m="genki">🌍 Genkidama (100 ki)</button>
+  <button data-m="semilla">🫘 Semilla del ermitaño (1 vez)</button>
+  <button data-m="mate">🧉 Mate cebado (1 vez)</button>
 </div>
 <div id="habla" style="width:100%;max-width:720px;margin-top:12px;padding:12px;border-radius:12px;background:#3fb6ff22;min-height:48px;font-style:italic">🫃💬 <span id="habla-txt">...</span> <small style="opacity:.6">(IA)</small></div>
 <div id="log"></div>
@@ -87,7 +89,14 @@ const MOVES = {
   kame:   { ki:50,  dmg:[22,32], txt:"KAAA-MEEE-HAAA-MEEE-HAAAAA!!!" },
   genki:  { ki:100, dmg:[45,60], txt:"¡Goku tira una Genkidama gigante!" },
 };
+const ITEMS = {
+  semilla: { ki:0, dmg:[0,0], txt:"Goku se come una semilla del ermitaño 🫘" },
+  mate:    { ki:0, dmg:[0,0], txt:"Goku se toma un mate bien cebado 🧉" },
+};
+Object.assign(MOVES, ITEMS);
 const GORDO = [
+  { dmg:[14,22], txt:"El Gordo se come un choripán picante y escupe FUEGO 🌶️🔥", fuego:true },
+  { dmg:[0,0],   txt:"El Gordo se morfa una docena de facturas 🍩 ¡y se pone ENORME! (recibe la mitad de daño 2 turnos)", facturas:true },
   { dmg:[8,14],  txt:"El Gordo te tira un panzazo sísmico 🫃💥" },
   { dmg:[10,16], txt:"El Gordo suelta un eructo nivel 9000 🤢" },
   { dmg:[12,20], txt:"El Gordo hace el Choripán Kamehameha 🌭🔥" },
@@ -137,7 +146,8 @@ async function intro() {
   s.busy=false; render();
 }
 function reset() {
-  s = { goku:100, gordo:130, ki:20, hambre:0, busy:false, ssj:false, turnoGordo:false };
+  s = { goku:100, gordo:130, ki:20, hambre:0, busy:false, ssj:false, turnoGordo:false, usado:{}, mate:false, escudo:0 };
+  $("av-gordo").style.fontSize="";
   $("av-goku").textContent="🥋"; $("av-goku").classList.remove("ssj");
   $("log").innerHTML = "";
   $("final").style.display = "none";
@@ -156,7 +166,7 @@ function render() {
   $("ki-gordo").style.width = s.hambre + "%";
   document.querySelectorAll("button[data-m]").forEach(b => {
     const m = MOVES[b.dataset.m];
-    b.disabled = s.busy || s.turnoGordo || (m.ki > 0 && s.ki < m.ki);
+    b.disabled = s.busy || s.turnoGordo || s.usado[b.dataset.m] || (m.ki > 0 && s.ki < m.ki);
   });
 }
 function anim(id, cls) { const e=$(id); e.classList.remove(cls); void e.offsetWidth; e.classList.add(cls); setTimeout(()=>e.classList.remove(cls),400); }
@@ -168,6 +178,15 @@ async function turno(key) {
   if (s.busy) return;
   const m = MOVES[key];
   s.busy = true; s.ki = Math.min(100, s.ki - m.ki); render();
+  if (ITEMS[key]) {
+    s.usado[key] = true; log("✨ " + m.txt);
+    if (key=="semilla") { const h=100-s.goku; s.goku=100; numero("av-goku","+"+h,true); narrar("¡¡VIDA AL MÁXIMO!!"); flash("#3ddc5a"); }
+    else { s.mate=true; narrar("¡¡DOBLE ATAQUE!!"); flash("#7bd04a"); }
+    beep(990); vineta(); render(); await espera(1200); s.busy=false; render(); return;
+  }
+  const veces = s.mate ? 2 : 1; s.mate = false;
+  for (let v=0; v<veces; v++) {
+  if (v) { narrar("¡¡OTRA VEZ!!"); await espera(500); }
   if (key=="kame" || key=="genki") {
     narrar(key=="kame" ? "KAAA... MEEE... HAAA... MEEE..." : "¡¡ENERGÍA DEL UNIVERSO!!");
     for (let i=0;i<6;i++){ beep(300+i*120); await espera(220); }
@@ -182,6 +201,7 @@ async function turno(key) {
     if (s.ssj) d = Math.round(d*1.5);
     if (Math.random() < .1) { log("😂 " + m.txt + "... ¡pero El Gordo lo esquiva rodando!"); narrar("¡¡LO ESQUIVÓ!!"); numero("av-gordo","MISS"); }
     else {
+      if (s.escudo>0) d = Math.ceil(d/2);
       s.gordo = Math.max(0, s.gordo - d);
       anim("av-gordo","hit"); beep(crit?880:440); temblor();
       numero("av-gordo", "-"+d);
@@ -191,6 +211,9 @@ async function turno(key) {
     }
   } else { log("⚡ " + m.txt); beep(660); flash("#ffd40088"); }
   render();
+  if (s.gordo<=0) break;
+  if (v+1<veces) await espera(700);
+  }
   if (s.gordo>0 && s.gordo<=25) narrar("¡¡EL GORDO ESTÁ AL LÍMITE!!");
   if (fin()) return;
   hablaGordo(situacion());
@@ -206,11 +229,14 @@ async function gordoTurno() {
     render(); narrar("⚠️ MODO GORDO FURIOSO ⚠️"); flash("#ff2a00");
     for (let i=0;i<4;i++){ beep(150); temblor(); await espera(300); }
   }
+  if (s.escudo>0 && --s.escudo==0) { $("av-gordo").style.fontSize=""; log("🍩 Al Gordo se le bajaron las facturas."); }
   anim("av-gordo","attack");
-  if (a.heal) { const h=rnd(a.heal); s.gordo=Math.min(130,s.gordo+h); numero("av-gordo","+"+h,true); log(`${a.txt} → +${h}`); }
+  if (a.facturas) { s.escudo=2; $("av-gordo").style.fontSize="clamp(90px,26vw,160px)"; narrar("¡¡EL GORDO CRECIÓ!!"); temblor(); beep(120); log(a.txt); }
+  else if (a.heal) { const h=rnd(a.heal); s.gordo=Math.min(130,s.gordo+h); numero("av-gordo","+"+h,true); log(`${a.txt} → +${h}`); }
   else if (a.dmg[1]) {
     const d=rnd(a.dmg); s.goku=Math.max(0,s.goku-d);
     if (a.furia) rayo(-1);
+    if (a.fuego) { rayo(-1); flash("#ff6a00"); narrar("¡¡FUEGO PICANTE!!"); }
     anim("av-goku","hit"); beep(220); temblor(); numero("av-goku","-"+d);
     if (d>=25) { flash("#ff0000"); narrar("¡¡GOKU ESTÁ EN PROBLEMAS!!"); }
     log(`${a.txt} → -${d}`);
