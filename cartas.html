@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cartas: Goku vs El Gordo</title>
+<style>
+  :root { --bg:#14102a; --fg:#fff; --goku:#ff8c1a; --gordo:#3fb6ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; color:var(--fg); font-family:system-ui,sans-serif; overflow-x:hidden;
+         background:radial-gradient(circle at 50% 40%, #2b5a2f, #0d2410 70%); display:flex; flex-direction:column; align-items:center; padding:12px 16px; }
+  a { color:#ffd400; }
+  h1 { margin:4px 0 8px; font-size:clamp(20px,5vw,32px); text-shadow:0 0 10px #ffd400; text-align:center; }
+  .jugador { width:100%; max-width:760px; display:flex; align-items:center; gap:12px; background:#0005; border-radius:14px; padding:8px 12px; }
+  .cara { font-size:clamp(40px,11vw,64px); transition:transform .2s; }
+  .info { flex:1; }
+  .bar { height:14px; background:#0008; border-radius:7px; overflow:hidden; margin:4px 0; }
+  .bar div { height:100%; background:#3ddc5a; transition:width .5s; }
+  .energia { letter-spacing:2px; }
+  .escudo { color:#7fd6ff; font-weight:700; }
+  .mesa { position:relative; width:100%; max-width:760px; height:clamp(150px,30vw,200px); margin:10px 0; display:flex; align-items:center; justify-content:center; }
+  .mesa-txt { opacity:.5; font-style:italic; }
+  .mano { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; width:100%; max-width:760px; min-height:170px; }
+  .mano.rival { min-height:auto; gap:4px; }
+  .carta { width:clamp(92px,22vw,120px); height:clamp(130px,31vw,168px); border-radius:12px; padding:8px; cursor:pointer; position:relative;
+           background:linear-gradient(160deg,#fffbe8,#ffe2a6); color:#2a1a00; box-shadow:0 6px 14px #0008; border:3px solid #ffb300;
+           display:flex; flex-direction:column; align-items:center; text-align:center; transition:transform .2s, box-shadow .2s;
+           animation:reparte .5s backwards; }
+  .carta:hover:not(.off) { transform:translateY(-14px) rotate(-2deg); box-shadow:0 14px 24px #000a, 0 0 18px #ffd400; }
+  .carta.off { filter:grayscale(.8) brightness(.7); cursor:not-allowed; }
+  .carta .costo { position:absolute; top:-10px; left:-10px; width:30px; height:30px; border-radius:50%; background:#3fb6ff; color:#fff;
+                  font-weight:900; display:flex; align-items:center; justify-content:center; border:2px solid #fff; }
+  .carta .ico { font-size:clamp(32px,8vw,44px); margin-top:6px; }
+  .carta .nom { font-weight:800; font-size:clamp(11px,2.8vw,14px); margin:4px 0; }
+  .carta .desc { font-size:clamp(10px,2.4vw,12px); opacity:.85; }
+  .carta.gordo { background:linear-gradient(160deg,#e8f6ff,#a6d8ff); border-color:#0077ff; color:#001a33; }
+  .dorso { width:clamp(34px,8vw,46px); height:clamp(48px,11vw,64px); border-radius:6px; background:repeating-linear-gradient(45deg,#0077ff,#0077ff 6px,#005bc4 6px,#005bc4 12px);
+           border:2px solid #fff; box-shadow:0 3px 6px #0008; animation:reparte .4s backwards; }
+  @keyframes reparte { from { transform:translateY(-200px) rotate(-30deg) scale(.5); opacity:0; } }
+  .volando { position:fixed; z-index:20; pointer-events:none; transition:all .55s cubic-bezier(.3,1.4,.6,1); }
+  .girando { animation:gira .6s; }
+  @keyframes gira { 0%{transform:rotateY(180deg) scale(.6)} 100%{transform:rotateY(0) scale(1.2)} }
+  .quema { animation:quema .6s forwards; }
+  @keyframes quema { to { transform:scale(1.6) rotate(10deg); opacity:0; filter:brightness(3) blur(4px); } }
+  .golpe { animation:golpe .45s; }
+  @keyframes golpe { 0%,100%{transform:none} 25%{transform:translateX(-10px) rotate(-10deg)} 75%{transform:translateX(10px) rotate(10deg)} }
+  .num { position:fixed; z-index:30; font-size:clamp(30px,8vw,52px); font-weight:900; color:#ff3b3b; text-shadow:0 0 6px #000; pointer-events:none; animation:sube 1s forwards; }
+  .num.cura { color:#3ddc5a; } .num.esc { color:#7fd6ff; }
+  @keyframes sube { 0%{transform:scale(.3);opacity:0} 25%{transform:scale(1.3);opacity:1} 100%{transform:translateY(-70px);opacity:0} }
+  .part { position:fixed; width:9px; height:9px; border-radius:50%; pointer-events:none; z-index:25; animation:part .7s ease-out forwards; }
+  @keyframes part { to{transform:translate(var(--x),var(--y)) scale(0);opacity:0} }
+  .controles { display:flex; gap:10px; margin:10px 0; flex-wrap:wrap; justify-content:center; }
+  button { font-size:16px; padding:12px 18px; border:0; border-radius:12px; font-weight:800; cursor:pointer; background:#ffd400; color:#000; transition:transform .1s; }
+  button:active { transform:scale(.93); } button:disabled { opacity:.4; cursor:not-allowed; }
+  #log { width:100%; max-width:760px; background:#0006; border-radius:12px; padding:10px; font-size:14px; min-height:70px; max-height:120px; overflow:auto; }
+  #log p { margin:0 0 3px; }
+  #aviso { position:fixed; left:0; right:0; top:40%; text-align:center; z-index:40; pointer-events:none; opacity:0;
+           font-size:clamp(28px,8vw,60px); font-weight:900; color:#ffd400; text-shadow:0 0 18px #ff6a00, 0 4px 0 #000; }
+  #aviso.ver { animation:aviso 1.3s; }
+  @keyframes aviso { 0%{opacity:0;transform:scale(3)} 15%{opacity:1;transform:scale(1)} 80%{opacity:1} 100%{opacity:0} }
+  body.tiembla { animation:golpe .4s; }
+  .final { position:fixed; inset:0; background:#000c; display:none; flex-direction:column; align-items:center; justify-content:center; z-index:50;
+           font-size:clamp(28px,8vw,54px); font-weight:900; text-align:center; padding:16px; }
+</style>
+</head>
+<body>
+<h1>🃏 Cartas: Goku vs El Gordo</h1>
+<div><a href="./">⬅ Volver a la pelea</a></div>
+
+<div class="jugador" style="margin-top:8px">
+  <div class="cara" id="cara-gordo">🫃</div>
+  <div class="info"><b style="color:var(--gordo)">El Gordo</b> <span class="escudo" id="esc-gordo"></span>
+    <div class="bar"><div id="hp-gordo"></div></div><small id="txt-gordo"></small> · <span class="energia" id="en-gordo"></span></div>
+</div>
+<div class="mano rival" id="mano-gordo"></div>
+
+<div class="mesa" id="mesa"><span class="mesa-txt">Jugá una carta 👇</span></div>
+
+<div class="mano rival" id="dorso-goku" style="display:none"></div>
+<div class="jugador">
+  <div class="cara" id="cara-goku">🥋</div>
+  <div class="info"><b style="color:var(--goku)">Goku (vos)</b> <span class="escudo" id="esc-goku"></span>
+    <div class="bar"><div id="hp-goku"></div></div><small id="txt-goku"></small> · <span class="energia" id="en-goku"></span></div>
+</div>
+<div class="controles"><button id="fin-turno">⏭ Terminar turno</button></div>
+<div class="mano" id="mano-goku"></div>
+<div id="log"></div>
+<div id="aviso"></div>
+<div class="final" id="final"><div id="final-txt"></div><button style="margin-top:18px" onclick="nueva()">🔁 Otra partida</button></div>
+
+<script>
+const CARTAS_GOKU = [
+  { id:"pina",  ico:"👊", nom:"Piña",            costo:1, desc:"6 de daño",            dmg:6 },
+  { id:"patada",ico:"🦶", nom:"Patada voladora",  costo:2, desc:"10 de daño",           dmg:10 },
+  { id:"kame",  ico:"🌊", nom:"Kamehameha",       costo:3, desc:"18 de daño",           dmg:18 },
+  { id:"genki", ico:"🌍", nom:"Genkidama",        costo:5, desc:"30 de daño",           dmg:30 },
+  { id:"semilla",ico:"🫘",nom:"Semilla",          costo:2, desc:"Cura 15",              cura:15 },
+  { id:"mate",  ico:"🧉", nom:"Mate cebado",      costo:0, desc:"+2 energía",           energia:2 },
+  { id:"tele",  ico:"✌️", nom:"Teletransporte",   costo:1, desc:"Escudo 8",             escudo:8 },
+  { id:"ssj",   ico:"💛", nom:"Super Saiyajin",   costo:3, desc:"Tus ataques +5 hasta el final", ssj:true },
+];
+const CARTAS_GORDO = [
+  { id:"panza", ico:"🫃", nom:"Panzazo",          costo:1, desc:"6 de daño",            dmg:6 },
+  { id:"eructo",ico:"🤢", nom:"Eructo 9000",      costo:2, desc:"11 de daño",           dmg:11 },
+  { id:"chori", ico:"🌶️", nom:"Choripán picante", costo:3, desc:"17 de daño",           dmg:17 },
+  { id:"mila",  ico:"🍔", nom:"Avalancha de milas",costo:5, desc:"28 de daño",          dmg:28 },
+  { id:"asado", ico:"🥩", nom:"Asado",            costo:2, desc:"Cura 15",              cura:15 },
+  { id:"factu", ico:"🍩", nom:"Facturas",         costo:1, desc:"Escudo 9",             escudo:9 },
+  { id:"siesta",ico:"😴", nom:"Siesta",           costo:0, desc:"+2 energía",           energia:2 },
+];
+const $ = id => document.getElementById(id);
+const pick = a => a[Math.floor(Math.random()*a.length)];
+const espera = ms => new Promise(r=>setTimeout(r,ms));
+let J, ocupado = false;
+
+function mazo(base) { const m=[]; base.forEach(c=>{ const n = c.costo>=5||c.ssj ? 1 : c.costo>=3 ? 2 : 3; for(let i=0;i<n;i++) m.push({...c}); });
+  for (let i=m.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [m[i],m[j]]=[m[j],m[i]]; } return m; }
+function nuevoJ(base, vida) { return { vida, max:vida, energia:0, maxEn:0, escudo:0, mano:[], mazo:mazo(base), base, bonus:0 }; }
+function robar(p, n) { for (let i=0;i<n;i++) { if (!p.mazo.length) p.mazo = mazo(p.base); if (p.mano.length<6) p.mano.push(p.mazo.pop()); } }
+
+function nueva() {
+  J = { goku:nuevoJ(CARTAS_GOKU,60), gordo:nuevoJ(CARTAS_GORDO,70) };
+  $("final").style.display="none"; $("log").innerHTML=""; $("cara-goku").textContent="🥋"; $("cara-goku").style.filter="";
+  robar(J.goku,4); robar(J.gordo,4);
+  log("🃏 ¡Se reparten las cartas!"); aviso("¡A JUGAR!");
+  turnoGoku();
+}
+function log(t){ const p=document.createElement("p"); p.textContent=t; $("log").prepend(p); }
+function aviso(t){ const a=$("aviso"); a.textContent=t; a.classList.remove("ver"); void a.offsetWidth; a.classList.add("ver"); }
+function beep(f){ try{ const c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain(); o.frequency.value=f; o.type="triangle"; g.gain.value=.06;
+  o.connect(g); g.connect(c.destination); o.start(); g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+.25); o.stop(c.currentTime+.3);}catch(e){} }
+function clase(el, c){ el.classList.remove(c); void el.offsetWidth; el.classList.add(c); setTimeout(()=>el.classList.remove(c),700); }
+function numero(el, t, tipo){ const r=el.getBoundingClientRect(), n=document.createElement("div"); n.className="num "+(tipo||"");
+  n.textContent=t; n.style.left=(r.left+r.width/2-20)+"px"; n.style.top=r.top+"px"; document.body.appendChild(n); setTimeout(()=>n.remove(),1000); }
+function chispas(el, color){ const r=el.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
+  for(let i=0;i<18;i++){ const p=document.createElement("div"), a=Math.random()*6.28, d=50+Math.random()*80; p.className="part";
+    p.style.left=cx+"px"; p.style.top=cy+"px"; p.style.background=pick([color,"#fff","#ffd400"]);
+    p.style.setProperty("--x",Math.cos(a)*d+"px"); p.style.setProperty("--y",Math.sin(a)*d+"px"); document.body.appendChild(p); setTimeout(()=>p.remove(),750);} }
+
+function htmlCarta(c, gordo){ return `<div class="costo">${c.costo}</div><div class="ico">${c.ico}</div><div class="nom">${c.nom}</div><div class="desc">${c.desc}</div>`; }
+function render() {
+  for (const k of ["goku","gordo"]) { const p=J[k];
+    $("hp-"+k).style.width = Math.max(0,p.vida/p.max*100)+"%"; $("txt-"+k).textContent = `${Math.max(0,p.vida)}/${p.max} vida`;
+    $("en-"+k).textContent = "⚡".repeat(p.energia) + "·".repeat(Math.max(0,p.maxEn-p.energia));
+    $("esc-"+k).textContent = p.escudo ? `🛡️${p.escudo}` : ""; }
+  const mg=$("mano-goku"); mg.innerHTML="";
+  J.goku.mano.forEach((c,i)=>{ const d=document.createElement("div"); d.className="carta"+(c.costo>J.goku.energia||ocupado?" off":"");
+    d.style.animationDelay=(i*.06)+"s"; d.innerHTML=htmlCarta(c); d.onclick=()=>jugar("goku",i,d); mg.appendChild(d); });
+  const rg=$("mano-gordo"); rg.innerHTML=""; J.gordo.mano.forEach((c,i)=>{ const d=document.createElement("div"); d.className="dorso"; d.style.animationDelay=(i*.05)+"s"; rg.appendChild(d); });
+  $("fin-turno").disabled = ocupado;
+}
+
+async function jugar(quien, i, el) {
+  const p=J[quien], rival=J[quien=="goku"?"gordo":"goku"], c=p.mano[i];
+  if (quien=="goku" && (ocupado || c.costo>p.energia)) { if (el) clase(el,"golpe"); return; }
+  ocupado=true; p.energia-=c.costo; p.mano.splice(i,1);
+  // Carta volando a la mesa
+  const mesa=$("mesa"), mr=mesa.getBoundingClientRect();
+  const origen = el ? el.getBoundingClientRect() : $("mano-gordo").getBoundingClientRect();
+  const v=document.createElement("div"); v.className="carta volando"+(quien=="gordo"?" gordo":""); v.innerHTML=htmlCarta(c);
+  v.style.left=origen.left+"px"; v.style.top=origen.top+"px"; v.style.animation="none";
+  if (quien=="gordo") v.style.transform="rotateY(180deg) scale(.5)";
+  document.body.appendChild(v); render(); beep(500);
+  await espera(30);
+  v.style.left=(mr.left+mr.width/2-60)+"px"; v.style.top=(mr.top+mr.height/2-84)+"px"; v.style.transform="scale(1.2) rotate("+(Math.random()*10-5)+"deg)";
+  await espera(600);
+  if (quien=="gordo") clase(v,"girando");
+  await espera(350);
+  // Efecto
+  const yo=$("cara-"+quien), el2=$("cara-"+(quien=="goku"?"gordo":"goku"));
+  if (c.dmg) {
+    let d=c.dmg+p.bonus; const bloq=Math.min(rival.escudo,d); rival.escudo-=bloq; d-=bloq; rival.vida-=d;
+    clase(yo,"golpe"); chispas(el2, quien=="goku"?"#ff8c1a":"#3fb6ff"); clase(el2,"golpe");
+    numero(el2, bloq&&!d ? "🛡️BLOQUEO" : "-"+d+(bloq?` (🛡️${bloq})`:"")); beep(d>=15?180:300);
+    if (d>=15) { document.body.classList.remove("tiembla"); void document.body.offsetWidth; document.body.classList.add("tiembla"); aviso(c.nom.toUpperCase()+"!!"); }
+    log(`${quien=="goku"?"🥋 Goku":"🫃 El Gordo"} juega ${c.ico} ${c.nom} → ${d} de daño${bloq?` (bloqueó ${bloq})`:""}`);
+  } else if (c.cura) { p.vida=Math.min(p.max,p.vida+c.cura); numero(yo,"+"+c.cura,"cura"); chispas(yo,"#3ddc5a"); beep(800); log(`${c.ico} ${c.nom}: +${c.cura} de vida`); }
+  else if (c.escudo) { p.escudo+=c.escudo; numero(yo,"🛡️+"+c.escudo,"esc"); chispas(yo,"#7fd6ff"); beep(700); log(`${c.ico} ${c.nom}: escudo +${c.escudo}`); }
+  else if (c.energia) { p.energia+=c.energia; numero(yo,"⚡+"+c.energia,"esc"); beep(900); log(`${c.ico} ${c.nom}: +${c.energia} energía`); }
+  else if (c.ssj) { p.bonus+=5; yo.textContent="😡"; yo.style.filter="drop-shadow(0 0 16px #ffe600)"; aviso("¡¡SUPER SAIYAJIN!!"); chispas(yo,"#ffe600"); beep(1000); log("💛 ¡Goku se transforma! Ataques +5"); }
+  await espera(500);
+  v.classList.add("quema"); setTimeout(()=>v.remove(),650);
+  ocupado=false; render();
+  return fin();
+}
+
+function fin() {
+  if (J.goku.vida>0 && J.gordo.vida>0) return false;
+  const gana = J.gordo.vida<=0; ocupado=true; render();
+  aviso(gana?"¡¡K.O.!!":"¡¡PERDISTE!!");
+  setTimeout(()=>{ $("final-txt").innerHTML = gana ? "🏆 ¡GANASTE!<br><small>El Gordo se fue a llorar con un alfajor 🍫</small>" : "🫃 ¡GANÓ EL GORDO!<br><small>Te aplastó con cartas y milanesas</small>"; $("final").style.display="flex"; }, 1200);
+  return true;
+}
+
+function turnoGoku() {
+  const p=J.goku; p.escudo=0; p.maxEn=Math.min(8,p.maxEn+1); p.energia=p.maxEn; robar(p, 2);
+  aviso("TU TURNO"); render();
+}
+async function turnoGordo() {
+  ocupado=true; render();
+  const p=J.gordo; p.escudo=0; p.maxEn=Math.min(8,p.maxEn+1); p.energia=p.maxEn; robar(p,2); render();
+  aviso("TURNO DEL GORDO"); await espera(1100);
+  // IA simple: prioriza energía gratis, cura si está mal, si no el ataque más caro que pueda pagar
+  while (true) {
+    const ok = p.mano.map((c,i)=>({c,i})).filter(x=>x.c.costo<=p.energia);
+    if (!ok.length) break;
+    let elegida = ok.find(x=>x.c.energia) ||
+                  (p.vida < p.max*.45 && ok.find(x=>x.c.cura)) ||
+                  (J.goku.vida <= Math.max(...ok.map(x=>x.c.dmg||0)) && ok.filter(x=>x.c.dmg).sort((a,b)=>b.c.dmg-a.c.dmg)[0]) ||
+                  ok.sort((a,b)=>b.c.costo-a.c.costo)[0];
+    ocupado=false;
+    if (await jugar("gordo", elegida.i, null)) return;
+    ocupado=true; await espera(400);
+  }
+  ocupado=false;
+  turnoGoku();
+}
+$("fin-turno").onclick = () => { if (ocupado) return; log("⏭ Terminaste tu turno"); turnoGordo(); };
+nueva();
+</script>
+</body>
+</html>
