@@ -31,6 +31,9 @@
   .ki div { background:#ffd400; }
   .yo { font-size:12px; background:#ffd400; color:#000; border-radius:6px; padding:1px 6px; font-weight:800; }
   .moves { display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; max-width:720px; margin-top:12px; }
+  .ef { min-height:24px; font-size:20px; margin-top:4px; }
+  .moves button { font-size:14px; padding:10px 8px; }
+  .moves button small { display:block; font-weight:500; opacity:.75; font-size:11px; }
   .burlas { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:10px; }
   .burlas button { background:#ffffff22; color:#fff; font-size:14px; padding:8px 12px; }
   #estado { margin-top:10px; font-weight:800; font-size:18px; min-height:24px; text-align:center; }
@@ -74,9 +77,9 @@
 <div id="juego" class="oculto" style="width:100%;display:flex;flex-direction:column;align-items:center">
   <div class="arena">
     <div class="lado" id="lado-goku"><div class="avatar" id="av-goku">🥋</div><div><b style="color:var(--goku)" id="nom-goku">Goku</b></div>
-      <div class="bar"><div id="hp-goku"></div></div><small id="txt-goku"></small><div class="bar ki"><div id="ki-goku"></div></div><small>Ki</small></div>
+      <div class="bar"><div id="hp-goku"></div></div><small id="txt-goku"></small><div class="bar ki"><div id="ki-goku"></div></div><small>Ki</small><div class="ef" id="ef-goku"></div></div>
     <div class="lado" id="lado-gordo"><div class="avatar" id="av-gordo">🫃</div><div><b style="color:var(--gordo)" id="nom-gordo">El Gordo</b></div>
-      <div class="bar"><div id="hp-gordo"></div></div><small id="txt-gordo"></small><div class="bar ki"><div id="ki-gordo"></div></div><small>Ki</small></div>
+      <div class="bar"><div id="hp-gordo"></div></div><small id="txt-gordo"></small><div class="bar ki"><div id="ki-gordo"></div></div><small>Ki</small><div class="ef" id="ef-gordo"></div></div>
   </div>
   <div id="estado"></div>
   <div class="moves" id="moves"></div>
@@ -95,18 +98,32 @@ const $ = id => document.getElementById(id);
 const rnd = ([a,b]) => a + Math.floor(Math.random()*(b-a+1));
 const espera = ms => new Promise(r => setTimeout(r, ms));
 const MOVES = {
-  goku:  [ { id:"golpe", t:"👊 Piña", ki:0, dmg:[8,14] }, { id:"cargar", t:"🔥 Cargar ki", ki:-35 },
-           { id:"esp", t:"🌊 Kamehameha (50)", ki:50, dmg:[20,30] }, { id:"def", t:"🌍 Genkidama (100)", ki:100, dmg:[38,50] },
-           { id:"cura", t:"🫘 Semilla (1 vez)", ki:0, cura:30, unaVez:true } ],
-  gordo: [ { id:"golpe", t:"🫃 Panzazo", ki:0, dmg:[8,14] }, { id:"cargar", t:"🍔 Comer (cargar)", ki:-35 },
-           { id:"esp", t:"🤢 Eructo 9000 (50)", ki:50, dmg:[20,30] }, { id:"def", t:"🍕 Avalancha de milas (100)", ki:100, dmg:[38,50] },
-           { id:"cura", t:"🥩 Asado (1 vez)", ki:0, cura:30, unaVez:true } ],
+  goku:  [ { id:"golpe", t:"👊 Piña", ki:0, dmg:[8,14], d:"Golpe básico" },
+           { id:"cargar", t:"🔥 Cargar ki", ki:-35, d:"+35 ki" },
+           { id:"rafaga", t:"⚡ Ráfaga (30)", ki:30, golpes:3, dmg:[4,8], d:"3 golpes rápidos" },
+           { id:"esp", t:"🌊 Kamehameha (50)", ki:50, dmg:[20,30], d:"Rayo de energía" },
+           { id:"def", t:"🌍 Genkidama (100)", ki:100, dmg:[38,50], d:"El ataque más fuerte" },
+           { id:"tele", t:"✌️ Teletransporte (20)", ki:20, escudo:1, d:"Esquivás el próximo ataque" },
+           { id:"taiyo", t:"☀️ Taiyoken (35)", ki:35, aturde:true, d:"Encandila: el rival pierde un turno" },
+           { id:"kaio", t:"💥 Kaioken (25, -10 HP)", ki:25, costoHp:10, buff:3, d:"+50% de daño por 3 turnos" },
+           { id:"trans", t:"💛 Super Saiyajin (70)", ki:70, perma:true, cura:20, unaVez:true, d:"+50% de daño para siempre y +20 HP" },
+           { id:"cura", t:"🫘 Semilla", ki:0, cura:30, unaVez:true, d:"+30 HP, una vez" } ],
+  gordo: [ { id:"golpe", t:"🫃 Panzazo", ki:0, dmg:[8,14], d:"Golpe básico" },
+           { id:"cargar", t:"🍔 Comer (cargar)", ki:-35, d:"+35 ki" },
+           { id:"rafaga", t:"🍗 Lluvia de patitas (30)", ki:30, golpes:3, dmg:[4,8], d:"3 golpes rápidos" },
+           { id:"esp", t:"🤢 Eructo 9000 (50)", ki:50, dmg:[20,30], d:"Onda de gas" },
+           { id:"def", t:"🍕 Avalancha de milas (100)", ki:100, dmg:[38,50], d:"El ataque más fuerte" },
+           { id:"factu", t:"🍩 Escudo de facturas (20)", ki:20, escudo:1, d:"Bloqueás el próximo ataque" },
+           { id:"pica", t:"🌶️ Choripán picante (30)", ki:30, dmg:[5,8], veneno:3, d:"Quema: 6 de daño por 3 turnos" },
+           { id:"robo", t:"🤤 Robar la vianda (25)", ki:25, robaKi:30, roba:10, d:"Le saca 30 ki y 10 HP al rival" },
+           { id:"trans", t:"😡 Gordo Furioso (70)", ki:70, perma:true, cura:20, unaVez:true, d:"+50% de daño para siempre y +20 HP" },
+           { id:"cura", t:"🥩 Asado", ki:0, cura:30, unaVez:true, d:"+30 HP, una vez" } ],
 };
 const BURLAS = ["😂 Jajaja", "😤 ¡Vení!", "🍗 Tengo hambre", "💪 Ni me dolió", "🫡 GG"];
 let canal, codigo, yo, S, inicio;
 
 function estadoInicial() {
-  return { hp:{goku:100,gordo:100}, ki:{goku:20,gordo:20}, usado:{goku:false,gordo:false}, turno:"goku", fin:null, n:0,
+  return { hp:{goku:100,gordo:100}, ki:{goku:20,gordo:20}, usado:{goku:{},gordo:{}}, ef:{ goku:{esc:0,ven:0,atur:false,buff:0,perma:false}, gordo:{esc:0,ven:0,atur:false,buff:0,perma:false} }, turno:"goku", fin:null, n:0,
            nombres:{ goku:S?.nombres?.goku||"Goku", gordo:S?.nombres?.gordo||"El Gordo" } };
 }
 function log(t) { const p=document.createElement("p"); p.textContent=t; $("log").prepend(p); }
@@ -125,12 +142,14 @@ function render() {
     $("hp-"+k).style.width = Math.max(0,S.hp[k])+"%"; $("txt-"+k).textContent = Math.max(0,S.hp[k])+" HP";
     $("ki-"+k).style.width = S.ki[k]+"%"; $("lado-"+k).classList.toggle("turno", !S.fin && S.turno===k);
     $("nom-"+k).innerHTML = (S.nombres[k]||k) + (k===yo ? ' <span class="yo">VOS</span>' : "");
+    const e = S.ef[k]; $("ef-"+k).textContent = [e.esc?"🛡️":"", e.ven?`🔥${e.ven}`:"", e.atur?"😵":"", e.buff?`💥${e.buff}`:"", e.perma?(k==="goku"?"💛":"😡"):""].join(" ");
+    $("av-"+k).style.filter = S.fin && S.fin!==k ? "grayscale(1)" : e.perma ? `drop-shadow(0 0 16px ${k==="goku"?"#ffe600":"#ff3b3b"})` : "";
   }
   const miTurno = !S.fin && S.turno === yo;
   $("estado").textContent = S.fin ? (S.fin===yo ? "🏆 ¡GANASTE!" : "💀 Perdiste...") : miTurno ? "👉 ¡Tu turno!" : "⏳ Turno del rival...";
   $("moves").innerHTML = "";
-  MOVES[yo].forEach(m => { const b=document.createElement("button"); b.textContent=m.t;
-    b.disabled = !miTurno || (m.ki>0 && S.ki[yo]<m.ki) || (m.unaVez && S.usado[yo]);
+  MOVES[yo].forEach(m => { const b=document.createElement("button"); b.innerHTML=m.t+"<small>"+m.d+"</small>";
+    b.title = m.d; b.disabled = !miTurno || (m.ki>0 && S.ki[yo]<m.ki) || (m.unaVez && S.usado[yo][m.id]) || (m.costoHp && S.hp[yo] <= m.costoHp);
     b.onclick = () => jugar(m); $("moves").appendChild(b); });
   $("revancha").classList.toggle("oculto", !S.fin);
 }
@@ -138,15 +157,34 @@ function render() {
 // Quien juega calcula el resultado y lo manda al otro
 function jugar(m) {
   if (S.fin || S.turno !== yo) return;
-  const rival = yo==="goku" ? "gordo" : "goku", N = structuredClone(S);
-  const acc = { quien:yo, mov:m.id, texto:m.t };
-  N.ki[yo] = Math.min(100, N.ki[yo] - m.ki);
-  if (m.dmg) { let d = rnd(m.dmg); if (Math.random()<.15) { d=Math.round(d*1.5); acc.crit=true; } if (Math.random()<.08) { d=0; acc.esquiva=true; }
-    N.hp[rival] = Math.max(0, N.hp[rival]-d); acc.dmg = d; }
-  if (m.cura) { N.hp[yo] = Math.min(100, N.hp[yo]+m.cura); N.usado[yo] = true; acc.cura = m.cura; }
+  const rival = yo==="goku" ? "gordo" : "goku", N = structuredClone(S), E = N.ef[yo], R = N.ef[rival];
+  const acc = { quien:yo, mov:m.id, texto:m.t, golpes:[] };
+  N.ki[yo] = Math.max(0, Math.min(100, N.ki[yo] - m.ki));
+  if (m.unaVez) N.usado[yo][m.id] = true;
+  if (m.costoHp) { N.hp[yo] -= m.costoHp; acc.costoHp = m.costoHp; }
+  const mult = (E.buff>0 ? 1.5 : 1) * (E.perma ? 1.5 : 1);
+  if (m.dmg) for (let g=0; g<(m.golpes||1); g++) {
+    let d = Math.round(rnd(m.dmg) * mult), tipo = "";
+    if (R.esc > 0) { R.esc--; d = 0; tipo = "bloqueo"; }
+    else if (Math.random() < .07) { d = 0; tipo = "esquiva"; }
+    else if (Math.random() < .15) { d = Math.round(d*1.5); tipo = "crit"; }
+    N.hp[rival] = Math.max(0, N.hp[rival] - d); acc.golpes.push({ d, tipo });
+  }
+  if (m.veneno && acc.golpes.some(g => g.d > 0)) { R.ven = m.veneno; acc.veneno = true; }
+  if (m.cura) { N.hp[yo] = Math.min(100, N.hp[yo] + m.cura); acc.cura = m.cura; }
+  if (m.escudo) { E.esc = m.escudo; acc.escudo = true; }
+  if (m.aturde) { if (R.esc > 0) { R.esc--; acc.bloqueoAtur = true; } else { R.atur = true; acc.aturde = true; } }
+  if (m.buff) { E.buff = m.buff + 1; acc.buff = true; }
+  if (m.perma) { E.perma = true; acc.perma = true; }
+  if (m.robaKi) { const k = Math.min(N.ki[rival], m.robaKi); N.ki[rival] -= k; N.ki[yo] = Math.min(100, N.ki[yo] + k);
+    N.hp[rival] = Math.max(0, N.hp[rival] - m.roba); N.hp[yo] = Math.min(100, N.hp[yo] + m.roba); acc.robo = { k, hp:m.roba }; }
+  // Efectos que corren al final de tu turno
+  if (E.ven > 0) { N.hp[yo] = Math.max(0, N.hp[yo] - 6); E.ven--; acc.quema = 6; }
+  if (E.buff > 0) E.buff--;
   N.ki[rival] = Math.min(100, N.ki[rival] + 5);
-  if (N.hp[rival] <= 0) N.fin = yo;
-  N.turno = rival; N.n++;
+  if (N.hp[rival] <= 0) N.fin = yo; else if (N.hp[yo] <= 0) N.fin = rival;
+  if (R.atur && !N.fin) { R.atur = false; N.turno = yo; acc.pierde = true; } else N.turno = rival;
+  N.n++;
   canal.send({ type:"broadcast", event:"jugada", payload:{ estado:N, acc } });
   aplicar(N, acc);
 }
@@ -155,16 +193,33 @@ async function aplicar(N, acc) {
   const q = acc.quien, r = q==="goku" ? "gordo" : "goku";
   if (acc.reinicio) { $("av-goku").style.filter = $("av-gordo").style.filter = ""; S = N; $("log").innerHTML=""; log("🔁 ¡Revancha!"); aviso("¡REVANCHA!"); inicio=Date.now(); render(); return; }
   S = N; render();
-  if (acc.dmg !== undefined) {
-    clase($("av-"+q), q==="goku" ? "ataca-der" : "ataca-izq"); await espera(220);
-    if (acc.esquiva) { numero($("av-"+r),"MISS"); aviso("¡¡LO ESQUIVÓ!!"); log(`💨 ${S.nombres[r]} esquivó ${acc.texto}`); }
-    else { clase($("av-"+r),"golpe"); numero($("av-"+r),"-"+acc.dmg); beep(acc.crit?880:300);
-      if (acc.crit || acc.dmg>=30) { aviso(acc.crit ? "¡¡CRÍTICO!!" : "¡¡DEVASTADOR!!"); document.body.classList.remove("tiembla"); void document.body.offsetWidth; document.body.classList.add("tiembla"); }
-      log(`${q==="goku"?"🥋":"🫃"} ${S.nombres[q]}: ${acc.texto} → -${acc.dmg}${acc.crit?" 💥":""}`); }
-  } else if (acc.cura) { numero($("av-"+q),"+"+acc.cura,true); beep(800); log(`${S.nombres[q]}: ${acc.texto} → +${acc.cura}`); }
-  else { beep(600); log(`${S.nombres[q]}: ${acc.texto}`); }
+  const quien = (q==="goku"?"🥋 ":"🫃 ") + S.nombres[q], avQ = $("av-"+q), avR = $("av-"+r);
+  if (acc.costoHp) { numero(avQ, "-"+acc.costoHp); }
+  if (acc.perma) { aviso(q==="goku" ? "¡¡SUPER SAIYAJIN!!" : "¡¡GORDO FURIOSO!!"); beep(1000); }
+  if (acc.golpes && acc.golpes.length) {
+    for (const g of acc.golpes) {
+      clase(avQ, q==="goku" ? "ataca-der" : "ataca-izq"); await espera(220);
+      if (g.tipo==="bloqueo") { numero(avR, "🛡️"); beep(1200); }
+      else if (g.tipo==="esquiva") { numero(avR, "MISS"); }
+      else { clase(avR, "golpe"); numero(avR, "-"+g.d); beep(g.tipo==="crit"?880:300);
+        if (g.tipo==="crit" || g.d>=30) { aviso(g.tipo==="crit" ? "¡¡CRÍTICO!!" : "¡¡DEVASTADOR!!"); document.body.classList.remove("tiembla"); void document.body.offsetWidth; document.body.classList.add("tiembla"); } }
+      if (acc.golpes.length > 1) await espera(250);
+    }
+    const tot = acc.golpes.reduce((a,g)=>a+g.d,0), bl = acc.golpes.filter(g=>g.tipo==="bloqueo").length;
+    log(`${quien}: ${acc.texto} → ${tot ? "-"+tot : "sin daño"}${acc.golpes.some(g=>g.tipo==="crit")?" 💥":""}${bl?" (🛡️ bloqueado)":""}`);
+    if (acc.golpes.length===1 && acc.golpes[0].tipo==="esquiva") aviso("¡¡LO ESQUIVÓ!!");
+  } else log(`${quien}: ${acc.texto}`);
+  if (acc.veneno) { aviso("🔥 ¡SE ESTÁ QUEMANDO!"); log(`🔥 ${S.nombres[r]} se quema por 3 turnos`); }
+  if (acc.cura) { numero(avQ, "+"+acc.cura, true); beep(800); }
+  if (acc.escudo) { aviso("🛡️ ¡PROTEGIDO!"); beep(1100); }
+  if (acc.aturde) { aviso("😵 ¡ENCANDILADO!"); beep(1400); log(`😵 ${S.nombres[r]} va a perder su próximo turno`); }
+  if (acc.bloqueoAtur) log(`🛡️ ${S.nombres[r]} se cubrió del encandilamiento`);
+  if (acc.buff) { aviso("💥 ¡KAIOKEN!"); beep(900); }
+  if (acc.robo) { numero(avR, `-${acc.robo.hp} ❤️ -${acc.robo.k} ki`); numero(avQ, "+"+acc.robo.hp, true); log(`🤤 Le robó ${acc.robo.k} de ki y ${acc.robo.hp} de vida`); }
+  if (acc.quema) { await espera(300); numero(avQ, "🔥-"+acc.quema); log(`🔥 ${S.nombres[q]} se quema → -${acc.quema}`); }
+  if (acc.pierde) { await espera(400); aviso("😵 ¡PIERDE EL TURNO!"); log(`⏭ ${S.nombres[r]} está encandilado: juega otra vez ${S.nombres[q]}`); }
   if (S.fin) {
-    aviso(S.fin===yo ? "¡¡GANASTE!!" : "¡¡K.O.!!"); $("av-"+(S.fin==="goku"?"gordo":"goku")).style.filter="grayscale(1)";
+    aviso(S.fin===yo ? "¡¡GANASTE!!" : "¡¡K.O.!!"); 
     AJUSTES.resultado("online", S.fin===yo); DB.guardarPartida("online", S.fin===yo, (Date.now()-inicio)/1000);
   }
 }
