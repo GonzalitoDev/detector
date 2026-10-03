@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Polis y Ladrones</title>
+<style>
+  * { box-sizing:border-box; user-select:none; -webkit-user-select:none; }
+  html, body { margin:0; height:100%; overflow:hidden; background:#000; color:#fff; font-family:system-ui,sans-serif; touch-action:none; }
+  canvas { display:block; }
+  #hud { position:fixed; top:0; left:0; right:0; display:flex; justify-content:space-between; align-items:flex-start; padding:10px 14px; pointer-events:none; font-weight:800; text-shadow:0 2px 4px #000; z-index:5; }
+  #hud .izq { display:flex; flex-direction:column; gap:4px; }
+  #reloj { font-size:26px; text-align:center; }
+  #botin { font-size:18px; color:#7dff8a; }
+  #equipos { font-size:14px; text-align:right; }
+  #mira { position:fixed; left:50%; top:50%; width:22px; height:22px; margin:-11px 0 0 -11px; pointer-events:none; z-index:5; }
+  #mira::before, #mira::after { content:""; position:absolute; background:#fff; box-shadow:0 0 3px #000; }
+  #mira::before { left:10px; top:0; width:2px; height:22px; } #mira::after { top:10px; left:0; height:2px; width:22px; }
+  #mira.cerca::before, #mira.cerca::after { background:#ff3b3b; }
+  #pista { position:fixed; left:50%; top:58%; transform:translateX(-50%); font-weight:800; text-shadow:0 2px 4px #000; pointer-events:none; z-index:5; text-align:center; }
+  #grande { position:fixed; left:0; right:0; top:32%; text-align:center; font-size:clamp(28px,8vw,58px); font-weight:900; text-shadow:0 0 18px #000, 0 4px 0 #000; pointer-events:none; opacity:0; z-index:6; }
+  #grande.ver { animation:grande 1.8s; }
+  @keyframes grande { 0%{opacity:0;transform:scale(2.5)} 12%{opacity:1;transform:scale(1)} 80%{opacity:1} 100%{opacity:0} }
+  #feed { position:fixed; left:12px; bottom:12px; font-size:14px; pointer-events:none; z-index:5; }
+  #feed div { background:#0009; padding:4px 10px; border-radius:8px; margin-top:4px; animation:sale 5s forwards; }
+  @keyframes sale { 85%{opacity:1} 100%{opacity:0} }
+  #sirena { position:fixed; inset:0; pointer-events:none; z-index:4; opacity:0; }
+  #sirena.on { animation:sirena .5s infinite alternate; }
+  @keyframes sirena { from { box-shadow:inset 0 0 120px 40px #ff000055; opacity:1; } to { box-shadow:inset 0 0 120px 40px #0050ff55; opacity:1; } }
+  #rejas { position:fixed; inset:0; pointer-events:none; z-index:4; display:none;
+           background:repeating-linear-gradient(90deg, transparent 0 60px, #222d 60px 76px); }
+  .pantalla { position:fixed; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; gap:12px; padding:16px; overflow:auto;
+              background:radial-gradient(circle at 50% 20%, #1a2a5a, #05060c 75%); }
+  .pantalla h1 { margin:8px 0 0; font-size:clamp(30px,8vw,52px); text-align:center; text-shadow:0 0 16px #3b6bff, 0 0 30px #ff3b3b; }
+  .caja { width:100%; max-width:640px; background:#0008; border-radius:16px; padding:16px; text-align:center; }
+  .equipo { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+  .equipo button { flex:1; min-width:180px; padding:18px; border-radius:16px; border:3px solid transparent; font-size:18px; font-weight:900; cursor:pointer; color:#fff; }
+  .equipo .poli { background:linear-gradient(160deg,#1e4fd8,#0b2a7a); }
+  .equipo .ladron { background:linear-gradient(160deg,#444,#111); }
+  .equipo button.on { border-color:#ffd400; box-shadow:0 0 20px #ffd40088; }
+  .equipo small { display:block; font-weight:500; opacity:.85; margin-top:6px; font-size:13px; }
+  button.g { font-size:17px; padding:12px 18px; border:0; border-radius:12px; font-weight:800; cursor:pointer; background:#ffd400; color:#000; }
+  input { padding:12px; border-radius:10px; border:2px solid #ffd400; background:#0006; color:#fff; font-size:18px; width:150px; text-align:center; text-transform:uppercase; letter-spacing:4px; }
+  .codigo { font-size:48px; font-weight:900; letter-spacing:8px; color:#ffd400; }
+  .oculto { display:none !important; }
+  .stick { position:fixed; bottom:30px; left:30px; width:120px; height:120px; border-radius:50%; background:#ffffff18; border:2px solid #ffffff44; pointer-events:none; display:none; z-index:5; }
+  .stick b { position:absolute; left:35px; top:35px; width:50px; height:50px; border-radius:50%; background:#ffffff66; }
+  #b-accion { position:fixed; right:30px; bottom:40px; width:96px; height:96px; border-radius:50%; border:0; font-size:36px; background:#ffd400cc; display:none; z-index:5; }
+  body.tactil .stick, body.tactil #b-accion { display:block; }
+</style>
+</head>
+<body>
+<div id="hud">
+  <div class="izq"><span id="rol"></span><span id="botin"></span><span id="estado"></span></div>
+  <div id="reloj"></div>
+  <div id="equipos"></div>
+</div>
+<div id="mira"></div><div id="pista"></div><div id="grande"></div><div id="feed"></div>
+<div id="sirena"></div><div id="rejas"></div>
+<div class="stick" id="stick"><b></b></div><button id="b-accion">🚔</button>
+
+<div class="pantalla" id="menu">
+  <h1>🚓 POLIS Y LADRONES 💰</h1>
+  <div><a href="./" style="color:#ffd400">⬅ Menú</a></div>
+  <div class="caja">
+    <p style="margin-top:0">Elegí tu bando:</p>
+    <div class="equipo">
+      <button class="poli on" data-e="poli">👮 POLICÍA<small>Atrapá a los ladrones: acercate y hacé click. Cuando están todos presos, ganás.</small></button>
+      <button class="ladron" data-e="ladron">🦹 LADRÓN<small>Robá bolsas de plata 💰 del banco y llevalas a la guarida. Juntá $10.000 antes de que termine el tiempo.</small></button>
+    </div>
+  </div>
+  <div class="caja">
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <button class="g" id="practica">🤖 Práctica con bots</button><button class="g" id="crear">🌐 Crear sala</button>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:10px"><input id="cod" maxlength="4" placeholder="CÓDIGO"><button class="g" id="unirse">🚪 Unirse</button></div>
+    <p id="msg" style="color:#ff8a8a;margin:8px 0 0"></p>
+    <p style="opacity:.7;font-size:13px;margin:10px 0 0">Compu: WASD para moverte, mouse para mirar (hacé click para capturar el mouse), Shift para correr, click o E para atrapar o liberar. Celu: joystick para moverte, arrastrá la pantalla para mirar, botón amarillo para la acción.</p>
+  </div>
+</div>
+
+<div class="pantalla oculto" id="sala">
+  <h1>🌐 SALA</h1>
+  <div class="caja">
+    <p>Pasales el código a tus amigos:</p>
+    <div class="codigo" id="codigo"></div>
+    <p><button class="g" id="compartir">📤 Compartir link</button></p>
+    <div id="jugadores" style="font-size:18px;line-height:1.8;text-align:left;display:inline-block"></div>
+    <p><button class="g" id="arrancar">▶️ Empezar</button></p>
+    <p id="espera" style="opacity:.75"></p>
+  </div>
+</div>
+
+<div class="pantalla oculto" id="fin">
+  <h1 id="fin-tit"></h1>
+  <div class="caja" id="fin-txt" style="font-size:18px"></div>
+  <button class="g" id="volver">⬅ Volver</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="comun.js"></script>
+<script src="db.js"></script>
+<script src="voz.js"></script>
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+
+const $ = id => document.getElementById(id);
+const esc = t => String(t).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const META = 10000, DURACION = 240, ATRAPA = 2.2, RADIO = 0.45;
+
+// ================== CIUDAD ==================
+// Cuadrícula de manzanas: edificios en las celdas, calles entre medio
+const CIUDAD = { tam: 120, cuadra: 16, calle: 8 };
+const edificios = [];   // { x1, z1, x2, z2, h }
+const ZONAS = { banco: { x: 0, z: -40, r: 6 }, guarida: { x: 44, z: 44, r: 5 }, carcel: { x: -44, z: 44, r: 5 } };
+function generarCiudad() {
+  let semilla = 7; const azar = () => (semilla = (semilla * 9301 + 49297) % 233280) / 233280;
+  const paso = CIUDAD.cuadra + CIUDAD.calle, mitad = CIUDAD.tam / 2;
+  for (let x = -mitad + CIUDAD.calle; x + CIUDAD.cuadra <= mitad; x += paso)
+    for (let z = -mitad + CIUDAD.calle; z + CIUDAD.cuadra <= mitad; z += paso) {
+      const cx = x + CIUDAD.cuadra / 2, cz = z + CIUDAD.cuadra / 2;
+      if (Object.values(ZONAS).some(Z => Math.hypot(Z.x - cx, Z.z - cz) < 13)) continue;   // plazas libres
+      // Cada manzana: 1 a 4 edificios
+      const partes = azar() < .5 ? 1 : 4, m = 1;
+      if (partes === 1) edificios.push({ x1: x + m, z1: z + m, x2: x + CIUDAD.cuadra - m, z2: z + CIUDAD.cuadra - m, h: 6 + azar() * 22 });
+      else for (const [dx, dz] of [[0,0],[1,0],[0,1],[1,1]]) {
+        const s = CIUDAD.cuadra / 2;
+        if (azar() < .15) continue;
+        edificios.push({ x1: x + dx*s + m, z1: z + dz*s + m, x2: x + dx*s + s - m, z2: z + dz*s + s - m, h: 4 + azar() * 14 });
+      }
+    }
+}
+generarCiudad();
+function choca(x, z, r = RADIO) {
+  const mitad = CIUDAD.tam / 2;
+  if (x < -mitad + r || x > mitad - r || z < -mitad + r || z > mitad - r) return true;
+  return edificios.some(e => x + r > e.x1 && x - r < e.x2 && z + r > e.z1 && z - r < e.z2);
+}
+function lugarLibre(cerca, rad = 6) {
+  for (let i = 0; i < 200; i++) {
+    const x = cerca ? cerca.x + (Math.random() - .5) * rad * 2 : (Math.random() - .5) * (CIUDAD.tam - 6);
+    const z = cerca ? cerca.z + (Math.random() - .5) * rad * 2 : (Math.random() - .5) * (CIUDAD.tam - 6);
+    if (!choca(x, z, 1)) return { x, z };
+  }
+  return { x: 0, z: 0 };
+}
+// Bolsas de plata alrededor del banco (siempre en el mismo lugar para todos)
+const BOLSAS = Array.from({ length: 10 }, (_, i) => { const a = i / 10 * Math.PI * 2; return { i, x: ZONAS.banco.x + Math.cos(a) * 4.5, z: ZONAS.banco.z + Math.sin(a) * 4.5, hasta: 0 }; });
+
+// ================== 3D ==================
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio)); renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = false;
+document.body.prepend(renderer.domElement);
+const escena = new THREE.Scene();
+escena.background = new THREE.Color(0x0d1630); escena.fog = new THREE.Fog(0x0d1630, 20, 85);
+const camara = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 200);
+addEventListener("resize", () => { renderer.setSize(innerWidth, innerHeight); camara.aspect = innerWidth / innerHeight; camara.updateProjectionMatrix(); });
+escena.add(new THREE.HemisphereLight(0x9fb8ff, 0x202030, 0.9));
+const sol = new THREE.DirectionalLight(0xffe2b0, 0.6); sol.position.set(30, 60, 20); escena.add(sol);
+
+function textura(dibujo, w = 128, h = 128) { const c = document.createElement("canvas"); c.width = w; c.height = h; dibujo(c.getContext("2d"), w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
+// Piso: asfalto con líneas
+const piso = new THREE.Mesh(new THREE.PlaneGeometry(CIUDAD.tam, CIUDAD.tam),
+  new THREE.MeshLambertMaterial({ map: (() => { const t = textura((g, w, h) => { g.fillStyle = "#2b2d33"; g.fillRect(0, 0, w, h); g.fillStyle = "#3a3d44";
+    for (let i = 0; i < 300; i++) g.fillRect(Math.random() * w, Math.random() * h, 2, 2); g.fillStyle = "#c9b45a"; g.fillRect(w/2 - 2, 0, 4, h * .4); }); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(30, 30); return t; })() }));
+piso.rotation.x = -Math.PI / 2; escena.add(piso);
+// Edificios con ventanas
+const texVentanas = textura((g, w, h) => { g.fillStyle = "#555b6e"; g.fillRect(0, 0, w, h);
+  for (let y = 6; y < h; y += 16) for (let x = 6; x < w; x += 16) { g.fillStyle = Math.random() < .35 ? "#ffd86b" : "#1d2333"; g.fillRect(x, y, 9, 10); } });
+texVentanas.wrapS = texVentanas.wrapT = THREE.RepeatWrapping;
+const coloresEd = [0x8a8fa3, 0xa38a7a, 0x7a8fa3, 0x9a9a9a, 0xb0a080, 0x6f7f8f];
+for (const e of edificios) {
+  const w = e.x2 - e.x1, d = e.z2 - e.z1, t = texVentanas.clone(); t.needsUpdate = true; t.repeat.set(Math.max(1, w / 4), Math.max(1, e.h / 4));
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, e.h, d), new THREE.MeshLambertMaterial({ map: t, color: coloresEd[(Math.abs(e.x1 * 7 + e.z1 * 3) | 0) % coloresEd.length] }));
+  m.position.set((e.x1 + e.x2) / 2, e.h / 2, (e.z1 + e.z2) / 2); escena.add(m);
+}
+// Zonas especiales: banco, guarida, cárcel
+function cartel(texto, color) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: textura((g, w, h) => { g.fillStyle = color; g.beginPath(); g.roundRect(4, 4, w - 8, h - 8, 20); g.fill();
+  g.fillStyle = "#fff"; g.font = "bold 44px system-ui"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(texto, w / 2, h / 2); }, 512, 128), depthTest: true }));
+  s.scale.set(8, 2, 1); return s; }
+function zona(Z, color, texto) {
+  const anillo = new THREE.Mesh(new THREE.RingGeometry(Z.r - .4, Z.r, 48), new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: .8 }));
+  anillo.rotation.x = -Math.PI / 2; anillo.position.set(Z.x, .03, Z.z); escena.add(anillo);
+  const c = cartel(texto, "#" + color.toString(16).padStart(6, "0")); c.position.set(Z.x, 6, Z.z); escena.add(c);
+  return anillo;
+}
+zona(ZONAS.banco, 0x2e9e4f, "🏦 BANCO");
+zona(ZONAS.guarida, 0x9b30ff, "🏚️ GUARIDA");
+zona(ZONAS.carcel, 0x1e4fd8, "🚔 CÁRCEL");
+// Rejas de la cárcel
+for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2, b = new THREE.Mesh(new THREE.CylinderGeometry(.08, .08, 3), new THREE.MeshLambertMaterial({ color: 0x999999 }));
+  b.position.set(ZONAS.carcel.x + Math.cos(a) * ZONAS.carcel.r, 1.5, ZONAS.carcel.z + Math.sin(a) * ZONAS.carcel.r); escena.add(b); }
+// Faroles
+for (let x = -52; x <= 52; x += 24) for (let z = -52; z <= 52; z += 24) {
+  if (choca(x, z, .5)) continue;
+  const p = new THREE.Mesh(new THREE.CylinderGeometry(.1, .1, 4), new THREE.MeshLambertMaterial({ color: 0x333333 })); p.position.set(x, 2, z); escena.add(p);
+  const l = new THREE.Mesh(new THREE.SphereGeometry(.3), new THREE.MeshBasicMaterial({ color: 0xffe9a0 })); l.position.set(x, 4.1, z); escena.add(l);
+}
+// Bolsas
+const geoBolsa = new THREE.SphereGeometry(.45, 12, 10), matBolsa = new THREE.MeshLambertMaterial({ color: 0xc8a24a, emissive: 0x332200 });
+for (const b of BOLSAS) { b.mesh = new THREE.Mesh(geoBolsa, matBolsa); b.mesh.position.set(b.x, .5, b.z);
+  const s = cartel("$", "#2e9e4f"); s.scale.set(1, .4, 1); s.position.y = .9; b.mesh.add(s); escena.add(b.mesh); }
+
+// Personajes (los demás jugadores se ven como muñequitos)
+function crearMuneco(equipo, nombre) {
+  const g = new THREE.Group(), col = equipo === "poli" ? 0x1e4fd8 : 0x222222;
+  const cuerpo = new THREE.Mesh(new THREE.CylinderGeometry(.35, .4, 1.1, 12), new THREE.MeshLambertMaterial({ color: col })); cuerpo.position.y = .9; g.add(cuerpo);
+  if (equipo === "ladron") for (let i = 0; i < 3; i++) { const r = new THREE.Mesh(new THREE.CylinderGeometry(.41, .41, .12, 12), new THREE.MeshLambertMaterial({ color: 0xffffff })); r.position.y = .55 + i * .3; g.add(r); }
+  const cabeza = new THREE.Mesh(new THREE.SphereGeometry(.3, 14, 12), new THREE.MeshLambertMaterial({ color: 0xf1c27d })); cabeza.position.y = 1.7; g.add(cabeza);
+  const gorro = equipo === "poli" ? new THREE.Mesh(new THREE.CylinderGeometry(.32, .32, .18, 12), new THREE.MeshLambertMaterial({ color: 0x0b2a7a }))
+                                  : new THREE.Mesh(new THREE.BoxGeometry(.62, .14, .2), new THREE.MeshLambertMaterial({ color: 0x111111 }));
+  gorro.position.set(0, equipo === "poli" ? 1.95 : 1.72, equipo === "poli" ? 0 : .22); g.add(gorro);
+  const bolsa = new THREE.Mesh(geoBolsa, matBolsa); bolsa.scale.setScalar(.7); bolsa.position.set(0, 1.1, -.45); bolsa.visible = false; g.add(bolsa); g.userData.bolsa = bolsa;
+  const n = cartel((equipo === "poli" ? "👮 " : "🦹 ") + nombre, equipo === "poli" ? "#1e4fd8" : "#333333"); n.scale.set(3, .75, 1); n.position.y = 2.5; g.add(n);
+  escena.add(g); return g;
+}
+
+// ================== ESTADO ==================
+const miId = Math.random().toString(36).slice(2, 9);
+let equipo = "poli", jug = {}, yo = null, jugando = false, online = false, soyHost = false, canal = null, codigo = "", fin = 0, botin = 0, inicioT = 0;
+const miNombre = () => (DB.nombre || (equipo === "poli" ? "Poli" : "Ladrón")).slice(0, 14);
+function nuevoJug(id, nombre, eq, bot) {
+  const l = lugarLibre(eq === "poli" ? ZONAS.carcel : ZONAS.guarida, 8);
+  return { id, nombre, equipo: eq, bot, x: l.x, z: l.z, rot: 0, preso: false, bolsa: false, mesh: null, tx: l.x, tz: l.z, atrapados: 0, robado: 0, visto: Date.now() };
+}
+
+// ================== RED ==================
+const SB = supabase.createClient("https://eluxvcixctwnzyysvoor.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsdXh2Y2l4Y3R3bnp5eXN2b29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMTk5NzAsImV4cCI6MjEwMzY5NTk3MH0.Gq29eHc-X1vEfbxM_9E5mlOynIJCh0pBbsSOPX923IQ");
+const enviar = (ev, p) => { if (online && canal) canal.send({ type: "broadcast", event: ev, payload: p }); };
+function conectar(cod, host) {
+  online = true; soyHost = host; codigo = cod;
+  $("menu").classList.add("oculto"); $("sala").classList.remove("oculto"); $("codigo").textContent = cod;
+  $("arrancar").classList.toggle("oculto", !host); $("espera").textContent = host ? "Cuando estén todos, tocá Empezar." : "Esperando que el creador empiece...";
+  canal = SB.channel("polis-" + cod, { config: { broadcast: { self: false }, presence: { key: miId } } });
+  Voz.preparar(canal, miId); Voz.nombre = id => jug[id]?.nombre;
+  canal.on("presence", { event: "sync" }, () => {
+      $("jugadores").innerHTML = Object.values(canal.presenceState()).map(v => v[0]).map(p => `${p.equipo === "poli" ? "👮" : "🦹"} ${esc(p.nombre)}${p.host ? " 👑" : ""}`).join("<br>");
+    })
+    .on("broadcast", { event: "empieza" }, ({ payload }) => { if (!soyHost) empezar(payload.fin); })
+    .on("broadcast", { event: "pos" }, ({ payload: p }) => recibirPos(p))
+    .on("broadcast", { event: "atrapa" }, ({ payload: p }) => atrapado(p.ladron, p.poli))
+    .on("broadcast", { event: "libera" }, ({ payload: p }) => liberar(p.quien))
+    .on("broadcast", { event: "bolsa" }, ({ payload: p }) => tomarBolsa(p.i, p.quien))
+    .on("broadcast", { event: "entrega" }, ({ payload: p }) => entregar(p.quien))
+    .on("broadcast", { event: "fin" }, ({ payload: p }) => terminar(p.gana))
+    .subscribe(async st => { if (st === "SUBSCRIBED") await canal.track({ nombre: miNombre(), equipo, host }); });
+}
+function recibirPos(p) {
+  let s = jug[p.id];
+  if (!s) { if (!jugando) return; s = jug[p.id] = nuevoJug(p.id, p.nombre, p.equipo, false); s.mesh = crearMuneco(p.equipo, p.nombre); feed(`👋 Entró ${p.nombre}`); }
+  s.tx = p.x; s.tz = p.z; s.rot = p.rot; s.preso = p.preso; s.bolsa = p.bolsa; s.visto = Date.now();
+}
+
+// ================== REGLAS ==================
+function feed(t) { const d = document.createElement("div"); d.textContent = t; $("feed").prepend(d); setTimeout(() => d.remove(), 5000); }
+function grande(t, c = "#ffd400") { const g = $("grande"); g.textContent = t; g.style.color = c; g.classList.remove("ver"); void g.offsetWidth; g.classList.add("ver"); }
+function beep(f, d = .12, t = "square", v = .05) { if (!AJUSTES.sonido) return; try { const a = beep.c || (beep.c = new (window.AudioContext || window.webkitAudioContext)()), o = a.createOscillator(), g = a.createGain();
+  o.frequency.value = f; o.type = t; g.gain.value = v; o.connect(g); g.connect(a.destination); o.start(); g.gain.exponentialRampToValueAtTime(.0001, a.currentTime + d); o.stop(a.currentTime + d + .02); } catch (e) {} }
+function sirena() { [700, 950, 700, 950].forEach((f, i) => setTimeout(() => beep(f, .2, "sawtooth", .04), i * 220)); $("sirena").classList.add("on"); setTimeout(() => $("sirena").classList.remove("on"), 1500); }
+
+function atrapado(idLadron, idPoli) {
+  const l = jug[idLadron], p = jug[idPoli]; if (!l || l.preso) return;
+  l.preso = true; if (l.bolsa) { l.bolsa = false; }
+  if (p) p.atrapados++;
+  const c = lugarLibre(ZONAS.carcel, 2.5); l.x = l.tx = c.x; l.z = l.tz = c.z;
+  feed(`🚔 ${p ? p.nombre : "La poli"} atrapó a ${l.nombre}`);
+  if (l === yo) { grande("🚔 ¡TE ATRAPARON!", "#5a8aff"); sirena(); }
+  else if (p === yo) { grande("👮 ¡ATRAPADO!", "#5a8aff"); sirena(); }
+  revisarFin();
+}
+function liberar(idQuien) {
+  let n = 0; for (const s of Object.values(jug)) if (s.equipo === "ladron" && s.preso) { s.preso = false; n++; const l = lugarLibre(ZONAS.carcel, 9); if (s === yo || s.bot) { s.x = s.tx = l.x; s.z = s.tz = l.z; } }
+  if (!n) return;
+  const q = jug[idQuien]; feed(`🔓 ${q ? q.nombre : "Alguien"} liberó a ${n} preso${n > 1 ? "s" : ""}`);
+  if (yo.equipo === "ladron") grande("🔓 ¡LIBERADOS!", "#7dff8a"); else grande("😡 ¡SE ESCAPARON!", "#ff6a6a");
+  beep(1200, .2, "triangle");
+}
+function tomarBolsa(i, idQuien) {
+  const b = BOLSAS[i], q = jug[idQuien]; if (!b || !q || b.hasta > Date.now() || q.bolsa) return;
+  b.hasta = Date.now() + 15000; b.mesh.visible = false; q.bolsa = true;
+  if (q === yo) { grande("💰 ¡BOTÍN! Llevalo a la guarida", "#7dff8a"); beep(900, .15, "triangle"); }
+}
+function entregar(idQuien) {
+  const q = jug[idQuien]; if (!q || !q.bolsa) return;
+  q.bolsa = false; q.robado += 1000; botin += 1000;
+  feed(`💰 ${q.nombre} entregó $1.000 (total $${botin.toLocaleString("es-AR")})`);
+  if (q === yo) { grande("💸 +$1.000", "#7dff8a"); beep(1300, .25, "triangle"); }
+  revisarFin();
+}
+function revisarFin() {
+  if (!jugando) return;
+  if (botin >= META) { enviar("fin", { gana: "ladron" }); terminar("ladron"); return; }
+  const ladrones = Object.values(jug).filter(s => s.equipo === "ladron");
+  if (ladrones.length && ladrones.every(s => s.preso)) { enviar("fin", { gana: "poli" }); terminar("poli"); }
+}
+
+// ================== CONTROLES ==================
+const teclas = {}; let yaw = 0, pitch = 0, accionPedida = false;
+addEventListener("keydown", e => { teclas[e.code] = true; if (e.code === "KeyE" || e.code === "Space") accionPedida = true; });
+addEventListener("keyup", e => { teclas[e.code] = false; });
+renderer.domElement.addEventListener("click", () => { if (!jugando || document.body.classList.contains("tactil")) return;
+  if (document.pointerLockElement !== renderer.domElement) renderer.domElement.requestPointerLock(); else accionPedida = true; });
+addEventListener("mousemove", e => { if (document.pointerLockElement !== renderer.domElement) return;
+  yaw -= e.movementX * .0025; pitch = Math.max(-1.2, Math.min(1.2, pitch - e.movementY * .0025)); });
+// Táctil: joystick a la izquierda, arrastrar para mirar a la derecha
+const joy = { x: 0, y: 0 }, toques = {};
+renderer.domElement.addEventListener("touchstart", e => { document.body.classList.add("tactil"); e.preventDefault();
+  for (const t of e.changedTouches) toques[t.identifier] = { izq: t.clientX < innerWidth * .4, x0: t.clientX, y0: t.clientY, x: t.clientX, y: t.clientY }; }, { passive: false });
+renderer.domElement.addEventListener("touchmove", e => { e.preventDefault();
+  for (const t of e.changedTouches) { const q = toques[t.identifier]; if (!q) continue;
+    if (q.izq) { let dx = t.clientX - q.x0, dy = t.clientY - q.y0; const l = Math.hypot(dx, dy), m = Math.min(l, 50); if (l) { dx = dx / l * m; dy = dy / l * m; }
+      joy.x = dx / 50; joy.y = dy / 50; $("stick").querySelector("b").style.transform = `translate(${dx}px,${dy}px)`; }
+    else { yaw -= (t.clientX - q.x) * .005; pitch = Math.max(-1.2, Math.min(1.2, pitch - (t.clientY - q.y) * .005)); q.x = t.clientX; q.y = t.clientY; } } }, { passive: false });
+const soltar = e => { for (const t of e.changedTouches) { const q = toques[t.identifier]; if (q && q.izq) { joy.x = joy.y = 0; $("stick").querySelector("b").style.transform = ""; } delete toques[t.identifier]; } };
+renderer.domElement.addEventListener("touchend", soltar); renderer.domElement.addEventListener("touchcancel", soltar);
+$("b-accion").addEventListener("touchstart", e => { e.preventDefault(); accionPedida = true; });
+
+function mover(s, dx, dz, vel, dt) {
+  const l = Math.hypot(dx, dz); if (!l) return; dx /= l; dz /= l;
+  const nx = s.x + dx * vel * dt, nz = s.z + dz * vel * dt;
+  if (!choca(nx, s.z)) s.x = nx; if (!choca(s.x, nz)) s.z = nz;
+}
+const dentro = (s, Z, extra = 0) => Math.hypot(s.x - Z.x, s.z - Z.z) < Z.r + extra;
+
+// ================== BOTS (práctica) ==================
+function pensarBot(b, dt) {
+  if (b.equipo === "poli") {
+    let obj = null, d = 1e9;
+    for (const o of Object.values(jug)) if (o.equipo === "ladron" && !o.preso) { const dd = Math.hypot(o.x - b.x, o.z - b.z) - (o.bolsa ? 10 : 0); if (dd < d) { d = dd; obj = o; } }
+    if (!obj) { b.objetivo = ZONAS.carcel; }
+    else { b.objetivo = obj; if (Math.hypot(obj.x - b.x, obj.z - b.z) < ATRAPA * .8) { atrapado(obj.id, b.id); } }
+  } else {
+    if (b.preso) return;
+    const presos = Object.values(jug).some(s => s.equipo === "ladron" && s.preso);
+    const poliCerca = Object.values(jug).find(o => o.equipo === "poli" && Math.hypot(o.x - b.x, o.z - b.z) < 7);
+    if (poliCerca) b.objetivo = { x: b.x + (b.x - poliCerca.x) * 3, z: b.z + (b.z - poliCerca.z) * 3 };
+    else if (b.bolsa) b.objetivo = ZONAS.guarida;
+    else if (presos && Math.random() < .5) b.objetivo = ZONAS.carcel;
+    else b.objetivo = ZONAS.banco;
+    if (b.bolsa && dentro(b, ZONAS.guarida)) entregar(b.id);
+    if (!b.bolsa) for (const bo of BOLSAS) if (bo.hasta < Date.now() && Math.hypot(bo.x - b.x, bo.z - b.z) < 1.3) tomarBolsa(bo.i, b.id);
+    if (presos && dentro(b, ZONAS.carcel, 1)) liberar(b.id);
+  }
+  const o = b.objetivo; if (!o) return;
+  // Camina hacia el objetivo esquivando edificios con un pequeño desvío
+  b.desvio = (b.desvio || 0) - dt;
+  let dx = o.x - b.x, dz = o.z - b.z;
+  if (b.desvio > 0) { const t = dx; dx = -dz * b.lado; dz = t * b.lado; }
+  const antes = { x: b.x, z: b.z };
+  mover(b, dx, dz, (b.equipo === "poli" ? 6.2 : 6) * (b.equipo === "poli" ? AJUSTES.mult : 1 / AJUSTES.mult * .95 + .05), dt);
+  if (Math.hypot(b.x - antes.x, b.z - antes.z) < .01 && b.desvio <= 0) { b.desvio = .8; b.lado = Math.random() < .5 ? 1 : -1; }
+  b.rot = Math.atan2(dx, dz);
+}
+
+// ================== PARTIDA ==================
+function empezar(finTs) {
+  $("menu").classList.add("oculto"); $("sala").classList.add("oculto"); $("fin").classList.add("oculto");
+  for (const s of Object.values(jug)) if (s.mesh) escena.remove(s.mesh);
+  jug = {}; botin = 0; BOLSAS.forEach(b => { b.hasta = 0; b.mesh.visible = true; });
+  yo = jug[miId] = nuevoJug(miId, miNombre(), equipo, false);
+  yaw = equipo === "poli" ? Math.PI * .75 : -Math.PI * .75; pitch = 0;
+  if (!online) {
+    const n = equipo === "poli" ? [["ladron", "Ladrón Bot 1"], ["ladron", "Ladrón Bot 2"], ["ladron", "Ladrón Bot 3"], ["poli", "Poli Bot"]]
+                               : [["poli", "Poli Bot 1"], ["poli", "Poli Bot 2"], ["ladron", "Ladrón Bot"]];
+    n.forEach(([eq, nom], i) => { const id = "bot" + i; jug[id] = nuevoJug(id, nom, eq, true); jug[id].mesh = crearMuneco(eq, nom); });
+  }
+  fin = finTs || Date.now() + DURACION * 1000; inicioT = Date.now(); jugando = true;
+  grande(equipo === "poli" ? "👮 ¡ATRAPALOS A TODOS!" : "🦹 ¡ROBÁ EL BANCO!", equipo === "poli" ? "#5a8aff" : "#7dff8a");
+  if (!document.body.classList.contains("tactil")) renderer.domElement.requestPointerLock?.();
+}
+function terminar(gana) {
+  if (!jugando) return; jugando = false; document.exitPointerLock?.();
+  const gane = gana === equipo;
+  $("fin-tit").textContent = gana === "poli" ? "👮 ¡GANÓ LA POLICÍA!" : "🦹 ¡GANARON LOS LADRONES!";
+  $("fin-txt").innerHTML = `${gane ? "🏆 ¡Ganaste!" : "💀 Perdiste"}<br>Botín robado: $${botin.toLocaleString("es-AR")} de $${META.toLocaleString("es-AR")}<br><br>` +
+    Object.values(jug).map(s => `${s.equipo === "poli" ? "👮" : "🦹"} ${esc(s.nombre)} — ${s.equipo === "poli" ? `🚔 ${s.atrapados} atrapados` : `💰 $${s.robado.toLocaleString("es-AR")}`}`).join("<br>");
+  $("fin").classList.remove("oculto");
+  AJUSTES.resultado("policias", gane);
+  DB.guardarPartida("policias", gane, (Date.now() - inicioT) / 1000, equipo === "poli" ? yo.atrapados * 100 : yo.robado / 10);
+}
+
+let ult = performance.now(), ultPos = 0;
+function loop(t) {
+  requestAnimationFrame(loop);
+  const dt = Math.min(.05, (t - ult) / 1000); ult = t;
+  if (jugando) {
+    // Yo
+    if (!yo.preso) {
+      const f = (teclas.KeyW || teclas.ArrowUp ? 1 : 0) - (teclas.KeyS || teclas.ArrowDown ? 1 : 0) - joy.y;
+      const r = (teclas.KeyD || teclas.ArrowRight ? 1 : 0) - (teclas.KeyA || teclas.ArrowLeft ? 1 : 0) + joy.x;
+      const corre = teclas.ShiftLeft || teclas.ShiftRight || Math.hypot(joy.x, joy.y) > .9;
+      const vel = (yo.equipo === "poli" ? 6.5 : 6.2) * (corre ? 1.5 : 1);
+      mover(yo, -Math.sin(yaw) * f + Math.cos(yaw) * r, -Math.cos(yaw) * f - Math.sin(yaw) * r, vel, dt);
+    } else if (teclas.KeyW || joy.y) { yo.x += (Math.random() - .5) * .02; }
+    // Cerca de alguien / de algo
+    let pista = "", objetivo = null;
+    if (yo.equipo === "poli") {
+      for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso && Math.hypot(s.x - yo.x, s.z - yo.z) < ATRAPA) objetivo = s;
+      if (objetivo) pista = `🚔 ¡Click para atrapar a ${objetivo.nombre}!`;
+      if (objetivo && accionPedida) { enviar("atrapa", { ladron: objetivo.id, poli: yo.id }); atrapado(objetivo.id, yo.id); }
+    } else if (!yo.preso) {
+      if (!yo.bolsa) for (const b of BOLSAS) if (b.hasta < Date.now() && Math.hypot(b.x - yo.x, b.z - yo.z) < 1.3) { enviar("bolsa", { i: b.i, quien: yo.id }); tomarBolsa(b.i, yo.id); }
+      if (yo.bolsa && dentro(yo, ZONAS.guarida)) { enviar("entrega", { quien: yo.id }); entregar(yo.id); }
+      const presos = Object.values(jug).some(s => s.equipo === "ladron" && s.preso);
+      if (presos && dentro(yo, ZONAS.carcel, 1.2)) { pista = "🔓 ¡Click para liberar a tus compañeros!"; if (accionPedida) { enviar("libera", { quien: yo.id }); liberar(yo.id); } }
+      if (!pista) pista = yo.bolsa ? "💰 Llevá la bolsa a la 🏚️ GUARIDA" : "🏦 Andá al BANCO a buscar plata";
+    } else pista = "⛓️ Estás preso. Esperá que un compañero te libere.";
+    accionPedida = false;
+    $("pista").textContent = pista; $("mira").classList.toggle("cerca", !!objetivo);
+    $("rejas").style.display = yo.preso ? "block" : "none";
+    // Otros
+    for (const s of Object.values(jug)) {
+      if (s === yo) continue;
+      if (s.bot) pensarBot(s, dt);
+      else { s.x += (s.tx - s.x) * Math.min(1, dt * 10); s.z += (s.tz - s.z) * Math.min(1, dt * 10);
+        if (online && Date.now() - s.visto > 8000) { feed(`🚪 Se fue ${s.nombre}`); escena.remove(s.mesh); delete jug[s.id]; continue; } }
+      if (s.mesh) { s.mesh.position.set(s.x, 0, s.z); s.mesh.rotation.y = s.rot; s.mesh.userData.bolsa.visible = s.bolsa;
+        s.mesh.position.y = s.preso ? 0 : Math.abs(Math.sin(t / 120)) * .08; }
+    }
+    // Bolsas que vuelven a aparecer
+    for (const b of BOLSAS) { const ok = b.hasta < Date.now(); b.mesh.visible = ok; if (ok) { b.mesh.rotation.y += dt * 2; b.mesh.position.y = .5 + Math.sin(t / 300 + b.i) * .1; } }
+    // HUD
+    const quedan = Math.max(0, Math.ceil((fin - Date.now()) / 1000));
+    $("reloj").textContent = `⏱️ ${Math.floor(quedan / 60)}:${String(quedan % 60).padStart(2, "0")}`;
+    $("rol").textContent = yo.equipo === "poli" ? `👮 ${yo.nombre} · 🚔 ${yo.atrapados}` : `🦹 ${yo.nombre}${yo.bolsa ? " · 💰" : ""}`;
+    $("botin").textContent = `💰 Botín: $${botin.toLocaleString("es-AR")} / $${META.toLocaleString("es-AR")}`;
+    const L = Object.values(jug).filter(s => s.equipo === "ladron");
+    $("equipos").innerHTML = `👮 ${Object.values(jug).filter(s => s.equipo === "poli").length} polis<br>🦹 ${L.filter(s => !s.preso).length} libres · ⛓️ ${L.filter(s => s.preso).length} presos`;
+    $("b-accion").textContent = yo.equipo === "poli" ? "🚔" : "🔓";
+    if (quedan <= 0 && (soyHost || !online)) { const g = botin >= META ? "ladron" : "poli"; enviar("fin", { gana: g }); terminar(g); }
+    if (online && t - ultPos > 80) { ultPos = t; enviar("pos", { id: yo.id, nombre: yo.nombre, equipo: yo.equipo, x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, bolsa: yo.bolsa }); }
+  } else { yaw += dt * .1; }
+  // Cámara en primera persona
+  camara.position.set(yo ? yo.x : 0, yo ? (yo.preso ? 1.4 : 1.65 + (jugando && (teclas.KeyW || joy.y) ? Math.sin(t / 110) * .04 : 0)) : 20, yo ? yo.z : 40);
+  camara.rotation.order = "YXZ"; camara.rotation.y = yaw; camara.rotation.x = yo ? pitch : -.35;
+  renderer.render(escena, camara);
+}
+requestAnimationFrame(loop);
+
+// ================== MENÚ ==================
+document.querySelectorAll("[data-e]").forEach(b => b.onclick = () => { equipo = b.dataset.e; document.querySelectorAll("[data-e]").forEach(x => x.classList.toggle("on", x === b)); });
+const nuevoCodigo = () => Array.from({ length: 4 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join("");
+$("practica").onclick = () => { online = false; empezar(); };
+$("crear").onclick = () => conectar(nuevoCodigo(), true);
+$("unirse").onclick = () => { const c = $("cod").value.trim().toUpperCase(); if (c.length !== 4) { $("msg").textContent = "El código tiene 4 letras."; return; } conectar(c, false); };
+$("arrancar").onclick = () => { const f = Date.now() + DURACION * 1000; enviar("empieza", { fin: f }); empezar(f); };
+$("compartir").onclick = async () => { const url = location.href.split("?")[0] + "?sala=" + codigo;
+  try { if (navigator.share) await navigator.share({ title: "Polis y Ladrones", text: "¡Vení a jugar! Código: " + codigo, url }); else { await navigator.clipboard.writeText(url); $("compartir").textContent = "✅ Link copiado"; } } catch (e) {} };
+$("volver").onclick = () => { $("fin").classList.add("oculto"); (online ? $("sala") : $("menu")).classList.remove("oculto"); };
+const sala = new URLSearchParams(location.search).get("sala");
+if (sala) { $("cod").value = sala; }
+</script>
+</body>
+</html>
