@@ -30,6 +30,24 @@
   #log p { margin:0 0 4px; }
   .ssj { filter:drop-shadow(0 0 18px #ffe600) drop-shadow(0 0 30px #ffb300); animation:aura 0.6s infinite alternate; }
   @keyframes aura { from{filter:drop-shadow(0 0 10px #ffe600)} to{filter:drop-shadow(0 0 32px #ffb300)} }
+  body.temblor { animation:temblor .5s; }
+  @keyframes temblor { 0%,100%{transform:translate(0)} 20%{transform:translate(-12px,6px)} 40%{transform:translate(10px,-8px)} 60%{transform:translate(-8px,-4px)} 80%{transform:translate(6px,8px)} }
+  #flash { position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; transition:opacity .4s; z-index:5; }
+  #vineta { position:fixed; inset:0; pointer-events:none; box-shadow:inset 0 0 120px 40px #ff000000; transition:box-shadow .5s; z-index:4; }
+  #vineta.peligro { animation:latido 1s infinite; }
+  @keyframes latido { 0%,100%{box-shadow:inset 0 0 120px 30px #ff000055} 50%{box-shadow:inset 0 0 160px 60px #ff0000aa} }
+  .num { position:fixed; font-size:clamp(36px,10vw,64px); font-weight:900; color:#ff3b3b; text-shadow:0 0 8px #000, 0 0 2px #fff;
+         pointer-events:none; z-index:6; animation:sube 1.1s ease-out forwards; }
+  .num.cura { color:#3ddc5a; }
+  @keyframes sube { 0%{transform:scale(.4);opacity:0} 20%{transform:scale(1.4);opacity:1} 100%{transform:translateY(-90px) scale(1);opacity:0} }
+  #narrador { position:fixed; left:0; right:0; top:38%; text-align:center; font-size:clamp(30px,9vw,70px); font-weight:900;
+              color:#ffd400; text-shadow:0 0 20px #ff6a00, 0 4px 0 #000; pointer-events:none; z-index:7; opacity:0; }
+  #narrador.ver { animation:grito 1.4s ease-out; }
+  @keyframes grito { 0%{opacity:0;transform:scale(3)} 15%{opacity:1;transform:scale(1)} 80%{opacity:1} 100%{opacity:0;transform:scale(.9)} }
+  #rayo { position:fixed; top:40%; left:0; height:40px; width:0; background:linear-gradient(90deg,#fff,#5ad1ff,#0077ff);
+          box-shadow:0 0 30px 10px #5ad1ff; border-radius:20px; z-index:5; pointer-events:none; opacity:0; }
+  #rayo.dispara { animation:rayo .9s ease-out; }
+  @keyframes rayo { 0%{width:0;opacity:1} 60%{width:100%;opacity:1} 100%{width:100%;opacity:0} }
   .big { position:fixed; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column;
          background:#000c; font-size:clamp(28px,8vw,56px); font-weight:900; text-align:center; padding:16px; }
   .big button { margin-top:20px; font-size:20px; }
@@ -59,6 +77,7 @@
 </div>
 <div id="habla" style="width:100%;max-width:720px;margin-top:12px;padding:12px;border-radius:12px;background:#3fb6ff22;min-height:48px;font-style:italic">🫃💬 <span id="habla-txt">...</span> <small style="opacity:.6">(IA)</small></div>
 <div id="log"></div>
+<div id="flash"></div><div id="vineta"></div><div id="narrador"></div><div id="rayo"></div>
 <div class="big" id="final"><div id="final-txt"></div><button onclick="reset()">🔁 Revancha</button></div>
 
 <script>
@@ -100,6 +119,23 @@ async function hablaGordo(situacion) {
   hablando = false;
 }
 function situacion() { return `Goku tiene ${s.goku} de vida, El Gordo tiene ${s.gordo}. Última jugada: ${$("log").firstChild?.textContent || "empieza la pelea"}`; }
+// ---- DRAMA ----
+const espera = ms => new Promise(r=>setTimeout(r,ms));
+function temblor() { document.body.classList.remove("temblor"); void document.body.offsetWidth; document.body.classList.add("temblor"); }
+function flash(c="#fff") { const f=$("flash"); f.style.background=c; f.style.transition="none"; f.style.opacity=.85; requestAnimationFrame(()=>{ f.style.transition="opacity .5s"; f.style.opacity=0; }); }
+function numero(id, txt, cura) { const r=$(id).getBoundingClientRect(), n=document.createElement("div");
+  n.className="num"+(cura?" cura":""); n.textContent=txt; n.style.left=(r.left+r.width/2-30)+"px"; n.style.top=(r.top)+"px";
+  document.body.appendChild(n); setTimeout(()=>n.remove(),1200); }
+function narrar(t) { const n=$("narrador"); n.textContent=t; n.classList.remove("ver"); void n.offsetWidth; n.classList.add("ver"); }
+function vineta() { $("vineta").classList.toggle("peligro", s.goku>0 && s.goku<=30); }
+function rayo(dir) { const r=$("rayo"); r.style.transform = dir<0 ? "scaleX(-1)" : ""; r.style.transformOrigin="left";
+  if (dir<0) { r.style.left="auto"; r.style.right="0"; r.style.transformOrigin="right"; r.style.transform=""; } else { r.style.left="0"; r.style.right="auto"; }
+  r.classList.remove("dispara"); void r.offsetWidth; r.classList.add("dispara"); }
+async function intro() {
+  s.busy=true; render();
+  for (const t of ["3","2","1","¡¡PELEEN!!"]) { narrar(t); beep(t.length>1?990:520); await espera(t.length>1?1100:700); }
+  s.busy=false; render();
+}
 function reset() {
   s = { goku:100, gordo:130, ki:20, hambre:0, busy:false, ssj:false, turnoGordo:false };
   $("av-goku").textContent="🥋"; $("av-goku").classList.remove("ssj");
@@ -107,6 +143,7 @@ function reset() {
   $("final").style.display = "none";
   log("🔔 ¡Arranca la pelea del siglo!");
   render();
+  vineta(); intro();
   hablaGordo("empieza la pelea, provocá a Goku");
 }
 function log(t) { const p=document.createElement("p"); p.textContent=t; $("log").prepend(p); }
@@ -127,49 +164,74 @@ function beep(f) { try { const c=new (window.AudioContext||window.webkitAudioCon
   o.frequency.value=f; o.type="square"; g.gain.value=.05; o.connect(g); g.connect(c.destination); o.start();
   g.gain.exponentialRampToValueAtTime(.0001, c.currentTime+.25); o.stop(c.currentTime+.3); } catch(e){} }
 
-function turno(key) {
+async function turno(key) {
   if (s.busy) return;
   const m = MOVES[key];
-  s.ki = Math.min(100, s.ki - m.ki);
+  s.busy = true; s.ki = Math.min(100, s.ki - m.ki); render();
+  if (key=="kame" || key=="genki") {
+    narrar(key=="kame" ? "KAAA... MEEE... HAAA... MEEE..." : "¡¡ENERGÍA DEL UNIVERSO!!");
+    for (let i=0;i<6;i++){ beep(300+i*120); await espera(220); }
+    narrar(key=="kame" ? "¡¡HAAAAAAA!!" : "¡¡GENKIDAMA!!");
+    rayo(1); flash(key=="genki" ? "#9fe8ff" : "#fff"); await espera(400);
+  }
   anim("av-goku","attack");
   if (m.dmg[1]) {
     let d = rnd(m.dmg);
     const crit = Math.random() < .15;
     if (crit) d = Math.round(d*1.5);
     if (s.ssj) d = Math.round(d*1.5);
-    if (Math.random() < .1) { log("😂 " + m.txt + "... ¡pero El Gordo lo esquiva rodando!"); }
+    if (Math.random() < .1) { log("😂 " + m.txt + "... ¡pero El Gordo lo esquiva rodando!"); narrar("¡¡LO ESQUIVÓ!!"); numero("av-gordo","MISS"); }
     else {
       s.gordo = Math.max(0, s.gordo - d);
-      anim("av-gordo","hit"); beep(crit?880:440);
+      anim("av-gordo","hit"); beep(crit?880:440); temblor();
+      numero("av-gordo", "-"+d);
+      if (crit) { narrar("¡¡CRÍTICO!!"); flash("#ffd400"); }
+      else if (d>=30) narrar(pick(["¡¡INCREÍBLE!!","¡¡DEVASTADOR!!","¡¡QUÉ PODER!!"]));
       log(`${pick(ZAS)} ${m.txt} → -${d}${crit?" 💥CRÍTICO":""}`);
     }
-  } else { log("⚡ " + m.txt); beep(660); }
-  if (!fin()) hablaGordo(situacion());
+  } else { log("⚡ " + m.txt); beep(660); flash("#ffd40088"); }
+  render();
+  if (s.gordo>0 && s.gordo<=25) narrar("¡¡EL GORDO ESTÁ AL LÍMITE!!");
   if (fin()) return;
-  s.busy = true; render();
-  setTimeout(gordoTurno, 900);
+  hablaGordo(situacion());
+  await espera(1300);
+  gordoTurno();
 }
-function gordoTurno() {
+async function gordoTurno() {
   let a = pick(GORDO);
   s.hambre = Math.min(100, s.hambre + 20);
   if (s.hambre >= 100) {
     s.hambre = 0;
-    a = { dmg:[28,38], txt:"🍔🍕🌭 ¡MODO GORDO FURIOSO! El Gordo hace la AVALANCHA DE MILANESAS" };
+    a = { dmg:[28,38], txt:"🍔🍕🌭 ¡MODO GORDO FURIOSO! El Gordo hace la AVALANCHA DE MILANESAS", furia:true };
+    render(); narrar("⚠️ MODO GORDO FURIOSO ⚠️"); flash("#ff2a00");
+    for (let i=0;i<4;i++){ beep(150); temblor(); await espera(300); }
   }
   anim("av-gordo","attack");
-  if (a.heal) { const h=rnd(a.heal); s.gordo=Math.min(130,s.gordo+h); log(`${a.txt} → +${h}`); }
-  else if (a.dmg[1]) { const d=rnd(a.dmg); s.goku=Math.max(0,s.goku-d); anim("av-goku","hit"); beep(220); log(`${a.txt} → -${d}`); }
+  if (a.heal) { const h=rnd(a.heal); s.gordo=Math.min(130,s.gordo+h); numero("av-gordo","+"+h,true); log(`${a.txt} → +${h}`); }
+  else if (a.dmg[1]) {
+    const d=rnd(a.dmg); s.goku=Math.max(0,s.goku-d);
+    if (a.furia) rayo(-1);
+    anim("av-goku","hit"); beep(220); temblor(); numero("av-goku","-"+d);
+    if (d>=25) { flash("#ff0000"); narrar("¡¡GOKU ESTÁ EN PROBLEMAS!!"); }
+    log(`${a.txt} → -${d}`);
+  }
   else log(a.txt);
   s.ki = Math.min(100, s.ki + 5);
-  s.busy = false; render(); if (!fin()) checkSSJ();
+  render(); vineta();
+  if (fin()) return;
+  await checkSSJ();
+  s.busy = false; render();
 }
-function checkSSJ() {
+async function checkSSJ() {
   if (s.ssj || s.goku > 35) return;
-  s.ssj = true; s.goku = Math.min(100, s.goku + 25); s.ki = 100;
+  s.ssj = true;
+  narrar("¿¡QUÉ ESTÁ PASANDO!?"); for (let i=0;i<5;i++){ temblor(); beep(200+i*150); await espera(350); }
+  flash("#ffe600"); narrar("¡¡SUPER SAIYAJIN!!");
+  s.goku = Math.min(100, s.goku + 25); s.ki = 100;
   $("av-goku").textContent = "😡"; $("av-goku").classList.add("ssj");
   log("💛⚡ ¡¡GOKU SE TRANSFORMÓ EN SUPER SAIYAJIN!! (+25 HP, ki al máximo, daño x1.5)");
   [440,660,880,1100].forEach((f,i)=>setTimeout(()=>beep(f),i*120));
-  render();
+  render(); vineta(); await espera(1200);
 }
 function fin() {
   if (s.gordo > 0 && s.goku > 0) return false;
@@ -177,7 +239,9 @@ function fin() {
   $("final-txt").innerHTML = gana
     ? "🏆 ¡GANÓ GOKU!<br><small>El Gordo se fue a comer un pancho para consolarse 🌭</small>"
     : "🍔 ¡GANÓ EL GORDO!<br><small>Goku quedó aplastado. Se viene la revancha 😤</small>";
-  $("final").style.display = "flex";
+  narrar(gana ? "¡¡K.O.!!" : "¡¡GOKU CAYÓ!!"); flash(); temblor(); vineta();
+  $("vineta").classList.remove("peligro");
+  setTimeout(()=>{ $("final").style.display = "flex"; }, 1500);
   hablaGordo(gana ? "El Gordo perdió la pelea, lamentate gracioso" : "El Gordo ganó la pelea, festejá");
   s.busy = true; render();
   return true;
