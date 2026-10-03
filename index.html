@@ -75,6 +75,11 @@
     <p>Atrapá la gallina en la oficina... sin que el jefe te vea sin laburar.</p>
     <small id="rec-gallina"></small>
   </a>
+  <a class="modo" href="disparos.html" style="border-color:#ff3b3b;background:linear-gradient(160deg,#ff3b3b33,#ffffff10)">
+    <div class="ico">🔫</div><h2>Tiroteo Online</h2>
+    <p>Disparos multijugador hasta 6. Ganá monedas y comprá armas y personajes.</p>
+    <small id="rec-disparos"></small>
+  </a>
   <a class="modo c" href="cartas.html">
     <div class="ico">🃏</div><h2>Cartas</h2>
     <p>Armá tu estrategia con cartas animadas. Energía, escudos y combos.</p>
@@ -90,7 +95,7 @@
 
 <div class="panel">
   <h3>🌍 Ranking mundial</h3>
-  <div class="fila"><button class="op on" data-r="pelea">⚡ Pelea</button><button class="op" data-r="cartas">🃏 Cartas</button><button class="op" data-r="comida">🍕 Comida</button><button class="op" data-r="online">🌐 Online</button><button class="op" data-r="gallina">🐔 Gallina</button></div>
+  <div class="fila"><button class="op on" data-r="pelea">⚡ Pelea</button><button class="op" data-r="cartas">🃏 Cartas</button><button class="op" data-r="comida">🍕 Comida</button><button class="op" data-r="online">🌐 Online</button><button class="op" data-r="gallina">🐔 Gallina</button><button class="op" data-r="disparos">🔫 Tiroteo</button></div>
   <div id="ranking" class="vacio">Cargando...</div>
 </div>
 
@@ -124,7 +129,7 @@ function render() {
   document.querySelectorAll("[data-d]").forEach(b => b.classList.toggle("on", b.dataset.d === AJUSTES.dificultad));
   const snd = document.getElementById("snd");
   snd.textContent = AJUSTES.sonido ? "🔊 Activado" : "🔇 Apagado"; snd.classList.toggle("on", AJUSTES.sonido);
-  for (const j of ["pelea", "cartas", "comida", "online", "gallina"]) {
+  for (const j of ["pelea", "cartas", "comida", "online", "gallina", "disparos"]) {
     const r = AJUSTES.record(j);
     document.getElementById("rec-" + j).textContent = r.g + r.p ? `🏆 ${r.g} ganadas · 💀 ${r.p} perdidas` : "Todavía no jugaste";
   }
@@ -155,7 +160,7 @@ async function cargarHistorial() {
     const p = await DB.historial(DB.nombre);
     el.className = p.length ? "" : "vacio";
     el.innerHTML = p.length ? `<table><tr><th>Modo</th><th>Dificultad</th><th>Resultado</th><th>Duración</th></tr>${p.map(x=>
-      `<tr><td>${({pelea:"⚡ Pelea",cartas:"🃏 Cartas",comida:"🍕 Comida",online:"🌐 Online",gallina:"🐔 Gallina"})[x.modo]||esc(x.modo)}${x.modo==="comida"||x.modo==="gallina"?` (${x.puntos} pts)`:""}</td><td>${esc(x.dificultad)}</td><td>${x.gano?"🏆 Ganó":"💀 Perdió"}</td><td>${Math.floor(x.duracion_seg/60)}m ${x.duracion_seg%60}s</td></tr>`).join("")}</table>`
+      `<tr><td>${({pelea:"⚡ Pelea",cartas:"🃏 Cartas",comida:"🍕 Comida",online:"🌐 Online",gallina:"🐔 Gallina",disparos:"🔫 Tiroteo"})[x.modo]||esc(x.modo)}${x.modo==="comida"||x.modo==="gallina"?` (${x.puntos} pts)`:""}</td><td>${esc(x.dificultad)}</td><td>${x.gano?"🏆 Ganó":"💀 Perdió"}</td><td>${Math.floor(x.duracion_seg/60)}m ${x.duracion_seg%60}s</td></tr>`).join("")}</table>`
       : "Todavía no jugaste ninguna partida con este nombre.";
   } catch (e) { el.className="vacio"; el.textContent = "No se pudo cargar el historial."; }
 }
