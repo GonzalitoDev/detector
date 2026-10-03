@@ -1,11 +1,17 @@
 // Sala de voz: audio directo entre jugadores (WebRTC), usando el canal de Supabase para conectarse.
 // Uso: Voz.preparar(canal, miId) ANTES de canal.subscribe(); después el botón 🎤 hace el resto.
 const Voz = (() => {
-  const ICE = { iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] };
+  // STUN de Google + TURN público gratuito (Open Relay) para redes que bloquean la conexión directa
+  const ICE = { iceServers: [
+    { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
+    { urls: ["turn:openrelay.metered.ca:80", "turn:openrelay.metered.ca:443", "turn:openrelay.metered.ca:443?transport=tcp"],
+      username: "openrelayproject", credential: "openrelayproject" } ] };
   let canal = null, yo = null, mic = null, activo = false, muteado = false, sordo = false;
   const pares = {};   // id -> RTCPeerConnection
   const audios = {};  // id -> <audio>
   const hablando = {}; // id -> true/false (para mostrar quién habla)
+  const iceEnEspera = {}; // candidatos que llegan antes de la oferta/respuesta
+  const medidores = {};   // id -> intervalo del medidor de volumen
 
   function mandar(tipo, data) { canal && canal.send({ type: "broadcast", event: "voz", payload: { tipo, de: yo, ...data } }); }
 
@@ -21,11 +27,29 @@ const Voz = (() => {
       au.srcObject = e.streams[0]; au.play().catch(() => {});
       medir(id, e.streams[0]);
     };
-    pc.onconnectionstatechange = () => { if (["failed", "closed"].includes(pc.connectionState)) cerrarPar(id); actualizar(); };
+    // Si se corta, se reconecta solo
+    let corte = null;
+    pc.onconnectionstatechange = () => {
+      const st = pc.connectionState; clearTimeout(corte);
+      if (st === "failed") reconectar(id);
+      else if (st === "disconnected") corte = setTimeout(() => { if (pc.connectionState !== "connected") reconectar(id); }, 4000);
+      actualizar();
+    };
     return pc;
   }
+  function reconectar(id) { if (!activo) return; cerrarPar(id); mandar("hola", { a: id }); }
+  // Para no chocar, siempre ofrece el que tiene el id "menor"
+  async function ofrecer(id) {
+    if (pares[id] && pares[id].connectionState === "connected") return;
+    if (pares[id]) cerrarPar(id);
+    const pc = crearPar(id);
+    await pc.setLocalDescription(await pc.createOffer());
+    mandar("oferta", { a: id, sdp: pc.localDescription });
+  }
+  async function vaciarIce(id) { const l = iceEnEspera[id] || []; delete iceEnEspera[id]; for (const c of l) { try { await pares[id]?.addIceCandidate(c); } catch (e) {} } }
   function cerrarPar(id) {
     try { pares[id] && pares[id].close(); } catch (e) {}
+    clearInterval(medidores[id]); delete medidores[id]; delete iceEnEspera[id];
     delete pares[id]; delete hablando[id];
     if (audios[id]) { audios[id].remove(); delete audios[id]; }
     actualizar();
@@ -35,19 +59,23 @@ const Voz = (() => {
     if (!activo || m.de === yo) return;
     if (m.a && m.a !== yo) return; // mensaje para otro
     try {
-      if (m.tipo === "hola") {         // alguien entró a la voz: yo le ofrezco conexión
-        const pc = crearPar(m.de);
-        await pc.setLocalDescription(await pc.createOffer());
-        mandar("oferta", { a: m.de, sdp: pc.localDescription });
+      if (m.tipo === "hola") {          // alguien entró (o pide reconectar)
+        if (yo < m.de) await ofrecer(m.de);
+        else if (!m.a) mandar("hola", { a: m.de });  // le aviso que estoy, para que me ofrezca él
+        else if (!(pares[m.de] && pares[m.de].connectionState === "connected")) { cerrarPar(m.de); mandar("hola", { a: m.de, otra: 1 }); if (m.otra) await ofrecer(m.de); }
       } else if (m.tipo === "oferta") {
+        if (pares[m.de]) cerrarPar(m.de);
         const pc = crearPar(m.de);
-        await pc.setRemoteDescription(m.sdp);
+        await pc.setRemoteDescription(m.sdp); await vaciarIce(m.de);
         await pc.setLocalDescription(await pc.createAnswer());
         mandar("respuesta", { a: m.de, sdp: pc.localDescription });
       } else if (m.tipo === "respuesta") {
-        await pares[m.de]?.setRemoteDescription(m.sdp);
+        const pc = pares[m.de];
+        if (pc && pc.signalingState === "have-local-offer") { await pc.setRemoteDescription(m.sdp); await vaciarIce(m.de); }
       } else if (m.tipo === "ice") {
-        await pares[m.de]?.addIceCandidate(m.ice);
+        const pc = pares[m.de];
+        if (pc && pc.remoteDescription) await pc.addIceCandidate(m.ice);
+        else (iceEnEspera[m.de] = iceEnEspera[m.de] || []).push(m.ice);
       } else if (m.tipo === "chau") {
         cerrarPar(m.de);
       }
@@ -59,12 +87,16 @@ const Voz = (() => {
   function medir(id, stream) {
     try {
       ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === "suspended") ctx.resume().catch(() => {});
       const an = ctx.createAnalyser(); an.fftSize = 256; ctx.createMediaStreamSource(stream).connect(an);
       const datos = new Uint8Array(an.frequencyBinCount);
-      const tic = () => { if (!activo || (!pares[id] && id !== yo)) return; an.getByteFrequencyData(datos);
-        const v = datos.reduce((a, b) => a + b, 0) / datos.length; const h = v > 18 && !(id === yo && muteado);
-        if (h !== hablando[id]) { hablando[id] = h; actualizar(); } requestAnimationFrame(tic); };
-      tic();
+      clearInterval(medidores[id]);
+      medidores[id] = setInterval(() => {
+        if (!activo || (!pares[id] && id !== yo)) { clearInterval(medidores[id]); return; }
+        an.getByteFrequencyData(datos);
+        const v = datos.reduce((a, b) => a + b, 0) / datos.length, h = v > 18 && !(id === yo && muteado);
+        if (h !== hablando[id]) { hablando[id] = h; try { Voz.onHabla && Voz.onHabla(id, h); } catch (e) {} pintarBoton(); }
+      }, 150);
     } catch (e) {}
   }
 
@@ -79,6 +111,10 @@ const Voz = (() => {
 
   function actualizar() {
     try { Voz.onCambio && Voz.onCambio(estado()); } catch (e) {}
+    pintarBoton();
+  }
+  function pintarBoton() {
+    if (!caja.isConnected) return;
     if (!activo) { btn.textContent = "🎙️ Entrar a la voz"; btn.style.background = "#3fb6ff"; btn.style.color = "#001a2a"; lista.style.display = "none"; return; }
     btn.textContent = muteado ? "🔇 Micrófono apagado" : "🎤 Hablando (tocá para silenciar)";
     btn.style.background = muteado ? "#ff5a5a" : "#3ddc5a"; btn.style.color = "#000";
@@ -92,7 +128,10 @@ const Voz = (() => {
     if (!canal || activo) return true;
     try { mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
     catch (e) { btn.textContent = "❌ Sin permiso de micrófono"; return false; }
-    activo = true; muteado = false; medir(yo, mic); mandar("hola", {}); actualizar(); return true;
+    activo = true; muteado = false; medir(yo, mic); mandar("hola", {}); actualizar();
+    // Por si el primer aviso se perdió, lo repito un par de veces
+    setTimeout(() => activo && mandar("hola", {}), 2500); setTimeout(() => activo && mandar("hola", {}), 7000);
+    return true;
   }
   function alternarMute() { if (!activo) return; muteado = !muteado; mic.getAudioTracks().forEach(t => t.enabled = !muteado); actualizar(); }
   function alternarSordo() { sordo = !sordo; Object.values(audios).forEach(a => a.muted = sordo); actualizar(); }
@@ -105,11 +144,13 @@ const Voz = (() => {
 
   return {
     nombre: () => null,   // cada juego puede reemplazarlo para mostrar nombres
-    onCambio: null,       // se llama cada vez que cambia quién está / quién habla
+    onCambio: null,       // se llama cuando cambia quién está conectado o el micrófono
+    onHabla: null,        // (id, true/false) cuando alguien empieza o deja de hablar
     // ui:false para usar tu propia interfaz (como en el chat estilo Discord)
     preparar(c, id, op = {}) { canal = c; yo = id; c.on("broadcast", { event: "voz" }, recibir);
       if (op.ui === false) caja.remove(); else if (!caja.isConnected) document.body.appendChild(caja); actualizar(); },
     entrar, alternarMute, alternarSordo, estado,
-    salir() { if (!activo) return; mandar("chau", {}); Object.keys(pares).forEach(cerrarPar); mic && mic.getTracks().forEach(t => t.stop()); activo = false; muteado = false; actualizar(); },
+    salir() { if (!activo) return; mandar("chau", {}); Object.keys(pares).forEach(cerrarPar); clearInterval(medidores[yo]); delete medidores[yo]; delete hablando[yo];
+      mic && mic.getTracks().forEach(t => t.stop()); activo = false; muteado = false; actualizar(); },
   };
 })();
