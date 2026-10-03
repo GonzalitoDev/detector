@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Panel de Admin</title>
+<style>
+  :root { --bg:#0f1117; --panel:#181b24; --borde:#2a2f3d; --tx:#e6e8ee; --tx2:#9aa1b2; --acento:#ffd400; --rojo:#ff5a5a; --verde:#3ddc5a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--tx); font-family:system-ui,sans-serif; }
+  header { display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--panel); border-bottom:1px solid var(--borde); position:sticky; top:0; z-index:5; flex-wrap:wrap; }
+  header h1 { font-size:20px; margin:0; flex:1; }
+  header a { color:var(--acento); text-decoration:none; }
+  main { max-width:1100px; margin:0 auto; padding:16px; }
+  .tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  .tabs button { background:var(--panel); color:var(--tx); border:1px solid var(--borde); padding:9px 14px; border-radius:10px; cursor:pointer; font-weight:700; }
+  .tabs button.on { background:var(--acento); color:#000; border-color:var(--acento); }
+  .card { background:var(--panel); border:1px solid var(--borde); border-radius:14px; padding:16px; margin-bottom:14px; }
+  .card h2 { margin:0 0 12px; font-size:17px; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+  .kpi { background:#11141b; border:1px solid var(--borde); border-radius:12px; padding:12px; }
+  .kpi b { display:block; font-size:28px; }
+  .kpi span { color:var(--tx2); font-size:13px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--borde); vertical-align:top; }
+  th { color:var(--tx2); font-weight:600; }
+  td.t { max-width:420px; word-wrap:break-word; }
+  button.b { border:0; border-radius:8px; padding:6px 10px; cursor:pointer; font-weight:700; }
+  .rojo { background:var(--rojo); color:#fff; } .gris { background:#2a2f3d; color:var(--tx); } .amar { background:var(--acento); color:#000; }
+  input, select { background:#11141b; color:var(--tx); border:1px solid var(--borde); border-radius:8px; padding:9px 10px; font-size:15px; }
+  .fila { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+  .barras { display:flex; align-items:flex-end; gap:6px; height:140px; padding-top:10px; }
+  .barras div { flex:1; background:linear-gradient(#ffd400,#ff8c1a); border-radius:6px 6px 0 0; position:relative; min-height:2px; }
+  .barras small { position:absolute; bottom:-20px; left:0; right:0; text-align:center; color:var(--tx2); font-size:11px; }
+  .barras em { position:absolute; top:-18px; left:0; right:0; text-align:center; font-style:normal; font-size:11px; }
+  .login { max-width:380px; margin:60px auto; text-align:center; }
+  .login input { width:100%; margin-bottom:10px; }
+  .login button { width:100%; padding:12px; }
+  #msg { min-height:20px; margin-top:10px; color:var(--tx2); }
+  .vacio { color:var(--tx2); font-style:italic; }
+  #toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:#000d; padding:10px 16px; border-radius:10px; display:none; z-index:50; }
+</style>
+</head>
+<body>
+<header><h1>🛡️ Panel de Admin</h1><a href="./">⬅ Volver al sitio</a><span id="quien" style="color:var(--tx2);font-size:13px"></span><button class="b gris" id="salir" style="display:none">Salir</button></header>
+
+<!-- Login -->
+<div class="login card" id="login" style="display:none">
+  <h2>🔐 Entrar como admin</h2>
+  <input id="mail" type="email" placeholder="Tu mail" autocomplete="username">
+  <input id="clave" type="password" placeholder="Contraseña" autocomplete="current-password">
+  <button class="b amar" id="entrar">Entrar</button>
+  <p style="color:var(--tx2);font-size:13px">¿Primera vez? Escribí tu mail y una contraseña nueva (mínimo 8 letras) y tocá:</p>
+  <button class="b gris" id="crear">Crear mi contraseña de admin</button>
+  <div id="msg"></div>
+</div>
+
+<main id="panel" style="display:none">
+  <div class="tabs">
+    <button data-t="stats" class="on">📊 Estadísticas</button>
+    <button data-t="chat">💬 Chat</button>
+    <button data-t="ban">🚫 Baneados</button>
+    <button data-t="partidas">🏆 Ranking</button>
+    <button data-t="frases">🫃 Frases</button>
+  </div>
+
+  <section data-s="stats">
+    <div class="card"><h2>📊 Resumen</h2><div class="kpis" id="kpis"></div></div>
+    <div class="card"><h2>📅 Partidas por día (últimos 14 días)</h2><div class="barras" id="dias"></div><div style="height:22px"></div></div>
+    <div class="card"><h2>🎮 Juegos más jugados</h2><div id="juegos"></div></div>
+    <div class="card"><h2>🏅 Jugadores más activos</h2><div id="activos"></div></div>
+  </section>
+
+  <section data-s="chat" style="display:none">
+    <div class="card"><h2>💬 Mensajes del chat</h2>
+      <div class="fila"><select id="c-canal"><option value="">Todos los canales</option><option value="general"># general</option><option value="juegos"># juegos</option><option value="memes"># memes</option><option value="gordo"># frases-del-gordo</option></select>
+        <input id="c-buscar" placeholder="Buscar texto o nombre"><button class="b gris" id="c-ir">🔎 Buscar</button></div>
+      <div id="mensajes"></div></div>
+  </section>
+
+  <section data-s="ban" style="display:none">
+    <div class="card"><h2>🚫 Banear un jugador</h2>
+      <p style="color:var(--tx2);margin-top:0">Un nombre baneado no puede escribir en el chat ni guardar partidas en el ranking.</p>
+      <div class="fila"><input id="b-nom" maxlength="20" placeholder="Nombre"><input id="b-motivo" maxlength="200" placeholder="Motivo (opcional)" style="flex:1"><button class="b rojo" id="b-ok">Banear</button></div>
+    </div>
+    <div class="card"><h2>Lista de baneados</h2><div id="baneados"></div></div>
+  </section>
+
+  <section data-s="partidas" style="display:none">
+    <div class="card"><h2>🏆 Partidas guardadas</h2>
+      <div class="fila"><input id="p-nom" placeholder="Filtrar por nombre"><button class="b gris" id="p-ir">🔎 Buscar</button>
+        <button class="b rojo" id="p-todas" title="Borra todas las partidas de ese nombre">🗑️ Borrar todas las de ese nombre</button></div>
+      <div id="partidas"></div></div>
+  </section>
+
+  <section data-s="frases" style="display:none">
+    <div class="card"><h2>🫃 Frases del Gordo</h2><div id="frases"></div></div>
+  </section>
+</main>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SB = supabase.createClient("https://eluxvcixctwnzyysvoor.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsdXh2Y2l4Y3R3bnp5eXN2b29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMTk5NzAsImV4cCI6MjEwMzY5NTk3MH0.Gq29eHc-X1vEfbxM_9E5mlOynIJCh0pBbsSOPX923IQ");
+const $ = id => document.getElementById(id);
+const esc = t => String(t ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fecha = d => new Date(d).toLocaleString("es-AR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+const NOMBRES = { pelea:"⚡ Pelea", cartas:"🃏 Cartas", comida:"🍕 Comida", online:"🌐 Pelea online", gallina:"🐔 Gallina", disparos:"🔫 Tiroteo", policias:"🚓 Polis y Ladrones" };
+function toast(t) { const e = $("toast"); e.textContent = t; e.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => e.style.display = "none", 2500); }
+function tabla(cols, filas) { return filas.length ? `<table><tr>${cols.map(c => `<th>${c}</th>`).join("")}</tr>${filas.join("")}</table>` : `<p class="vacio">No hay nada para mostrar.</p>`; }
+
+// ---------- Login ----------
+async function revisarSesion() {
+  const { data: { session } } = await SB.auth.getSession();
+  if (!session) { $("login").style.display = "block"; $("panel").style.display = "none"; $("salir").style.display = "none"; $("quien").textContent = ""; return; }
+  const { data: esAdmin } = await SB.rpc("es_admin");
+  if (!esAdmin) { $("msg").textContent = "⛔ Esa cuenta no es admin."; await SB.auth.signOut(); $("login").style.display = "block"; return; }
+  $("login").style.display = "none"; $("panel").style.display = "block"; $("salir").style.display = "";
+  $("quien").textContent = "👑 " + session.user.email;
+  abrir("stats");
+}
+$("entrar").onclick = async () => {
+  $("msg").textContent = "Entrando...";
+  const { error } = await SB.auth.signInWithPassword({ email: $("mail").value.trim(), password: $("clave").value });
+  if (error) { $("msg").textContent = error.message.includes("confirm") ? "📧 Primero confirmá tu mail: revisá tu correo (y el spam)." : "❌ Mail o contraseña incorrectos."; return; }
+  revisarSesion();
+};
+$("crear").onclick = async () => {
+  const email = $("mail").value.trim(), password = $("clave").value;
+  if (password.length < 8) { $("msg").textContent = "La contraseña tiene que tener al menos 8 caracteres."; return; }
+  const { error } = await SB.auth.signUp({ email, password, options: { emailRedirectTo: location.href.split("?")[0] } });
+  $("msg").textContent = error ? "❌ " + error.message : "📧 ¡Listo! Te mandamos un mail para confirmar. Tocá el link y después volvé acá y tocá Entrar.";
+};
+$("clave").addEventListener("keydown", e => { if (e.key === "Enter") $("entrar").click(); });
+$("salir").onclick = async () => { await SB.auth.signOut(); revisarSesion(); };
+
+// ---------- Pestañas ----------
+function abrir(t) {
+  document.querySelectorAll("[data-t]").forEach(b => b.classList.toggle("on", b.dataset.t === t));
+  document.querySelectorAll("[data-s]").forEach(s => s.style.display = s.dataset.s === t ? "" : "none");
+  ({ stats: cargarStats, chat: cargarChat, ban: cargarBan, partidas: cargarPartidas, frases: cargarFrases })[t]();
+}
+document.querySelectorAll("[data-t]").forEach(b => b.onclick = () => abrir(b.dataset.t));
+
+// ---------- Estadísticas ----------
+async function cargarStats() {
+  const [p, m, f, b, pf] = await Promise.all([
+    SB.from("partidas").select("nombre,modo,gano,creado,duracion_seg").order("creado", { ascending:false }).limit(5000),
+    SB.from("mensajes").select("id", { count:"exact", head:true }),
+    SB.from("frases").select("id", { count:"exact", head:true }),
+    SB.from("baneados").select("nombre", { count:"exact", head:true }),
+    SB.from("perfiles").select("nombre,xp,partidas").order("partidas", { ascending:false }).limit(10) ]);
+  const partidas = p.data || [], jugadores = new Set(partidas.map(x => x.nombre)), hoy = new Date().toDateString();
+  const kpi = (n, t) => `<div class="kpi"><b>${n}</b><span>${t}</span></div>`;
+  $("kpis").innerHTML = kpi(jugadores.size, "👥 Jugadores") + kpi(partidas.length, "🎮 Partidas") + kpi(partidas.filter(x => new Date(x.creado).toDateString() === hoy).length, "📅 Partidas hoy")
+    + kpi(m.count ?? 0, "💬 Mensajes") + kpi(f.count ?? 0, "🫃 Frases") + kpi(b.count ?? 0, "🚫 Baneados")
+    + kpi(Math.round(partidas.reduce((a, x) => a + (x.duracion_seg || 0), 0) / 3600) + " h", "⏱️ Horas jugadas");
+  // Por día
+  const dias = []; for (let i = 13; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); dias.push({ k: d.toDateString(), et: d.getDate() + "/" + (d.getMonth() + 1), n: 0 }); }
+  partidas.forEach(x => { const d = dias.find(y => y.k === new Date(x.creado).toDateString()); if (d) d.n++; });
+  const max = Math.max(1, ...dias.map(d => d.n));
+  $("dias").innerHTML = dias.map(d => `<div style="height:${d.n / max * 100}%"><em>${d.n || ""}</em><small>${d.et}</small></div>`).join("");
+  // Por juego
+  const porJuego = {}; partidas.forEach(x => { porJuego[x.modo] = porJuego[x.modo] || { n:0, g:0 }; porJuego[x.modo].n++; if (x.gano) porJuego[x.modo].g++; });
+  $("juegos").innerHTML = tabla(["Juego", "Partidas", "% ganadas"], Object.entries(porJuego).sort((a, b) => b[1].n - a[1].n)
+    .map(([k, v]) => `<tr><td>${NOMBRES[k] || esc(k)}</td><td>${v.n}</td><td>${Math.round(v.g / v.n * 100)}%</td></tr>`));
+  $("activos").innerHTML = tabla(["Jugador", "Partidas", "XP"], (pf.data || []).map(x => `<tr><td>${esc(x.nombre)}</td><td>${x.partidas}</td><td>${x.xp}</td></tr>`));
+}
+
+// ---------- Chat ----------
+async function cargarChat() {
+  let q = SB.from("mensajes").select("*").order("creado", { ascending:false }).limit(100);
+  if ($("c-canal").value) q = q.eq("canal", $("c-canal").value);
+  const b = $("c-buscar").value.trim().replace(/[%,()]/g, "");
+  if (b) q = q.or(`texto.ilike.%${b}%,nombre.ilike.%${b}%`);
+  const { data, error } = await q;
+  if (error) { $("mensajes").innerHTML = `<p class="vacio">Error: ${esc(error.message)}</p>`; return; }
+  $("mensajes").innerHTML = tabla(["Cuándo", "Canal", "Quién", "Mensaje", ""], data.map(m =>
+    `<tr><td>${fecha(m.creado)}</td><td>#${esc(m.canal)}</td><td>${esc(m.avatar)} ${esc(m.nombre)}</td><td class="t">${esc(m.texto)}</td>
+     <td style="white-space:nowrap"><button class="b rojo" data-borrar-msg="${m.id}">🗑️</button> <button class="b gris" data-banear="${esc(m.nombre)}">🚫</button></td></tr>`));
+  $("mensajes").querySelectorAll("[data-borrar-msg]").forEach(e => e.onclick = () => borrar("mensajes", e.dataset.borrarMsg, cargarChat));
+  $("mensajes").querySelectorAll("[data-banear]").forEach(e => e.onclick = () => banear(e.dataset.banear, "Por mensajes en el chat"));
+}
+$("c-ir").onclick = cargarChat; $("c-canal").onchange = cargarChat;
+$("c-buscar").addEventListener("keydown", e => { if (e.key === "Enter") cargarChat(); });
+
+async function borrar(tabla, id, despues) {
+  if (!confirm("¿Borrar esto? No se puede deshacer.")) return;
+  const { error, count } = await SB.from(tabla).delete({ count:"exact" }).eq("id", id);
+  toast(error ? "❌ " + error.message : count ? "🗑️ Borrado" : "⚠️ No se pudo borrar (¿sigue tu sesión de admin?)"); despues();
+}
+
+// ---------- Baneados ----------
+async function banear(nombre, motivo = "") {
+  nombre = String(nombre).trim(); if (!nombre) return;
+  if (!confirm(`¿Banear a "${nombre}"?`)) return;
+  const { error } = await SB.from("baneados").insert({ nombre, motivo });
+  toast(error ? (error.code === "23505" ? "Ya estaba baneado" : "❌ " + error.message) : `🚫 ${nombre} baneado`);
+  if (!document.querySelector('[data-s="ban"]').style.display) cargarBan();
+}
+$("b-ok").onclick = async () => { await banear($("b-nom").value, $("b-motivo").value.trim()); $("b-nom").value = $("b-motivo").value = ""; cargarBan(); };
+async function cargarBan() {
+  const { data } = await SB.from("baneados").select("*").order("creado", { ascending:false });
+  $("baneados").innerHTML = tabla(["Nombre", "Motivo", "Desde", ""], (data || []).map(b =>
+    `<tr><td>${esc(b.nombre)}</td><td>${esc(b.motivo) || "—"}</td><td>${fecha(b.creado)}</td><td><button class="b amar" data-desbanear="${esc(b.nombre)}">Desbanear</button></td></tr>`));
+  $("baneados").querySelectorAll("[data-desbanear]").forEach(e => e.onclick = async () => {
+    const { error } = await SB.from("baneados").delete().eq("nombre", e.dataset.desbanear); toast(error ? "❌ " + error.message : "✅ Desbaneado"); cargarBan(); });
+}
+
+// ---------- Partidas ----------
+async function cargarPartidas() {
+  let q = SB.from("partidas").select("*").order("creado", { ascending:false }).limit(150);
+  const n = $("p-nom").value.trim(); if (n) q = q.ilike("nombre", n);
+  const { data } = await q;
+  $("partidas").innerHTML = tabla(["Cuándo", "Jugador", "Juego", "Resultado", "Puntos", ""], (data || []).map(p =>
+    `<tr><td>${fecha(p.creado)}</td><td>${esc(p.nombre)}</td><td>${NOMBRES[p.modo] || esc(p.modo)}</td><td>${p.gano ? "🏆 Ganó" : "💀 Perdió"}</td><td>${p.puntos}</td>
+     <td><button class="b rojo" data-borrar-p="${p.id}">🗑️</button></td></tr>`));
+  $("partidas").querySelectorAll("[data-borrar-p]").forEach(e => e.onclick = () => borrar("partidas", e.dataset.borrarP, cargarPartidas));
+}
+$("p-ir").onclick = cargarPartidas;
+$("p-todas").onclick = async () => {
+  const n = $("p-nom").value.trim(); if (!n) { toast("Escribí un nombre primero"); return; }
+  if (!confirm(`¿Borrar TODAS las partidas de "${n}"? Su rango vuelve a cero.`)) return;
+  const { error, count } = await SB.from("partidas").delete({ count:"exact" }).ilike("nombre", n);
+  toast(error ? "❌ " + error.message : `🗑️ ${count} partidas borradas`); cargarPartidas();
+};
+
+// ---------- Frases ----------
+async function cargarFrases() {
+  const { data } = await SB.from("frases").select("*").order("creado", { ascending:false }).limit(150);
+  $("frases").innerHTML = tabla(["Cuándo", "Frase", "Votos", ""], (data || []).map(f =>
+    `<tr><td>${fecha(f.creado)}</td><td class="t">${esc(f.texto)}</td><td>👍 ${f.votos}</td><td><button class="b rojo" data-borrar-f="${f.id}">🗑️</button></td></tr>`));
+  $("frases").querySelectorAll("[data-borrar-f]").forEach(e => e.onclick = () => borrar("frases", e.dataset.borrarF, cargarFrases));
+}
+
+SB.auth.onAuthStateChange(ev => { if (ev === "SIGNED_IN" || ev === "SIGNED_OUT") revisarSesion(); });
+revisarSesion();
+</script>
+</body>
+</html>

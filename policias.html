@@ -300,22 +300,51 @@ function crearPatrullero() {
   escena.add(g); return g;
 }
 // Lugares fijos (iguales para todos) cerca de la comisaría
+// Camioneta negra de la Policía Especial (para SWAT y Grupo Halcón)
+function crearCamioneta() {
+  const g = new THREE.Group();
+  const negro = new THREE.MeshLambertMaterial({ color: 0x15171a }), goma = new THREE.MeshLambertMaterial({ color: 0x0a0a0a });
+  const vidrio = new THREE.MeshLambertMaterial({ color: 0x0d1520, transparent: true, opacity: .8 });
+  const base = new THREE.Mesh(new THREE.BoxGeometry(2.3, 1, 5), negro); base.position.y = .9; g.add(base);
+  const cabina = new THREE.Mesh(new THREE.BoxGeometry(2.2, .9, 3.4), vidrio); cabina.position.set(0, 1.85, -.5); g.add(cabina);
+  const techo = new THREE.Mesh(new THREE.BoxGeometry(2.25, .08, 3.45), negro); techo.position.set(0, 2.33, -.5); g.add(techo);
+  const paragolpes = new THREE.Mesh(new THREE.BoxGeometry(2.4, .35, .3), new THREE.MeshLambertMaterial({ color: 0x2a2a2a })); paragolpes.position.set(0, .55, 2.55); g.add(paragolpes);
+  for (const [x, z] of [[-1.1, 1.6], [1.1, 1.6], [-1.1, -1.6], [1.1, -1.6]]) { const r = new THREE.Mesh(new THREE.CylinderGeometry(.48, .48, .38, 14), goma); r.rotation.z = Math.PI / 2; r.position.set(x, .48, z); g.add(r); }
+  const faro = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  for (const x of [-.75, .75]) { const f = new THREE.Mesh(new THREE.BoxGeometry(.4, .16, .05), faro); f.position.set(x, 1.05, 2.51); g.add(f); }
+  // Letras a los costados y atrás: "POLICÍA ESPECIAL"
+  const tex = textura((c, w, h) => { c.fillStyle = "#15171a"; c.fillRect(0, 0, w, h); c.fillStyle = "#f2c200"; c.fillRect(0, h - 14, w, 6);
+    c.fillStyle = "#ffffff"; c.font = "bold 58px system-ui"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("POLICÍA ESPECIAL", w / 2, h / 2 - 6); }, 640, 128);
+  const matLetras = new THREE.MeshBasicMaterial({ map: tex });
+  for (const lado of [-1, 1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(4.2, .82), matLetras); p.position.set(lado * 1.16, .95, 0); p.rotation.y = lado * Math.PI / 2; g.add(p); }
+  const atras = new THREE.Mesh(new THREE.PlaneGeometry(2.1, .42), matLetras); atras.position.set(0, 1.1, -2.51); atras.rotation.y = Math.PI; g.add(atras);
+  // Barra de luces
+  const rojo = new THREE.Mesh(new THREE.BoxGeometry(.7, .16, .3), new THREE.MeshBasicMaterial({ color: 0x550000 })); rojo.position.set(-.4, 2.45, .5); g.add(rojo);
+  const azulL = new THREE.Mesh(new THREE.BoxGeometry(.7, .16, .3), new THREE.MeshBasicMaterial({ color: 0x000055 })); azulL.position.set(.4, 2.45, .5); g.add(azulL);
+  const c = cartel("🚙 POLICÍA ESPECIAL", "#15171a"); c.scale.set(3.4, .7, 1); c.position.y = 3.2; c.visible = false; g.add(c);
+  g.userData = { rojo, azul: azulL, cartel: c };
+  escena.add(g); return g;
+}
 const autos = (() => {
   const lista = [], Z = ZONAS.carcel;
-  for (let r = 7; r < 30 && lista.length < 4; r += 1.5)
-    for (let a = 0; a < Math.PI * 2 && lista.length < 4; a += Math.PI / 8) {
+  // 4 patrulleros + 3 camionetas de la Policía Especial
+  for (let r = 7; r < 34 && lista.length < 7; r += 1.5)
+    for (let a = 0; a < Math.PI * 2 && lista.length < 7; a += Math.PI / 8) {
       const x = Z.x + Math.cos(a) * r, z = Z.z + Math.sin(a) * r;
-      if (!choca(x, z, AUTO_R + .4) && lista.every(o => Math.hypot(o.x0 - x, o.z0 - z) > 5)) lista.push({ x0: x, z0: z });
+      if (!choca(x, z, 1.9) && lista.every(o => Math.hypot(o.x0 - x, o.z0 - z) > 6)) lista.push({ x0: x, z0: z });
     }
-  return lista.map((p, i) => ({ i, x0: p.x0, z0: p.z0, x: p.x0, z: p.z0, h: 0, vel: 0, conductor: null, sirena: true, tx: p.x0, tz: p.z0, th: 0, mesh: crearPatrullero() }));
+  return lista.map((p, i) => { const tipo = i < 4 ? "patrullero" : "camioneta";
+    return { i, tipo, r: tipo === "camioneta" ? 1.6 : AUTO_R, max: tipo === "camioneta" ? 23 : 26, x0: p.x0, z0: p.z0, x: p.x0, z: p.z0, h: 0, vel: 0, conductor: null, sirena: true,
+      tx: p.x0, tz: p.z0, th: 0, mesh: tipo === "camioneta" ? crearCamioneta() : crearPatrullero() }; });
 })();
 function resetAutos() { for (const a of autos) Object.assign(a, { x: a.x0, z: a.z0, tx: a.x0, tz: a.z0, h: 0, th: 0, vel: 0, conductor: null, sirena: true }); }
 let miAuto = null, sirenaT = 0, sirenaAlt = false, mirarAuto = 0;
 function subirAuto(a) {
   if (a.conductor || yo.equipo !== "poli" || yo.preso) return;
+  if (a.tipo === "camioneta" && !ARMADO(yo.clase)) { grande("🚙 Solo para SWAT y Grupo Halcón", "#f2c200"); return; }
   a.conductor = yo.id; miAuto = a; yaw = a.h + Math.PI; pitch = -.05;
   enviar("auto", { i: a.i, quien: yo.id, sube: true });
-  grande("🚓 ¡A PATRULLAR!", "#5a8aff"); beep(500, .1); setTimeout(() => beep(800, .1), 120);
+  grande(a.tipo === "camioneta" ? "🚙 POLICÍA ESPECIAL" : "🚓 ¡A PATRULLAR!", a.tipo === "camioneta" ? "#f2c200" : "#5a8aff"); beep(500, .1); setTimeout(() => beep(800, .1), 120);
 }
 function bajarAuto() {
   const a = miAuto; if (!a) return;
@@ -329,10 +358,10 @@ function manejar(a, dt) {
   const freno = teclas.Space;
   a.vel += acel * (acel * a.vel < 0 ? 30 : 16) * dt;
   a.vel *= Math.pow(freno ? .1 : .55, dt);                 // rozamiento
-  a.vel = Math.max(-8, Math.min(26, a.vel));
+  a.vel = Math.max(-8, Math.min(a.max || 26, a.vel));
   a.h += giro * dt * Math.min(1, Math.abs(a.vel) / 6) * 2.2 * Math.sign(a.vel || 1);
   const nx = a.x + Math.sin(a.h) * a.vel * dt, nz = a.z + Math.cos(a.h) * a.vel * dt;
-  if (choca(nx, nz, AUTO_R)) { if (Math.abs(a.vel) > 8) { beep(80, .2, "sawtooth", .06); grande("💥 ¡PUM!", "#ff8a3b"); } a.vel *= -.3; }
+  if (choca(nx, nz, a.r || AUTO_R)) { if (Math.abs(a.vel) > 8) { beep(80, .2, "sawtooth", .06); grande("💥 ¡PUM!", "#ff8a3b"); } a.vel *= -.3; }
   else { a.x = nx; a.z = nz; }
   yo.x = a.x; yo.z = a.z;
 }
@@ -788,7 +817,9 @@ function loop(t) {
       }
       else if (objetivo) pista = miAuto ? `🚓 ¡Atropellalo o tocá E para atrapar a ${objetivo.nombre}!` : `🚔 ¡Click para atrapar a ${objetivo.nombre}!`;
       else if (miAuto) pista = "🚓 F para bajarte · H sirena · Espacio freno";
-      else if (autoCerca) pista = "🚓 Tocá F para subirte al patrullero";
+      else if (autoCerca) pista = autoCerca.tipo === "camioneta"
+        ? (ARMADO(yo.clase) ? "🚙 Tocá F para subirte a la camioneta de la Policía Especial" : "🚙 Camioneta de la Policía Especial: solo SWAT y Grupo Halcón")
+        : "🚓 Tocá F para subirte al patrullero";
       if (objetivo && accionPedida) { enviar("atrapa", { ladron: objetivo.id, poli: yo.id }); atrapado(objetivo.id, yo.id); }
     } else if (!yo.preso) {
       if (!yo.bolsa) for (const b of BOLSAS) if (b.hasta < Date.now() && Math.hypot(b.x - yo.x, b.z - yo.z) < 1.3) { enviar("bolsa", { i: b.i, quien: yo.id }); tomarBolsa(b.i, yo.id); }
@@ -833,7 +864,7 @@ function loop(t) {
     }
     if (miAuto && miAuto.sirena && (sirenaT -= dt) <= 0) { sirenaT = .42; sirenaAlt = !sirenaAlt; beep(sirenaAlt ? 950 : 700, .38, "sawtooth", .018); }
     $("velocimetro").style.display = miAuto ? "block" : "none";
-    if (miAuto) $("velocimetro").textContent = `🚓 ${Math.round(Math.abs(miAuto.vel) * 3.6)} km/h${miAuto.sirena ? " 🚨" : ""}`;
+    if (miAuto) $("velocimetro").textContent = `${miAuto.tipo === "camioneta" ? "🚙" : "🚓"} ${Math.round(Math.abs(miAuto.vel) * 3.6)} km/h${miAuto.sirena ? " 🚨" : ""}`;
     // Bolsas que vuelven a aparecer
     for (const b of BOLSAS) { const ok = b.hasta < Date.now(); b.mesh.visible = ok; if (ok) { b.mesh.rotation.y += dt * 2; b.mesh.position.y = .5 + Math.sin(t / 300 + b.i) * .1; } }
     // HUD
@@ -852,7 +883,7 @@ function loop(t) {
   if (miAuto) {
     // Vista desde el asiento del conductor: mirás hacia adelante del auto y el mouse gira la cabeza
     if (Math.abs(miAuto.vel) > 1) mirarAuto = mirarAuto * Math.pow(.05, dt);   // al andar, la vista vuelve al frente
-    camara.position.set(miAuto.x + Math.sin(miAuto.h) * .2 - Math.cos(miAuto.h) * .4, 1.35, miAuto.z + Math.cos(miAuto.h) * .2 + Math.sin(miAuto.h) * .4);
+    camara.position.set(miAuto.x + Math.sin(miAuto.h) * .2 - Math.cos(miAuto.h) * .4, miAuto.tipo === "camioneta" ? 1.95 : 1.35, miAuto.z + Math.cos(miAuto.h) * .2 + Math.sin(miAuto.h) * .4);
     camara.rotation.order = "YXZ"; camara.rotation.y = miAuto.h + Math.PI + mirarAuto; camara.rotation.x = pitch * .5 - .04;
     renderer.render(escena, camara); return;
   }
