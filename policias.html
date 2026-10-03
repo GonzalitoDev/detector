@@ -440,42 +440,100 @@ function pintarAuto(a, t) {
 }
 
 // Personajes (los demás jugadores se ven como muñequitos)
+// ---- Personajes con cuerpo humano: piernas, brazos, cinturón, placa, gorra, etc. ----
+const _texCache = {};
+function texTexto(txt, fondo, letra) { const k = txt + fondo + letra; return _texCache[k] || (_texCache[k] = textura((c, w, h) => {
+  c.fillStyle = fondo; c.fillRect(0, 0, w, h); c.fillStyle = letra; c.font = "bold 44px system-ui"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(txt, w / 2, h / 2 + 2); }, 256, 64)); }
+const texRayas = textura((c, w, h) => { for (let y = 0; y < h; y += 16) { c.fillStyle = (y / 16) % 2 ? "#f2f2f2" : "#151515"; c.fillRect(0, y, w, 16); } }, 64, 64);
 function crearMuneco(equipo, nombre, clase, div, uni) {
   const U = equipo === "poli" && !ARMADO(clase) ? (UNIFORMES[uni] || UNIFORMES.azul) : null;
-  const swat = ARMADO(clase), halcon = clase === "halcon";
-  const g = new THREE.Group(), col = halcon ? 0x0e0e0e : swat ? 0x1d1f1a : equipo === "poli" ? U.cuerpo : 0x222222;
-  const cuerpo = new THREE.Mesh(new THREE.CylinderGeometry(.35, .4, 1.1, 12), new THREE.MeshLambertMaterial({ color: col })); cuerpo.position.y = .9; g.add(cuerpo);
+  const swat = ARMADO(clase), halcon = clase === "halcon", ladron = equipo === "ladron";
+  const L = c => new THREE.MeshLambertMaterial({ color: c }), B = c => new THREE.MeshBasicMaterial({ color: c });
+  const caja = (w, h, d, mat, x, y, z, padre) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); (padre || g).add(m); return m; };
+  // Colores según quién es
+  const camisa = ladron ? null : halcon ? 0x0d0d0d : swat ? 0x2b2f24 : U.camisa;
+  const pantalon = ladron ? 0x23324a : halcon ? 0x0d0d0d : swat ? 0x2b2f24 : U.pantalon;
+  const piel = 0xe0ac7e, botas = 0x111111;
+  const matCamisa = ladron ? new THREE.MeshLambertMaterial({ map: texRayas }) : L(camisa);
+  const g = new THREE.Group();
+  // Piernas (giran desde la cadera para caminar)
+  const piernas = [-.12, .12].map(x => { const p = new THREE.Group(); p.position.set(x, .92, 0); g.add(p);
+    caja(.2, .82, .22, L(pantalon), 0, -.41, 0, p); caja(.22, .13, .32, L(botas), 0, -.86, .04, p); return p; });
+  // Torso
+  caja(.56, .66, .3, matCamisa, 0, 1.27, 0);
+  caja(.58, .08, .32, L(0x111111), 0, .96, 0);                                   // cinturón
+  if (!ladron) caja(.08, .06, .02, B(0xd4af37), 0, .96, .165);                    // hebilla
+  // Brazos (giran desde el hombro)
+  const brazos = [-.36, .36].map(x => { const a = new THREE.Group(); a.position.set(x, 1.55, 0); g.add(a);
+    caja(.15, .58, .17, matCamisa, 0, -.29, 0, a);
+    const mano = new THREE.Mesh(new THREE.SphereGeometry(.075, 8, 6), L(swat ? 0x111111 : piel)); mano.position.y = -.62; a.add(mano); return a; });
+  // Cuello y cabeza
+  const cuello = new THREE.Mesh(new THREE.CylinderGeometry(.08, .09, .12, 8), L(piel)); cuello.position.y = 1.66; g.add(cuello);
+  const cabeza = new THREE.Mesh(new THREE.SphereGeometry(.2, 16, 12), L(piel)); cabeza.position.y = 1.86; cabeza.scale.set(1, 1.12, 1); g.add(cabeza);
+  for (const x of [-.07, .07]) { const o = new THREE.Mesh(new THREE.SphereGeometry(.025, 6, 4), B(0x111111)); o.position.set(x, 1.9, .18); g.add(o); }
+  if (U) {
+    // ---- Policía ----
+    for (const x of [-.36, .36]) caja(.16, .1, .18, L(U.charretera), x, 1.6, 0);   // hombreras / parches
+    caja(.07, .09, .02, B(0xd4af37), .14, 1.42, .16);                              // placa
+    caja(.07, .12, .05, L(0x1a1a1a), -.15, 1.42, .17);                             // radio
+    caja(.02, .1, .02, L(0x1a1a1a), -.12, 1.52, .17);                              // antena
+    caja(.09, .22, .14, L(0x111111), .33, .86, .02);                               // funda del arma
+    caja(.06, .08, .1, L(0x2a2a2a), -.33, .9, .02);                                // esposas
+    const espalda = new THREE.Mesh(new THREE.PlaneGeometry(.48, .12), new THREE.MeshBasicMaterial({ map: texTexto("POLICÍA", "#00000000", U.letras), transparent: true }));
+    espalda.position.set(0, 1.42, -.152); espalda.rotation.y = Math.PI; g.add(espalda);
+    if (U.extra === "chaleco") { caja(.6, .5, .34, B(0xd8ff1a), 0, 1.32, 0); caja(.61, .05, .35, B(0xe8e8e8), 0, 1.25, 0); caja(.61, .05, .35, B(0xe8e8e8), 0, 1.4, 0); }
+    if (U.extra === "chaleco-negro") { caja(.6, .52, .35, L(0x161616), 0, 1.3, 0); for (const x of [-.15, 0, .15]) caja(.11, .13, .05, L(0x2a2a2a), x, 1.17, .19); }
+    if (U.extra === "medallas") { for (let i = 0; i < 3; i++) caja(.05, .06, .02, B([0xffd400, 0xc0c0c0, 0xcd7f32][i]), -.18 + i * .06, 1.45, .16); caja(.5, .03, .31, B(0xd4af37), 0, 1.58, 0); }
+    if (U.extra === "cuello") { const cu = new THREE.Mesh(new THREE.TorusGeometry(.13, .05, 8, 14), L(0x2a2a2a)); cu.rotation.x = Math.PI / 2; cu.position.y = 1.64; g.add(cu); caja(.58, .3, .32, L(0x151515), 0, 1.07, 0); }
+    // Gorra / sombrero / casco
+    if (U.extra === "sombrero") { const ala = new THREE.Mesh(new THREE.CylinderGeometry(.42, .42, .03, 18), L(U.gorro)); ala.position.y = 2.03; g.add(ala);
+      const copa = new THREE.Mesh(new THREE.CylinderGeometry(.18, .21, .2, 14), L(U.gorro)); copa.position.y = 2.14; g.add(copa); }
+    else if (U.extra === "casco") { const ca = new THREE.Mesh(new THREE.SphereGeometry(.25, 16, 10, 0, Math.PI * 2, 0, Math.PI / 1.8), L(U.gorro)); ca.position.y = 1.9; g.add(ca);
+      caja(.3, .08, .05, B(0x223344), 0, 1.93, .22); }
+    else { const copa = new THREE.Mesh(new THREE.CylinderGeometry(.22, .2, .14, 16), L(U.gorro)); copa.position.y = 2.05; g.add(copa);
+      const visera = caja(.3, .03, .16, L(0x111111), 0, 1.99, .2); visera.rotation.x = .25;
+      caja(.08, .05, .02, B(0xd4af37), 0, 2.06, .215); }                              // escudito de la gorra
+  } else if (swat) {
+    // ---- SWAT / Grupo Halcón ----
+    caja(.62, .56, .38, L(halcon ? 0x050505 : 0x1a1d16), 0, 1.3, 0);                 // chaleco antibalas
+    for (const x of [-.17, 0, .17]) caja(.12, .15, .06, L(halcon ? 0x1a1a1a : 0x3a4030), x, 1.18, .21);   // bolsillos
+    caja(.16, .12, .14, L(0x111111), .2, 1.66, .02); caja(.16, .12, .14, L(0x111111), -.2, 1.66, .02);   // hombreras
+    for (const p of piernas) caja(.22, .14, .24, L(0x111111), 0, -.45, .02, p);   // rodilleras
+    const espalda = new THREE.Mesh(new THREE.PlaneGeometry(.5, .14), new THREE.MeshBasicMaterial({ map: texTexto(halcon ? "HALCÓN" : "SWAT", "#00000000", "#e8e8e8"), transparent: true }));
+    espalda.position.set(0, 1.42, -.195); espalda.rotation.y = Math.PI; g.add(espalda);
+    const casco = new THREE.Mesh(new THREE.SphereGeometry(.25, 16, 10, 0, Math.PI * 2, 0, Math.PI / 1.9), L(halcon ? 0x050505 : 0x2a2d24)); casco.position.y = 1.9; g.add(casco);
+    if (halcon) { const pasa = new THREE.Mesh(new THREE.SphereGeometry(.205, 16, 12), L(0x111111)); pasa.position.y = 1.85; pasa.scale.set(1, 1.1, 1); g.add(pasa);
+      caja(.22, .05, .03, L(piel), 0, 1.9, .19);
+      const gog = new THREE.Mesh(new THREE.CylinderGeometry(.04, .04, .12, 8), B(0x3dff6a)); gog.rotation.x = Math.PI / 2; gog.position.set(0, 2.05, .2); g.add(gog); }
+    else caja(.36, .09, .06, B(0x223344), 0, 1.92, .2);                             // antiparras
+    const arma = new THREE.Group(); arma.position.set(.12, 1.18, .32); g.add(arma); g.userData.arma = arma;
+    caja(.08, .12, .62, L(0x111111), 0, 0, 0, arma); caja(.05, .16, .07, L(0x1a1a1a), 0, -.12, .06, arma); caja(.04, .04, .2, L(0x2a2a2a), 0, .02, .38, arma);
+    brazos[0].rotation.x = -1.1; brazos[1].rotation.x = -1.2; brazos[0].rotation.z = -.35; g.userData.apunta = true;
+  } else {
+    // ---- Ladrón: buzo a rayas, gorro y antifaz ----
+    const gorro = new THREE.Mesh(new THREE.SphereGeometry(.215, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), L(0x151515)); gorro.position.y = 1.9; g.add(gorro);
+    caja(.43, .07, .05, L(0x0a0a0a), 0, 1.9, .17);                                  // antifaz
+    caja(.3, .25, .12, L(0x3a2a1a), 0, 1.25, -.21);                                  // mochila
+  }
   // Marca para Investigaciones (se ve a través de las paredes)
   const marca = new THREE.Sprite(new THREE.SpriteMaterial({ map: textura((c, w, h) => { c.fillStyle = "#ff2a2a"; c.beginPath(); c.moveTo(w / 2, h); c.lineTo(0, 0); c.lineTo(w, 0); c.fill(); }, 64, 64), depthTest: false }));
   marca.scale.set(.8, .8, 1); marca.position.y = 3.3; marca.visible = false; marca.renderOrder = 10; g.add(marca); g.userData.marca = marca;
-  if (div === "canes" && equipo === "poli") { const perro = new THREE.Group(), mp = new THREE.MeshLambertMaterial({ color: 0x5a3a1a });
-    const cu = new THREE.Mesh(new THREE.BoxGeometry(.3, .3, .7), mp); cu.position.y = .4; perro.add(cu);
-    const ca = new THREE.Mesh(new THREE.BoxGeometry(.25, .25, .3), mp); ca.position.set(0, .6, .4); perro.add(ca);
+  if (div === "canes" && equipo === "poli") { const perro = new THREE.Group(), mp = L(0x5a3a1a);
+    caja(.26, .26, .62, mp, 0, .42, 0, perro); caja(.22, .22, .28, mp, 0, .62, .38, perro); caja(.12, .1, .12, L(0x2a1a0a), 0, .58, .55, perro);
+    for (const [x, z] of [[-.09, .22], [.09, .22], [-.09, -.22], [.09, -.22]]) caja(.06, .3, .06, mp, x, .15, z, perro);
+    caja(.04, .04, .25, mp, 0, .55, -.38, perro).rotation.x = -.7;
     perro.position.set(.8, 0, .2); g.add(perro); }
-  if (equipo === "ladron") for (let i = 0; i < 3; i++) { const r = new THREE.Mesh(new THREE.CylinderGeometry(.41, .41, .12, 12), new THREE.MeshLambertMaterial({ color: 0xffffff })); r.position.y = .55 + i * .3; g.add(r); }
-  const cabeza = new THREE.Mesh(new THREE.SphereGeometry(.3, 14, 12), new THREE.MeshLambertMaterial({ color: 0xf1c27d })); cabeza.position.y = 1.7; g.add(cabeza);
-  if (swat) { const casco = new THREE.Mesh(new THREE.SphereGeometry(.34, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: halcon ? 0x050505 : 0x2a2d24 })); casco.position.y = 1.74; g.add(casco);
-    if (halcon) { const pasa = new THREE.Mesh(new THREE.SphereGeometry(.31, 14, 12), new THREE.MeshLambertMaterial({ color: 0x111111 })); pasa.position.y = 1.69; g.add(pasa);   // pasamontañas
-      const ojos = new THREE.Mesh(new THREE.BoxGeometry(.34, .07, .05), new THREE.MeshBasicMaterial({ color: 0xf1c27d })); ojos.position.set(0, 1.74, .29); g.add(ojos);
-      const gog = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, .14, 8), new THREE.MeshBasicMaterial({ color: 0x3dff6a })); gog.rotation.x = Math.PI / 2; gog.position.set(0, 1.92, .26); g.add(gog); }
-    const visor = new THREE.Mesh(new THREE.BoxGeometry(.5, .1, .1), new THREE.MeshBasicMaterial({ color: 0x223344 })); visor.position.set(0, 1.7, .27); g.add(visor);
-    const arma = new THREE.Mesh(new THREE.BoxGeometry(.12, .16, .8), new THREE.MeshLambertMaterial({ color: 0x111111 })); arma.position.set(.3, 1.05, .45); g.add(arma); g.userData.arma = arma; }
-  if (U && U.extra) {
-    const m = c => new THREE.MeshLambertMaterial({ color: c });
-    if (U.extra === "chaleco" || U.extra === "chaleco-negro") { const ch = new THREE.Mesh(new THREE.CylinderGeometry(.38, .42, .7, 12), U.extra === "chaleco" ? new THREE.MeshBasicMaterial({ color: 0xd8ff1a }) : m(0x161616)); ch.position.y = 1.05; g.add(ch);
-      if (U.extra === "chaleco") { const fr = new THREE.Mesh(new THREE.CylinderGeometry(.385, .425, .08, 12), new THREE.MeshBasicMaterial({ color: 0xdddddd })); fr.position.y = 1; g.add(fr); } }
-    if (U.extra === "medallas") for (let i = 0; i < 3; i++) { const md = new THREE.Mesh(new THREE.SphereGeometry(.045, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffd400 })); md.position.set(-.12 + i * .08, 1.25, .35); g.add(md); }
-    if (U.extra === "cuello") { const cu = new THREE.Mesh(new THREE.TorusGeometry(.26, .07, 8, 14), m(0x2a2a2a)); cu.rotation.x = Math.PI / 2; cu.position.y = 1.45; g.add(cu); }
-  }
-  const gorro = swat ? new THREE.Object3D() : U && U.extra === "sombrero" ? (() => { const sg = new THREE.Group(); const ala = new THREE.Mesh(new THREE.CylinderGeometry(.5, .5, .04, 16), new THREE.MeshLambertMaterial({ color: U.gorro }));
-      const copa = new THREE.Mesh(new THREE.CylinderGeometry(.24, .28, .25, 12), new THREE.MeshLambertMaterial({ color: U.gorro })); copa.position.y = .14; sg.add(ala, copa); return sg; })()
-    : U && U.extra === "casco" ? new THREE.Mesh(new THREE.SphereGeometry(.35, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: U.gorro }))
-    : equipo === "poli" ? new THREE.Mesh(new THREE.CylinderGeometry(.32, .32, .18, 12), new THREE.MeshLambertMaterial({ color: U ? U.gorro : 0x0f1d36 }))
-                                  : new THREE.Mesh(new THREE.BoxGeometry(.62, .14, .2), new THREE.MeshLambertMaterial({ color: 0x111111 }));
-  gorro.position.set(0, equipo === "poli" ? (U && U.extra === "casco" ? 1.72 : 1.95) : 1.72, equipo === "poli" ? 0 : .22); g.add(gorro);
-  const bolsa = new THREE.Mesh(geoBolsa, matBolsa); bolsa.scale.setScalar(.7); bolsa.position.set(0, 1.1, -.45); bolsa.visible = false; g.add(bolsa); g.userData.bolsa = bolsa;
-  const n = cartel(ICONO(clase || equipo) + " " + nombre + (div && DIVISIONES[div] && equipo === "poli" && !ARMADO(clase) ? " · " + DIVISIONES[div].ico : ""), halcon ? "#000000" : swat ? "#3a4a1a" : equipo === "poli" ? "#1e4fd8" : "#333333"); n.scale.set(3, .75, 1); n.position.y = 2.5; g.add(n);
+  const bolsa = new THREE.Mesh(geoBolsa, matBolsa); bolsa.scale.setScalar(.6); bolsa.position.set(0, 1.25, -.4); bolsa.visible = false; g.add(bolsa); g.userData.bolsa = bolsa;
+  g.userData.piernas = piernas; g.userData.brazos = brazos;
+  const n = cartel(ICONO(clase || equipo) + " " + nombre + (div && DIVISIONES[div] && equipo === "poli" && !ARMADO(clase) ? " · " + DIVISIONES[div].ico : ""), halcon ? "#000000" : swat ? "#3a4a1a" : equipo === "poli" ? "#1e4fd8" : "#333333"); n.scale.set(3, .75, 1); n.position.y = 2.6; g.add(n);
   escena.add(g); return g;
+}
+// Animación de caminar: balancea piernas y brazos según la velocidad
+function animarMuneco(m, vel, t) {
+  const u = m.userData; if (!u.piernas) return;
+  const amp = Math.min(.7, vel * .09), f = Math.sin(t / 110) * amp;
+  u.piernas[0].rotation.x = f; u.piernas[1].rotation.x = -f;
+  if (!u.apunta) { u.brazos[0].rotation.x = -f * .8; u.brazos[1].rotation.x = f * .8; }
 }
 
 // ================== ESTADO ==================
@@ -486,14 +544,14 @@ const ICONO = c => c === "halcon" ? "🦅" : c === "swat" ? "🪖" : c === "poli
 const ARMADO = c => c === "swat" || c === "halcon";
 // Uniformes de la policía (se eligen en las taquillas)
 const UNIFORMES = {
-  azul:     { nom: "Azul reglamentario", ico: "👮", cuerpo: 0x1b2a4a, gorro: 0x0f1d36, extra: null },
-  celeste:  { nom: "Camisa celeste",     ico: "👔", cuerpo: 0x8fcbe8, gorro: 0x0f1d36, extra: null },
-  gala:     { nom: "De gala",            ico: "🎖️", cuerpo: 0x0b1530, gorro: 0xffffff, extra: "medallas" },
-  transito: { nom: "Tránsito (chaleco)", ico: "🦺", cuerpo: 0x1b2a4a, gorro: 0xf2f2f2, extra: "chaleco" },
-  invierno: { nom: "Campera de invierno",ico: "🧥", cuerpo: 0x151515, gorro: 0x151515, extra: "cuello" },
-  rural:    { nom: "Policía rural",      ico: "🤠", cuerpo: 0x8a7a55, gorro: 0x5a4a2a, extra: "sombrero" },
-  tactico:  { nom: "Táctico verde",      ico: "🪖", cuerpo: 0x4a5a3a, gorro: 0x3a4a2a, extra: "chaleco-negro" },
-  motorista:{ nom: "Motorista",          ico: "⛑️", cuerpo: 0x1b2a4a, gorro: 0xffffff, extra: "casco" },
+  azul:     { nom: "Azul reglamentario", ico: "👮", camisa: 0x1b2a4a, pantalon: 0x141e33, gorro: 0x0f1d36, charretera: 0x5ec8f2, letras: "#e8e8e8", extra: null },
+  celeste:  { nom: "Camisa celeste",     ico: "👔", camisa: 0x9ccfe8, pantalon: 0x141e33, gorro: 0x0f1d36, charretera: 0x0f1d36, letras: "#0f1d36", extra: null },
+  gala:     { nom: "De gala",            ico: "🎖️", camisa: 0x0b1530, pantalon: 0x0b1530, gorro: 0xf5f5f5, charretera: 0xd4af37, letras: "#d4af37", extra: "medallas" },
+  transito: { nom: "Tránsito (chaleco)", ico: "🦺", camisa: 0x1b2a4a, pantalon: 0x141e33, gorro: 0xf2f2f2, charretera: 0x5ec8f2, letras: "#111111", extra: "chaleco" },
+  invierno: { nom: "Campera de invierno",ico: "🧥", camisa: 0x1a1a1a, pantalon: 0x141e33, gorro: 0x151515, charretera: 0x5ec8f2, letras: "#5ec8f2", extra: "cuello" },
+  rural:    { nom: "Policía rural",      ico: "🤠", camisa: 0x9a8a62, pantalon: 0x5a4a2a, gorro: 0x5a4a2a, charretera: 0x3a3020, letras: "#2a2010", extra: "sombrero" },
+  tactico:  { nom: "Táctico verde",      ico: "🪖", camisa: 0x4a5a3a, pantalon: 0x3a4a2a, gorro: 0x3a4a2a, charretera: 0x2a2a2a, letras: "#e8e8e8", extra: "chaleco-negro" },
+  motorista:{ nom: "Motorista",          ico: "⛑️", camisa: 0x1b2a4a, pantalon: 0x111111, gorro: 0xffffff, charretera: 0x5ec8f2, letras: "#e8e8e8", extra: "casco" },
 };
 // Divisiones de la policía (se eligen en las taquillas del departamento)
 const DIVISIONES = {
@@ -541,7 +599,7 @@ function recibirPos(p) {
   let s = jug[p.id];
   if (!s) { if (!jugando) return; s = jug[p.id] = nuevoJug(p.id, p.nombre, p.equipo, false, p.clase); s.div = p.div || "patrulla"; s.uni = p.uni || "azul"; s.mesh = crearMuneco(p.equipo, p.nombre, p.clase, s.div, s.uni); feed(`👋 Entró ${p.nombre}`); }
   if ((p.div && p.div !== s.div) || (p.uni && p.uni !== s.uni)) { s.div = p.div || s.div; s.uni = p.uni || s.uni; escena.remove(s.mesh); s.mesh = crearMuneco(s.equipo, s.nombre, s.clase, s.div, s.uni); }
-  s.tx = p.x; s.tz = p.z; s.rot = p.rot; if (p.res !== undefined) s.res = p.res; s.preso = p.preso; s.bolsa = p.bolsa; s.paquete = !!p.paq; s.visto = Date.now(); s.auto = p.auto ?? null;
+  s.tx = p.x; s.tz = p.z; s.rot = p.rot + Math.PI;   // la cámara mira hacia -z y el muñeco hacia +z if (p.res !== undefined) s.res = p.res; s.preso = p.preso; s.bolsa = p.bolsa; s.paquete = !!p.paq; s.visto = Date.now(); s.auto = p.auto ?? null;
   if (s.auto !== null && autos[s.auto] && autos[s.auto] !== miAuto) { const a = autos[s.auto]; a.conductor = p.id; a.tx = p.x; a.tz = p.z; a.th = p.ah; a.sirena = p.sir; a.vel = p.av; }
 }
 
@@ -819,7 +877,7 @@ function abrirTaquillas() {
   document.exitPointerLock?.(); $("taquillas").style.display = "block";
   const pintar = () => {
     $("tq-div").innerHTML = Object.entries(DIVISIONES).map(([k, d]) => `<button data-div="${k}" class="${yo.div === k ? "on" : ""}">${d.ico} ${d.nom}<small>${d.d}</small></button>`).join("");
-    $("tq-uni").innerHTML = Object.entries(UNIFORMES).map(([k, u]) => `<button data-uni="${k}" class="${yo.uni === k ? "on" : ""}" style="border-left:8px solid #${u.cuerpo.toString(16).padStart(6, "0")}">${u.ico} ${u.nom}</button>`).join("");
+    $("tq-uni").innerHTML = Object.entries(UNIFORMES).map(([k, u]) => `<button data-uni="${k}" class="${yo.uni === k ? "on" : ""}" style="border-left:8px solid #${u.camisa.toString(16).padStart(6, "0")}">${u.ico} ${u.nom}</button>`).join("");
     $("tq-div").querySelectorAll("[data-div]").forEach(b => b.onclick = () => { yo.div = b.dataset.div; beep(900, .08, "triangle"); pintar(); });
     $("tq-uni").querySelectorAll("[data-uni]").forEach(b => b.onclick = () => { yo.uni = b.dataset.uni; beep(700, .08, "triangle"); pintar(); });
   };
@@ -978,9 +1036,10 @@ function loop(t) {
       if (s.bot) pensarBot(s, dt);
       else { s.x += (s.tx - s.x) * Math.min(1, dt * 10); s.z += (s.tz - s.z) * Math.min(1, dt * 10);
         if (online && Date.now() - s.visto > 8000) { feed(`🚪 Se fue ${s.nombre}`); escena.remove(s.mesh); delete jug[s.id]; continue; } }
-      if (s.mesh) { s.mesh.visible = !(s.auto !== null && s.auto !== undefined); s.mesh.position.set(s.x, 0, s.z); s.mesh.rotation.y = s.rot; s.mesh.userData.bolsa.visible = s.bolsa || !!s.paquete;
+      if (s.mesh) { const v = Math.hypot(s.x - (s._px ?? s.x), s.z - (s._pz ?? s.z)) / Math.max(dt, .001); s._px = s.x; s._pz = s.z; animarMuneco(s.mesh, s.preso ? 0 : v, t);
+        s.mesh.visible = !(s.auto !== null && s.auto !== undefined); s.mesh.position.set(s.x, 0, s.z); s.mesh.rotation.y = s.rot; s.mesh.userData.bolsa.visible = s.bolsa || !!s.paquete;
         s.mesh.userData.marca.visible = yo.div === "investigaciones" && yo.equipo === "poli" && s.equipo === "ladron" && !s.preso && (s.bolsa || !!s.paquete);
-        s.mesh.position.y = s.preso ? 0 : Math.abs(Math.sin(t / 120)) * .08; }
+        s.mesh.position.y = 0; }
     }
     actualizarSwat(dt, t); actualizarLuces(t); actualizarGranadas(dt);
     // Puerta: abierta queda tirada en el piso; se repara sola si no hay nadie adentro
@@ -1023,6 +1082,7 @@ function loop(t) {
   if (yo) {
     if (!yo.mesh || yo.meshDiv !== yo.div + yo.uni) { if (yo.mesh) escena.remove(yo.mesh); yo.mesh = crearMuneco(yo.equipo, yo.nombre, yo.clase, yo.div, yo.uni); yo.meshDiv = yo.div + yo.uni; }
     yo.mesh.visible = jugando && modoCam !== 0 && !miAuto;
+    { const v = Math.hypot(yo.x - (yo._px ?? yo.x), yo.z - (yo._pz ?? yo.z)) * 60; yo._px = yo.x; yo._pz = yo.z; animarMuneco(yo.mesh, v, t); }
     yo.mesh.position.set(yo.x, 0, yo.z); yo.mesh.rotation.y = yaw + Math.PI; yo.mesh.userData.bolsa.visible = yo.bolsa || !!yo.paquete;
   }
   if (jugando && yo && modoCam !== 0) {
