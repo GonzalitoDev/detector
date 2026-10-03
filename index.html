@@ -146,8 +146,8 @@ async function intro() {
   s.busy=false; render();
 }
 function reset() {
-  s = { goku:100, gordo:130, ki:20, hambre:0, busy:false, ssj:false, turnoGordo:false, usado:{}, mate:false, escudo:0 };
-  $("av-gordo").style.fontSize="";
+  s = { goku:100, gordo:130, ki:20, hambre:0, busy:false, ssj:false, turnoGordo:false, usado:{}, mate:false, escudo:0, cambio:false };
+  $("av-gordo").style.fontSize=""; $("av-gordo").textContent="🫃";
   $("av-goku").textContent="🥋"; $("av-goku").classList.remove("ssj");
   $("log").innerHTML = "";
   $("final").style.display = "none";
@@ -220,6 +220,31 @@ async function turno(key) {
   await espera(1300);
   gordoTurno();
 }
+// ---- EVENTOS LOCOS ----
+const EVENTOS = [
+  async () => { narrar("☄️ ¡¡METEORITO!! ☄️"); flash("#ff8800"); temblor(); const d=rnd([5,12]);
+    s.goku=Math.max(1,s.goku-d); s.gordo=Math.max(1,s.gordo-d); numero("av-goku","-"+d); numero("av-gordo","-"+d);
+    log(`☄️ Cae un meteorito en la arena y lastima a los dos → -${d}`); },
+  async () => { narrar("🛵 ¡¡DELIVERY!!"); const h=rnd([10,20]); s.gordo=Math.min(130,s.gordo+h); numero("av-gordo","+"+h,true);
+    log(`🛵 Llega el delivery con una pizza para El Gordo → +${h}`); },
+  async () => { narrar("👵 ¡¡LA MAMÁ DEL GORDO!!"); s.hambre=0;
+    log("👵 Aparece la mamá del Gordo: \"¡¿Otra vez peleando?! ¡A dieta!\" (se le vacía el hambre)"); },
+  async () => { narrar("🐉 ¡¡SHENRON!!"); flash("#3ddc5a"); s.ki=100;
+    log("🐉 Aparece Shenron, se aburre y le llena el ki a Goku"); },
+  async () => { narrar("🐔 ¡¡UNA GALLINA!!"); log("🐔 Una gallina cruza la arena. Los dos se quedan mirándola. No pasa nada."); },
+  async () => { narrar("🔄 ¡¡CAMBIO DE CUERPOS!!"); flash("#c86bff"); const a=$("av-goku").textContent;
+    $("av-goku").textContent=$("av-gordo").textContent; $("av-gordo").textContent=a;
+    log("🔄 El Capitán Ginyu pasa y cambia los cuerpos... por un turno"); s.cambio=true; },
+  async () => { narrar("🌧️ ¡¡LLUEVEN EMPANADAS!!"); const h=rnd([5,10]); s.goku=Math.min(100,s.goku+h); s.gordo=Math.min(130,s.gordo+h*2);
+    numero("av-goku","+"+h,true); numero("av-gordo","+"+h*2,true); log(`🥟 Llueven empanadas. Goku come ${h}, El Gordo come el doble.`); },
+  async () => { narrar("💃 ¡¡CUMBIA!!"); for(let i=0;i<6;i++){ beep([523,659,784,659][i%4]); temblor(); await espera(180); }
+    log("💃 Suena una cumbia y los dos se ponen a bailar. Pierden el turno de pelear, pero ganaron en vida."); },
+];
+async function eventoLoco() {
+  if (s.cambio) { const a=$("av-goku").textContent; $("av-goku").textContent=$("av-gordo").textContent; $("av-gordo").textContent=a; s.cambio=false; log("🔄 Los cuerpos vuelven a la normalidad."); }
+  if (Math.random() > .22) return;
+  await pick(EVENTOS)(); render(); vineta(); await espera(1300);
+}
 async function gordoTurno() {
   let a = pick(GORDO);
   s.hambre = Math.min(100, s.hambre + 20);
@@ -244,6 +269,8 @@ async function gordoTurno() {
   else log(a.txt);
   s.ki = Math.min(100, s.ki + 5);
   render(); vineta();
+  if (fin()) return;
+  await eventoLoco();
   if (fin()) return;
   await checkSSJ();
   s.busy = false; render();
