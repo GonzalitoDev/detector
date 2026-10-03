@@ -70,6 +70,7 @@
   <button data-g="eructo">🤢 Eructo 9000 (40 hambre)</button>
   <button data-g="avalancha">🍔 Avalancha de milanesas (100 hambre)</button>
 </div>
+<div id="habla" style="width:100%;max-width:720px;margin-top:12px;padding:12px;border-radius:12px;background:#3fb6ff22;min-height:48px;font-style:italic">🫃💬 <span id="habla-txt">...</span> <small style="opacity:.6">(IA)</small></div>
 <div id="log"></div>
 <div class="big" id="final"><div id="final-txt"></div><button onclick="reset()">🔁 Revancha</button></div>
 
@@ -102,6 +103,24 @@ const $ = id => document.getElementById(id);
 const rnd = ([a,b]) => a + Math.floor(Math.random()*(b-a+1));
 const pick = a => a[Math.floor(Math.random()*a.length)];
 
+// IA gratis (Pollinations, sin clave). Si falla, usa frases locales.
+const FRASES = ["¡Ese golpe me hizo cosquillas, Kakaroto!","Pará que termino el choripán y te fajo.","¿Eso es todo? Mi abuela pega más fuerte.","Después de esta me pido una muzza grande 🍕","¡Te voy a aplastar como milanesa!"];
+let hablando = false;
+async function hablaGordo(situacion) {
+  if (hablando) return; hablando = true;
+  const el = $("habla-txt"); el.textContent = "pensando... 🤔";
+  const prompt = `Sos "El Gordo", un personaje argentino gracioso y bonachón que pelea contra Goku en un juego. Situación: ${situacion}. Respondé con UNA sola frase corta (máximo 15 palabras) de trash talk gracioso, en español rioplatense, con referencias a comida. Sin insultos fuertes. Solo la frase.`;
+  try {
+    const ctrl = new AbortController(); setTimeout(()=>ctrl.abort(), 8000);
+    const r = await fetch("https://text.pollinations.ai/" + encodeURIComponent(prompt) + "?model=openai&seed=" + Math.floor(Math.random()*1e6), { signal: ctrl.signal });
+    if (!r.ok) throw 0;
+    const t = (await r.text()).trim().replace(/^"|"$/g,"").slice(0,160);
+    if (!t) throw 0;
+    el.textContent = t;
+  } catch (e) { el.textContent = pick(FRASES); }
+  hablando = false;
+}
+function situacion() { return `Goku tiene ${s.goku} de vida, El Gordo tiene ${s.gordo}. Última jugada: ${$("log").firstChild?.textContent || "empieza la pelea"}`; }
 function reset() {
   s = { goku:100, gordo:130, ki:20, hambre:0, busy:false, ssj:false, turnoGordo:false };
   $("av-goku").textContent="🥋"; $("av-goku").classList.remove("ssj");
@@ -109,6 +128,7 @@ function reset() {
   $("final").style.display = "none";
   log("🔔 ¡Arranca la pelea del siglo!");
   render();
+  hablaGordo("empieza la pelea, provocá a Goku");
 }
 function log(t) { const p=document.createElement("p"); p.textContent=t; $("log").prepend(p); }
 function render() {
@@ -152,6 +172,7 @@ function turno(key) {
       log(`${pick(ZAS)} ${m.txt} → -${d}${crit?" 💥CRÍTICO":""}`);
     }
   } else { log("⚡ " + m.txt); beep(660); }
+  if (!fin()) hablaGordo(situacion());
   if (fin()) return;
   if (modo==2) { s.turnoGordo = true; render(); return; }
   s.busy = true; render();
@@ -195,6 +216,7 @@ function fin() {
     ? "🏆 ¡GANÓ GOKU!<br><small>El Gordo se fue a comer un pancho para consolarse 🌭</small>"
     : "🍔 ¡GANÓ EL GORDO!<br><small>Goku quedó aplastado. Se viene la revancha 😤</small>";
   $("final").style.display = "flex";
+  hablaGordo(gana ? "El Gordo perdió la pelea, lamentate gracioso" : "El Gordo ganó la pelea, festejá");
   s.busy = true; render();
   return true;
 }
