@@ -112,6 +112,7 @@
 
   <main class="chat">
     <header><button class="ib menu" id="b-menu">☰</button><span id="titulo"># general</span></header>
+    <div id="conexion" style="display:none;background:#f0b232;color:#000;text-align:center;font-weight:700;padding:4px">🔄 Reconectando... los mensajes igual se actualizan</div>
     <div class="msgs" id="msgs"></div>
     <div class="escribir" id="escribir"><form id="form"><input id="txt" maxlength="500" autocomplete="off" placeholder="Escribí un mensaje"><button>📨</button></form></div>
     <div class="salavoz" id="salavoz"></div>
@@ -147,14 +148,16 @@ let canalTexto = "general", vozActual = null, canalVoz = null, lobby = null, onl
 const nuevos = new Set();
 
 // ---------- Lista de canales ----------
-function pintarLista() {
+let pintarPend = false;
+function pintarLista() { if (pintarPend) return; pintarPend = true; requestAnimationFrame(() => { pintarPend = false; pintarListaYa(); }); }
+function pintarListaYa() {
   let h = `<div class="cat">⌄ Canales de texto</div>`;
   for (const c of TEXTO) h += `<div class="can ${c.id===canalTexto&&!vozActual?"on":""} ${nuevos.has(c.id)?"nuevo":""}" data-t="${c.id}"><span class="punto"></span><span class="ic">#</span>${c.nom}</div>`;
   h += `<div class="cat">⌄ Canales de voz</div>`;
   for (const v of VOZ) {
     h += `<div class="can ${v.id===vozActual?"on":""}" data-v="${v.id}"><span class="ic">🔊</span>${v.nom}</div>`;
-    for (const p of Object.values(online).filter(p => p.voz === v.id))
-      h += `<div class="miembro-voz"><div class="ava ${p.hablando?"habla":""}">${esc(p.avatar)}</div>${esc(p.nombre)}${p.mute?" 🔇":""}</div>`;
+    for (const [pid, p] of Object.entries(online).filter(([, p]) => p.voz === v.id))
+      h += `<div class="miembro-voz"><div class="ava ${hablan.has(pid)?"habla":""}" data-habla="${pid}">${esc(p.avatar)}</div>${esc(p.nombre)}${p.mute?" 🔇":""}</div>`;
   }
   $("lista").innerHTML = h;
   $("lista").querySelectorAll("[data-t]").forEach(e => e.onclick = () => abrirTexto(e.dataset.t));
@@ -172,7 +175,8 @@ function agregar(m) {
   const d = document.createElement("div"); d.className = "msg" + (seguido ? " seguido" : "");
   d.innerHTML = `<div class="ava">${esc(m.avatar)}</div><div><div class="cab"><span class="q">${esc(m.nombre)}</span><span class="h">${hora(m.creado)}</span></div><div class="t">${esc(m.texto)}</div></div>`;
   const box = $("msgs"), abajo = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
-  box.appendChild(d); if (abajo) box.scrollTop = box.scrollHeight;
+  box.appendChild(d); while (box.children.length > 200) box.firstChild.remove();
+  if (abajo) box.scrollTop = box.scrollHeight;
 }
 async function abrirTexto(id) {
   canalTexto = id; nuevos.delete(id); $("app").classList.remove("abierto");
@@ -185,7 +189,7 @@ async function abrirTexto(id) {
   const { data, error } = await SB.from("mensajes").select("*").eq("canal", id).order("creado", { ascending:false }).limit(60);
   if (canalTexto !== id) return;
   if (error) { $("msgs").innerHTML += `<div class="bienvenida">No se pudieron cargar los mensajes.</div>`; return; }
-  data.reverse().forEach(agregar); $("msgs").scrollTop = $("msgs").scrollHeight;
+  data.reverse().forEach(m => { vistos.add(m.id); agregar(m); }); $("msgs").scrollTop = $("msgs").scrollHeight;
 }
 $("form").onsubmit = async e => {
   e.preventDefault(); const texto = $("txt").value.trim(); if (!texto) return;
@@ -193,16 +197,25 @@ $("form").onsubmit = async e => {
   const { error } = await SB.from("mensajes").insert({ canal: canalTexto, nombre: DB.nombre, avatar, texto });
   if (error) { $("txt").value = texto; alert("No se pudo mandar el mensaje."); }
 };
+let vistos = new Set(), rtOk = false;
+function estadoConexion(ok) { rtOk = ok; $("conexion").style.display = ok ? "none" : "block"; }
+// Si el tiempo real se cae, igual busca mensajes nuevos cada 5 segundos
+setInterval(async () => {
+  if (rtOk || verVoz || !DB.nombre) return;
+  const { data } = await SB.from("mensajes").select("*").eq("canal", canalTexto).order("creado", { ascending:false }).limit(20);
+  (data || []).reverse().forEach(m => { if (!vistos.has(m.id)) { vistos.add(m.id); agregar(m); } });
+}, 5000);
 SB.channel("mensajes-nuevos").on("postgres_changes", { event:"INSERT", schema:"public", table:"mensajes" }, ({ new: m }) => {
+  if (vistos.has(m.id)) return; vistos.add(m.id);
   if (m.canal === canalTexto && !verVoz) agregar(m);
   else { nuevos.add(m.canal); pintarLista(); }
   if (m.nombre !== DB.nombre && document.hidden) sonido(660);
-}).subscribe();
+}).subscribe(st => estadoConexion(st === "SUBSCRIBED"));
 
 // ---------- Presencia (quién está en línea y en qué canal de voz) ----------
 let ultimoTrack = 0, pendiente = null;
 function miEstado() { const e = Voz.estado(); const yo = e.personas.find(p => p.yo);
-  return { nombre: DB.nombre, avatar, voz: vozActual, mute: e.muteado, hablando: !!(yo && yo.hablando) }; }
+  return { nombre: DB.nombre, avatar, voz: vozActual, mute: e.muteado }; }
 function publicar() { // limitado para no saturar
   const ahora = Date.now(); clearTimeout(pendiente);
   if (ahora - ultimoTrack < 400) { pendiente = setTimeout(publicar, 400); return; }
@@ -246,11 +259,16 @@ function verSala() {
   pintarLista(); pintarSalaVoz();
 }
 function pintarSalaVoz() {
-  const gente = Object.values(online).filter(p => p.voz === vozActual);
-  $("salavoz").innerHTML = gente.map(p => `<div class="tarjeta ${p.hablando?"habla":""}"><div class="ava">${esc(p.avatar)}</div><b>${esc(p.nombre)}${p.mute?" 🔇":""}</b></div>`).join("")
+  const gente = Object.entries(online).filter(([, p]) => p.voz === vozActual);
+  $("salavoz").innerHTML = gente.map(([pid, p]) => `<div class="tarjeta ${hablan.has(pid)?"habla":""}" data-habla="${pid}"><div class="ava">${esc(p.avatar)}</div><b>${esc(p.nombre)}${p.mute?" 🔇":""}</b></div>`).join("")
     || `<div style="color:var(--tx2)">Conectando...</div>`;
 }
-Voz.onCambio = () => { if (vozActual) publicar(); };
+// Quién habla se pinta directo (sin rehacer la lista ni mandar nada por la red): así no se traba
+const hablan = new Set();
+Voz.onHabla = (id, h) => { h ? hablan.add(id) : hablan.delete(id);
+  document.querySelectorAll(`[data-habla="${id}"]`).forEach(e => e.classList.toggle("habla", h)); };
+let ultMute = null;
+Voz.onCambio = e => { if (vozActual && e.muteado !== ultMute) { ultMute = e.muteado; publicar(); } };
 $("b-colgar").onclick = salirVoz;
 $("b-mic").onclick = () => { Voz.alternarMute(); $("b-mic").classList.toggle("mal", Voz.estado().muteado); $("b-mic").textContent = Voz.estado().muteado ? "🔇" : "🎤"; };
 $("b-sordo").onclick = () => { Voz.alternarSordo(); $("b-sordo").classList.toggle("mal", Voz.estado().sordo); };
