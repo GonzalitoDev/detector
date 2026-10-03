@@ -169,14 +169,18 @@ function pintarListaYa() {
 
 // ---------- Mensajes ----------
 // Insignia de rango al lado del nombre (se busca en la base y se guarda en memoria)
-const xpDe = {}, pedidos = new Set(); let buscarT = null;
+const xpDe = {}, vipDe = {}, pedidos = new Set(); let buscarT = null;
+const colorVip = n => vipDe[n] && vipDe[n].color ? `color:${vipDe[n].color}` : "";
 function insignia(nombre) {
   if (xpDe[nombre] === undefined) { pedidos.add(nombre); clearTimeout(buscarT); buscarT = setTimeout(buscarRangos, 300); return `<span class="rg" data-rg="${esc(nombre)}"></span>`; }
-  const r = DB.rango(xpDe[nombre]); return ` <span class="rg" title="${r.nom} · ${xpDe[nombre]} XP" style="color:${r.col};font-size:13px">${r.ico}</span>`;
+  const r = DB.rango(xpDe[nombre]), v = vipDe[nombre] || {};
+  return ` <span class="rg" title="${r.nom} · ${xpDe[nombre]} XP" style="color:${r.col};font-size:13px">${r.ico}</span>${v.insignia ? ` <span title="VIP">${esc(v.insignia)}</span>` : ""}${v.titulo ? ` <span style="font-size:11px;color:#ffd400;border:1px solid #ffd40066;border-radius:6px;padding:0 5px">${esc(v.titulo)}</span>` : ""}`;
 }
 async function buscarRangos() {
   const lista = [...pedidos]; pedidos.clear(); if (!lista.length) return;
-  try { const ps = await DB.perfiles(lista); lista.forEach(n => xpDe[n] = 0); ps.forEach(p => xpDe[p.nombre] = p.xp); } catch (e) { return; }
+  try { const [ps, vs] = await Promise.all([DB.perfiles(lista), DB.estilosVip(lista).catch(() => ({}))]);
+    lista.forEach(n => { xpDe[n] = 0; vipDe[n] = vs[n] || null; }); ps.forEach(p => xpDe[p.nombre] = p.xp); } catch (e) { return; }
+  document.querySelectorAll("[data-q]").forEach(e => { const v = vipDe[e.dataset.q]; if (v && v.color) e.style.color = v.color; });
   document.querySelectorAll("[data-rg]").forEach(e => { const n = e.dataset.rg; if (xpDe[n] !== undefined) e.outerHTML = insignia(n); });
 }
 function hora(d) { return new Date(d).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" }); }
@@ -184,7 +188,7 @@ function agregar(m) {
   const seguido = ultimoAutor === m.nombre && new Date(m.creado) - ultimaHora < 5*60000;
   ultimoAutor = m.nombre; ultimaHora = new Date(m.creado);
   const d = document.createElement("div"); d.className = "msg" + (seguido ? " seguido" : "");
-  d.innerHTML = `<div class="ava">${esc(m.avatar)}</div><div><div class="cab"><span class="q">${esc(m.nombre)}</span>${insignia(m.nombre)}<span class="h">${hora(m.creado)}</span></div><div class="t">${esc(m.texto)}</div></div>`;
+  d.innerHTML = `<div class="ava">${esc(m.avatar)}</div><div><div class="cab"><span class="q" data-q="${esc(m.nombre)}" style="${colorVip(m.nombre)}">${esc(m.nombre)}</span>${insignia(m.nombre)}<span class="h">${hora(m.creado)}</span></div><div class="t">${esc(m.texto)}</div></div>`;
   const box = $("msgs"), abajo = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
   box.appendChild(d); while (box.children.length > 200) box.firstChild.remove();
   if (abajo) box.scrollTop = box.scrollHeight;

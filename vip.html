@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tienda VIP</title>
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; color:#fff; font-family:system-ui,sans-serif; padding:16px;
+         background:radial-gradient(circle at 50% 0%, #4b2a00, #120c02 60%, #060402); display:flex; flex-direction:column; align-items:center; }
+  a { color:#ffd400; }
+  h1 { margin:8px 0 4px; font-size:clamp(30px,8vw,52px); background:linear-gradient(90deg,#ffe58a,#ffd400,#ff9f1a,#ffe58a); background-size:200%;
+       -webkit-background-clip:text; background-clip:text; color:transparent; animation:brillo 4s linear infinite; text-align:center; }
+  @keyframes brillo { to { background-position:200% 0; } }
+  .sub { opacity:.8; text-align:center; margin-bottom:16px; }
+  .caja { width:100%; max-width:820px; background:#0008; border:1px solid #ffd40044; border-radius:16px; padding:16px; margin-bottom:14px; }
+  .saldo { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .saldo b { font-size:34px; color:#7fe0ff; text-shadow:0 0 14px #5ad1ff; }
+  .preview { margin-left:auto; background:#1e1f22; border-radius:10px; padding:10px 14px; min-width:220px; }
+  .preview .n { font-weight:800; } .preview small { display:block; opacity:.7; font-size:12px; }
+  h2 { margin:0 0 10px; font-size:18px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:10px; }
+  .item { background:linear-gradient(160deg,#ffffff14,#ffffff06); border:2px solid #ffffff1a; border-radius:14px; padding:12px; text-align:center; position:relative; }
+  .item.mio { border-color:#ffd40088; } .item.puesto { border-color:#3ddc5a; box-shadow:0 0 16px #3ddc5a55; }
+  .item .ico { font-size:40px; } .item .nom { font-weight:800; margin:4px 0; } .item .d { font-size:12px; opacity:.75; min-height:30px; }
+  .item .muestra { margin:6px 0; font-weight:800; }
+  .item button { width:100%; margin-top:8px; padding:9px; border:0; border-radius:10px; font-weight:800; cursor:pointer; }
+  .comprar { background:linear-gradient(90deg,#ffd400,#ff9f1a); color:#000; } .equipar { background:#3ddc5a; color:#000; } .quitar { background:#ffffff22; color:#fff; }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  .vacio { opacity:.7; font-style:italic; }
+  #toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:#000e; border:1px solid #ffd400; padding:10px 16px; border-radius:10px; display:none; z-index:9; }
+</style>
+</head>
+<body>
+<div><a href="./">⬅ Menú</a></div>
+<h1>💎 TIENDA VIP</h1>
+<div class="sub">Insignias, colores y títulos para lucirte en el chat y el ranking</div>
+
+<div class="caja" id="sin-nombre" style="display:none;text-align:center">Primero poné tu nombre en el <a href="./">menú</a> para usar la tienda VIP.</div>
+
+<div class="caja saldo" id="cab" style="display:none">
+  <div><div style="opacity:.8">Tus gemas</div><b id="gemas">…</b></div>
+  <div style="opacity:.75;font-size:13px;max-width:260px">Las 💎 gemas las regala el admin, por ejemplo en eventos, torneos o premios. No se compran con plata.</div>
+  <div class="preview"><small>Así te ven en el chat:</small><span id="pv-ins"></span> <span class="n" id="pv-nom"></span><small id="pv-tit"></small></div>
+</div>
+
+<div class="caja" id="secciones" style="display:none"></div>
+<div id="toast"></div>
+
+<script src="comun.js"></script>
+<script src="db.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const esc = t => String(t ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const TIPOS = { insignia: "🏅 Insignias", color: "🎨 Color del nombre", titulo: "🏷️ Títulos" };
+const ERRORES = { sin_gemas: "💎 No te alcanzan las gemas", ya_lo_tenes: "Ya lo tenés", no_disponible: "Ya no está a la venta", baneado: "🚫 Estás baneado", nombre_invalido: "Poné tu nombre en el menú" };
+function toast(t) { const e = $("toast"); e.textContent = t; e.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => e.style.display = "none", 2500); }
+
+async function cargar() {
+  if (!DB.nombre) { $("sin-nombre").style.display = "block"; return; }
+  $("cab").style.display = "flex"; $("secciones").style.display = "block";
+  let items, gemas, compras, equipo;
+  try { [items, gemas, compras, equipo] = await Promise.all([DB.vipItems(), DB.gemas(), DB.misCompras(), DB.miEquipo()]); }
+  catch (e) { $("secciones").innerHTML = `<p class="vacio">No se pudo cargar la tienda. Probá de nuevo en un rato.</p>`; return; }
+  const tengo = new Set(compras.map(c => c.item_id));
+  $("gemas").textContent = "💎 " + gemas;
+  const puesto = t => items.find(i => i.id === equipo[t]);
+  $("pv-ins").textContent = puesto("insignia")?.valor || "";
+  $("pv-nom").textContent = DB.nombre; $("pv-nom").style.color = puesto("color")?.valor || "#fff";
+  $("pv-tit").textContent = puesto("titulo")?.valor || "";
+  let h = "";
+  for (const [tipo, titulo] of Object.entries(TIPOS)) {
+    const lista = items.filter(i => i.tipo === tipo); if (!lista.length) continue;
+    h += `<h2>${titulo}</h2><div class="grid" style="margin-bottom:18px">`;
+    for (const i of lista) {
+      const mio = tengo.has(i.id), esta = equipo[tipo] === i.id;
+      const muestra = tipo === "color" ? `<div class="muestra" style="color:${esc(i.valor)}">${esc(DB.nombre)}</div>` : tipo === "titulo" ? `<div class="muestra" style="opacity:.85">“${esc(i.valor)}”</div>` : "";
+      const boton = !mio ? `<button class="comprar" data-comprar="${i.id}" ${gemas < i.precio ? "disabled" : ""}>💎 ${i.precio}</button>`
+                  : esta ? `<button class="quitar" data-quitar="${tipo}">Sacar</button>` : `<button class="equipar" data-equipar="${i.id}" data-tipo="${tipo}">Usar</button>`;
+      h += `<div class="item ${mio ? "mio" : ""} ${esta ? "puesto" : ""}"><div class="ico">${esc(i.icono)}</div><div class="nom">${esc(i.nombre)}</div><div class="d">${esc(i.descripcion)}</div>${muestra}${boton}</div>`;
+    }
+    h += `</div>`;
+  }
+  $("secciones").innerHTML = h || `<p class="vacio">La tienda está vacía por ahora. ¡Volvé pronto!</p>`;
+  document.querySelectorAll("[data-comprar]").forEach(b => b.onclick = async () => {
+    b.disabled = true; let r; try { r = await DB.comprarVip(+b.dataset.comprar); } catch (e) { r = "error"; }
+    if (r === "ok") { toast("✨ ¡Comprado! Tocá Usar para ponértelo"); } else toast(ERRORES[r] || "❌ No se pudo comprar");
+    cargar(); });
+  document.querySelectorAll("[data-equipar]").forEach(b => b.onclick = async () => { await DB.equiparVip(+b.dataset.equipar, b.dataset.tipo); toast("✅ ¡Puesto!"); cargar(); });
+  document.querySelectorAll("[data-quitar]").forEach(b => b.onclick = async () => { await DB.equiparVip(null, b.dataset.quitar); cargar(); });
+}
+cargar();
+</script>
+</body>
+</html>

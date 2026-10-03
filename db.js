@@ -69,5 +69,21 @@ const DB = (() => {
       const lista = nombres.map(n => '"' + String(n).replace(/["\\,()]/g, "") + '"').join(",");
       return pedir("perfiles?select=nombre,xp&nombre=in." + encodeURIComponent("(" + lista + ")")); },
     topRangos() { return pedir("perfiles?select=*&order=xp.desc&limit=20"); },
+    // ---- Tienda VIP (las gemas solo las da el admin) ----
+    vipItems() { return pedir("vip_items?select=*&activo=eq.true&order=tipo,precio"); },
+    async gemas(nombre = this.nombre) { const r = await pedir("gemas_saldo?select=saldo&nombre=eq." + encodeURIComponent(nombre)); return r && r[0] ? r[0].saldo : 0; },
+    misCompras(nombre = this.nombre) { return pedir("vip_compras?select=item_id&nombre=eq." + encodeURIComponent(nombre)); },
+    miEquipo(nombre = this.nombre) { return pedir("vip_equipo?select=*&nombre=eq." + encodeURIComponent(nombre)).then(r => r[0] || {}); },
+    comprarVip(item) { return pedir("rpc/comprar_vip", { method: "POST", body: JSON.stringify({ p_nombre: this.nombre, p_item: item }) }); },
+    equiparVip(item, tipo) { return pedir("rpc/equipar_vip", { method: "POST", body: JSON.stringify({ p_nombre: this.nombre, p_item: item, p_tipo: tipo }) }); },
+    // Estilo VIP de varios jugadores a la vez: { nombre: { insignia, color, titulo } }
+    async estilosVip(nombres) {
+      if (!nombres.length) return {};
+      const lista = nombres.map(n => '"' + String(n).replace(/["\\,()]/g, "") + '"').join(",");
+      const [eq, items] = await Promise.all([pedir("vip_equipo?select=*&nombre=in." + encodeURIComponent("(" + lista + ")")), this._itemsCache || (this._itemsCache = pedir("vip_items?select=id,valor,tipo"))]);
+      const porId = Object.fromEntries(items.map(i => [i.id, i.valor])), r = {};
+      for (const e of eq) r[e.nombre] = { insignia: porId[e.insignia] || "", color: porId[e.color] || "", titulo: porId[e.titulo] || "" };
+      return r;
+    },
   };
 })();
