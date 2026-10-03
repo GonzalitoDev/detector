@@ -164,16 +164,27 @@ function pintarListaYa() {
   $("lista").querySelectorAll("[data-v]").forEach(e => e.onclick = () => entrarVoz(e.dataset.v));
   const ol = Object.values(online);
   $("n-online").textContent = ol.length;
-  $("online").innerHTML = ol.map(p => `<div class="m"><div class="ava">${esc(p.avatar)}</div><div>${esc(p.nombre)}${p.voz?`<br><small style="color:var(--tx2)">🔊 ${esc(VOZ.find(v=>v.id===p.voz)?.nom||"")}</small>`:""}</div></div>`).join("");
+  $("online").innerHTML = ol.map(p => `<div class="m"><div class="ava">${esc(p.avatar)}</div><div>${esc(p.nombre)}${insignia(p.nombre)}${p.voz?`<br><small style="color:var(--tx2)">🔊 ${esc(VOZ.find(v=>v.id===p.voz)?.nom||"")}</small>`:""}</div></div>`).join("");
 }
 
 // ---------- Mensajes ----------
+// Insignia de rango al lado del nombre (se busca en la base y se guarda en memoria)
+const xpDe = {}, pedidos = new Set(); let buscarT = null;
+function insignia(nombre) {
+  if (xpDe[nombre] === undefined) { pedidos.add(nombre); clearTimeout(buscarT); buscarT = setTimeout(buscarRangos, 300); return `<span class="rg" data-rg="${esc(nombre)}"></span>`; }
+  const r = DB.rango(xpDe[nombre]); return ` <span class="rg" title="${r.nom} · ${xpDe[nombre]} XP" style="color:${r.col};font-size:13px">${r.ico}</span>`;
+}
+async function buscarRangos() {
+  const lista = [...pedidos]; pedidos.clear(); if (!lista.length) return;
+  try { const ps = await DB.perfiles(lista); lista.forEach(n => xpDe[n] = 0); ps.forEach(p => xpDe[p.nombre] = p.xp); } catch (e) { return; }
+  document.querySelectorAll("[data-rg]").forEach(e => { const n = e.dataset.rg; if (xpDe[n] !== undefined) e.outerHTML = insignia(n); });
+}
 function hora(d) { return new Date(d).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" }); }
 function agregar(m) {
   const seguido = ultimoAutor === m.nombre && new Date(m.creado) - ultimaHora < 5*60000;
   ultimoAutor = m.nombre; ultimaHora = new Date(m.creado);
   const d = document.createElement("div"); d.className = "msg" + (seguido ? " seguido" : "");
-  d.innerHTML = `<div class="ava">${esc(m.avatar)}</div><div><div class="cab"><span class="q">${esc(m.nombre)}</span><span class="h">${hora(m.creado)}</span></div><div class="t">${esc(m.texto)}</div></div>`;
+  d.innerHTML = `<div class="ava">${esc(m.avatar)}</div><div><div class="cab"><span class="q">${esc(m.nombre)}</span>${insignia(m.nombre)}<span class="h">${hora(m.creado)}</span></div><div class="t">${esc(m.texto)}</div></div>`;
   const box = $("msgs"), abajo = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
   box.appendChild(d); while (box.children.length > 200) box.firstChild.remove();
   if (abajo) box.scrollTop = box.scrollHeight;

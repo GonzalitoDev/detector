@@ -101,9 +101,15 @@
   <small style="opacity:.7">Con tu nombre, tus partidas entran al ranking mundial.</small>
 </div>
 
+<div class="panel" id="mi-rango-panel">
+  <h3>🏅 Tu rango</h3>
+  <div id="mi-rango" class="vacio">Poné tu nombre y jugá para tener rango.</div>
+  <details style="margin-top:10px"><summary style="cursor:pointer;opacity:.8">Ver todos los rangos</summary><div id="todos-rangos" style="margin-top:8px;line-height:1.9"></div></details>
+</div>
+
 <div class="panel">
   <h3>🌍 Ranking mundial</h3>
-  <div class="fila"><button class="op on" data-r="pelea">⚡ Pelea</button><button class="op" data-r="cartas">🃏 Cartas</button><button class="op" data-r="comida">🍕 Comida</button><button class="op" data-r="online">🌐 Online</button><button class="op" data-r="gallina">🐔 Gallina</button><button class="op" data-r="disparos">🔫 Tiroteo</button></div>
+  <div class="fila"><button class="op" data-r="rangos">🏅 Rangos</button><button class="op on" data-r="pelea">⚡ Pelea</button><button class="op" data-r="cartas">🃏 Cartas</button><button class="op" data-r="comida">🍕 Comida</button><button class="op" data-r="online">🌐 Online</button><button class="op" data-r="gallina">🐔 Gallina</button><button class="op" data-r="disparos">🔫 Tiroteo</button></div>
   <div id="ranking" class="vacio">Cargando...</div>
 </div>
 
@@ -150,14 +156,39 @@ render();
 // ---- Base de datos ----
 const esc = t => String(t).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let modoRanking = "pelea";
+const rangoDe = {};
+async function cargarMiRango() {
+  document.getElementById("todos-rangos").innerHTML = DB.RANGOS.map(r => `<span style="color:${r.col};font-weight:700">${r.ico} ${r.nom}</span> — desde ${r.xp} XP`).join("<br>") +
+    `<br><small style="opacity:.7">Ganar una partida da 30 XP, perder da 10, y en los juegos de puntaje los puntos suman un extra.</small>`;
+  const el = document.getElementById("mi-rango");
+  if (!DB.nombre) return;
+  try {
+    const p = await DB.perfil(), r = DB.rango(p.xp), pr = DB.progreso(p.xp);
+    el.className = "";
+    el.innerHTML = `<div style="display:flex;align-items:center;gap:14px">
+      <div style="font-size:56px;filter:drop-shadow(0 0 12px ${r.col})">${r.ico}</div>
+      <div style="flex:1"><div style="font-size:22px;font-weight:900;color:${r.col}">${r.nom}</div>
+        <div style="opacity:.8">${p.xp} XP · ${p.partidas} partidas · ${p.ganadas} ganadas</div>
+        <div style="height:12px;background:#0006;border-radius:6px;overflow:hidden;margin-top:6px"><div style="height:100%;width:${pr.pct}%;background:${r.col}"></div></div>
+        <small style="opacity:.75">${pr.sig ? `Te faltan ${pr.falta} XP para ${pr.sig.ico} ${pr.sig.nom}` : "¡Llegaste al rango máximo!"}</small></div></div>`;
+  } catch (e) { el.className = "vacio"; el.textContent = "No se pudo cargar tu rango."; }
+}
 async function cargarRanking() {
   const el = document.getElementById("ranking");
   try {
+    if (modoRanking === "rangos") {
+      const f = await DB.topRangos(); el.className = f.length ? "" : "vacio";
+      el.innerHTML = f.length ? `<table><tr><th>#</th><th>Jugador</th><th>Rango</th><th>XP</th></tr>${f.map((p,i) => { const r = DB.rango(p.xp);
+        return `<tr${p.nombre===DB.nombre?' style="color:#ffd400;font-weight:700"':''}><td>${["🥇","🥈","🥉"][i]||i+1}</td><td>${esc(p.nombre)}</td><td style="color:${r.col}">${r.ico} ${r.nom}</td><td>${p.xp}</td></tr>`; }).join("")}</table>`
+        : "Todavía nadie tiene rango. ¡Jugá una partida!";
+      return;
+    }
     const filas = await DB.ranking(modoRanking);
+    try { (await DB.perfiles(filas.map(f => f.nombre))).forEach(p => rangoDe[p.nombre] = p.xp); } catch (e) {}
     el.className = filas.length ? "" : "vacio";
     const com = modoRanking === "comida" || modoRanking === "gallina";
     el.innerHTML = filas.length ? `<table><tr><th>#</th><th>Jugador</th>${com?"<th>⭐ Récord</th><th>Partidas</th>":"<th>🏆</th><th>💀</th>"}</tr>${filas.map((f,i)=>
-      `<tr${f.nombre===DB.nombre?' style="color:#ffd400;font-weight:700"':''}><td>${["🥇","🥈","🥉"][i]||i+1}</td><td>${esc(f.nombre)}</td>${com?`<td>${f.mejor_puntaje}</td><td>${f.ganadas+f.perdidas}</td>`:`<td>${f.ganadas}</td><td>${f.perdidas}</td>`}</tr>`).join("")}</table>`
+      `<tr${f.nombre===DB.nombre?' style="color:#ffd400;font-weight:700"':''}><td>${["🥇","🥈","🥉"][i]||i+1}</td><td>${esc(f.nombre)}${rangoDe[f.nombre]!==undefined?` <span title="${DB.rango(rangoDe[f.nombre]).nom}">${DB.rango(rangoDe[f.nombre]).ico}</span>`:""}</td>${com?`<td>${f.mejor_puntaje}</td><td>${f.ganadas+f.perdidas}</td>`:`<td>${f.ganadas}</td><td>${f.perdidas}</td>`}</tr>`).join("")}</table>`
       : "Todavía nadie jugó. ¡Sé el primero!";
   } catch (e) { el.className="vacio"; el.textContent = "No se pudo cargar el ranking."; }
 }
@@ -186,10 +217,10 @@ async function cargarFrases() {
   } catch (e) { el.className="vacio"; el.textContent = "No se pudieron cargar las frases."; }
 }
 const inp = document.getElementById("nombre"); inp.value = DB.nombre;
-document.getElementById("guardar-nombre").onclick = () => { DB.nombre = inp.value; inp.value = DB.nombre; cargarHistorial(); cargarRanking(); };
+document.getElementById("guardar-nombre").onclick = () => { DB.nombre = inp.value; inp.value = DB.nombre; cargarHistorial(); cargarRanking(); cargarMiRango(); };
 document.querySelectorAll("[data-r]").forEach(b => b.onclick = () => {
   modoRanking = b.dataset.r; document.querySelectorAll("[data-r]").forEach(x => x.classList.toggle("on", x===b)); cargarRanking(); });
-cargarRanking(); cargarHistorial(); cargarFrases();
+cargarRanking(); cargarHistorial(); cargarFrases(); cargarMiRango();
 </script>
 </body>
 </html>
