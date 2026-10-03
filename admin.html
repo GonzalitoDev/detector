@@ -61,6 +61,7 @@
     <button data-t="stats" class="on">📊 Estadísticas</button>
     <button data-t="chat">💬 Chat</button>
     <button data-t="ban">🚫 Baneados</button>
+    <button data-t="rangos">🏅 Dar rangos</button>
     <button data-t="partidas">🏆 Ranking</button>
     <button data-t="frases">🫃 Frases</button>
   </div>
@@ -87,6 +88,17 @@
     <div class="card"><h2>Lista de baneados</h2><div id="baneados"></div></div>
   </section>
 
+  <section data-s="rangos" style="display:none">
+    <div class="card"><h2>🏅 Dar un rango o XP</h2>
+      <p style="color:var(--tx2);margin-top:0">Elegí un jugador y el rango que le querés dar: se le suma la XP que le falta para llegar. También podés sumar o restar XP a mano (con un número negativo).</p>
+      <div class="fila"><input id="r-nom" maxlength="20" placeholder="Nombre del jugador" list="r-lista"><datalist id="r-lista"></datalist>
+        <button class="b gris" id="r-ver">🔎 Ver</button><span id="r-actual" style="color:var(--tx2)"></span></div>
+      <div class="fila"><select id="r-rango"></select><button class="b amar" id="r-dar">🏅 Dar rango</button></div>
+      <div class="fila"><input id="r-xp" type="number" placeholder="XP (ej: 500 o -200)" style="width:180px"><input id="r-motivo" maxlength="200" placeholder="Motivo (opcional)" style="flex:1"><button class="b amar" id="r-sumar">➕ Sumar XP</button></div>
+    </div>
+    <div class="card"><h2>📜 Rangos y XP dados por el admin</h2><div id="bonus"></div></div>
+  </section>
+
   <section data-s="partidas" style="display:none">
     <div class="card"><h2>🏆 Partidas guardadas</h2>
       <div class="fila"><input id="p-nom" placeholder="Filtrar por nombre"><button class="b gris" id="p-ir">🔎 Buscar</button>
@@ -101,6 +113,7 @@
 <div id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="db.js"></script>
 <script>
 const SB = supabase.createClient("https://eluxvcixctwnzyysvoor.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsdXh2Y2l4Y3R3bnp5eXN2b29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMTk5NzAsImV4cCI6MjEwMzY5NTk3MH0.Gq29eHc-X1vEfbxM_9E5mlOynIJCh0pBbsSOPX923IQ");
 const $ = id => document.getElementById(id);
@@ -139,7 +152,7 @@ $("salir").onclick = async () => { await SB.auth.signOut(); revisarSesion(); };
 function abrir(t) {
   document.querySelectorAll("[data-t]").forEach(b => b.classList.toggle("on", b.dataset.t === t));
   document.querySelectorAll("[data-s]").forEach(s => s.style.display = s.dataset.s === t ? "" : "none");
-  ({ stats: cargarStats, chat: cargarChat, ban: cargarBan, partidas: cargarPartidas, frases: cargarFrases })[t]();
+  ({ stats: cargarStats, chat: cargarChat, ban: cargarBan, rangos: cargarRangos, partidas: cargarPartidas, frases: cargarFrases })[t]();
 }
 document.querySelectorAll("[data-t]").forEach(b => b.onclick = () => abrir(b.dataset.t));
 
@@ -206,6 +219,45 @@ async function cargarBan() {
     `<tr><td>${esc(b.nombre)}</td><td>${esc(b.motivo) || "—"}</td><td>${fecha(b.creado)}</td><td><button class="b amar" data-desbanear="${esc(b.nombre)}">Desbanear</button></td></tr>`));
   $("baneados").querySelectorAll("[data-desbanear]").forEach(e => e.onclick = async () => {
     const { error } = await SB.from("baneados").delete().eq("nombre", e.dataset.desbanear); toast(error ? "❌ " + error.message : "✅ Desbaneado"); cargarBan(); });
+}
+
+// ---------- Dar rangos ----------
+$("r-rango").innerHTML = DB.RANGOS.map(r => `<option value="${r.id}">${r.ico} ${r.nom} (${r.xp} XP)</option>`).join("");
+async function xpDe(nombre) { const { data } = await SB.from("perfiles").select("xp,partidas").eq("nombre", nombre); return data && data[0] ? data[0] : { xp: 0, partidas: 0 }; }
+async function verJugador() {
+  const n = $("r-nom").value.trim(); if (!n) { $("r-actual").textContent = ""; return; }
+  const p = await xpDe(n), r = DB.rango(p.xp);
+  $("r-actual").innerHTML = `Ahora: <b style="color:${r.col}">${r.ico} ${r.nom}</b> · ${p.xp} XP · ${p.partidas} partidas`;
+}
+async function darXP(nombre, xp, motivo) {
+  if (!nombre || !xp) { toast("Falta el nombre o la XP"); return false; }
+  const { error } = await SB.from("bonus_xp").insert({ nombre, xp, motivo });
+  if (error) { toast("❌ " + error.message); return false; }
+  return true;
+}
+$("r-ver").onclick = verJugador; $("r-nom").addEventListener("change", verJugador);
+$("r-dar").onclick = async () => {
+  const n = $("r-nom").value.trim(), r = DB.RANGOS.find(x => x.id === $("r-rango").value); if (!n) { toast("Escribí un nombre"); return; }
+  const p = await xpDe(n), falta = r.xp - p.xp;
+  if (falta === 0) { toast(`${n} ya es ${r.nom}`); return; }
+  if (!confirm(falta > 0 ? `¿Darle ${r.ico} ${r.nom} a "${n}"? (se le suman ${falta} XP)` : `¿Bajar a "${n}" a ${r.ico} ${r.nom}? (se le restan ${-falta} XP)`)) return;
+  if (await darXP(n, falta, `Rango ${r.nom} dado por el admin`)) { toast(`🏅 ${n} ahora es ${r.nom}`); verJugador(); cargarBonus(); }
+};
+$("r-sumar").onclick = async () => {
+  const n = $("r-nom").value.trim(), xp = parseInt($("r-xp").value, 10);
+  if (await darXP(n, xp, $("r-motivo").value.trim())) { toast(`${xp > 0 ? "➕" : "➖"} ${Math.abs(xp)} XP para ${n}`); $("r-xp").value = $("r-motivo").value = ""; verJugador(); cargarBonus(); }
+};
+async function cargarBonus() {
+  const { data } = await SB.from("bonus_xp").select("*").order("creado", { ascending:false }).limit(100);
+  $("bonus").innerHTML = tabla(["Cuándo", "Jugador", "XP", "Motivo", ""], (data || []).map(b =>
+    `<tr><td>${fecha(b.creado)}</td><td>${esc(b.nombre)}</td><td style="color:${b.xp > 0 ? "var(--verde)" : "var(--rojo)"}">${b.xp > 0 ? "+" : ""}${b.xp}</td><td>${esc(b.motivo) || "—"}</td>
+     <td><button class="b rojo" data-borrar-b="${b.id}" title="Deshacer">↩️</button></td></tr>`));
+  $("bonus").querySelectorAll("[data-borrar-b]").forEach(e => e.onclick = () => borrar("bonus_xp", e.dataset.borrarB, () => { cargarBonus(); verJugador(); }));
+}
+async function cargarRangos() {
+  const { data } = await SB.from("perfiles").select("nombre").order("xp", { ascending:false }).limit(200);
+  $("r-lista").innerHTML = (data || []).map(p => `<option value="${esc(p.nombre)}">`).join("");
+  cargarBonus(); verJugador();
 }
 
 // ---------- Partidas ----------
