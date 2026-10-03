@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pelea Online</title>
+<style>
+  :root { --goku:#ff8c1a; --gordo:#3fb6ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; color:#fff; font-family:system-ui,sans-serif; overflow-x:hidden;
+         background:radial-gradient(circle at 50% 30%, #4a1d5e, #14102a 70%); display:flex; flex-direction:column; align-items:center; padding:16px; }
+  a { color:#ffd400; }
+  h1 { margin:6px 0 12px; font-size:clamp(24px,7vw,42px); text-shadow:0 0 14px #c86bff; text-align:center; }
+  .caja { width:100%; max-width:720px; background:#0006; border-radius:16px; padding:16px; margin-bottom:12px; text-align:center; }
+  input { padding:12px; border-radius:10px; border:2px solid #ffd400; background:#0006; color:#fff; font-size:18px; width:160px; text-align:center; text-transform:uppercase; letter-spacing:4px; }
+  button { font-size:16px; padding:12px 18px; border:0; border-radius:12px; font-weight:800; cursor:pointer; background:#ffd400; color:#000; transition:transform .1s; }
+  button:active:not(:disabled) { transform:scale(.93); } button:disabled { opacity:.35; cursor:not-allowed; }
+  .codigo { font-size:clamp(40px,12vw,64px); font-weight:900; letter-spacing:8px; color:#ffd400; text-shadow:0 0 16px #ff6a00; }
+  .arena { display:flex; gap:12px; width:100%; max-width:720px; }
+  .lado { flex:1; text-align:center; background:#ffffff10; border-radius:16px; padding:10px; border:3px solid transparent; transition:border-color .3s; }
+  .lado.turno { border-color:#ffd400; box-shadow:0 0 18px #ffd40066; }
+  .avatar { font-size:clamp(56px,16vw,100px); display:inline-block; animation:respira 2s ease-in-out infinite; }
+  @keyframes respira { 50%{transform:translateY(-8px)} }
+  .golpe { animation:golpe .45s !important; }
+  @keyframes golpe { 25%{transform:translateX(-12px) rotate(-10deg);filter:brightness(2) drop-shadow(0 0 12px red)} 75%{transform:translateX(12px) rotate(10deg)} }
+  .ataca-der { animation:der .45s !important; } .ataca-izq { animation:izq .45s !important; }
+  @keyframes der { 45%{transform:translateX(min(35vw,260px)) scale(1.3)} }
+  @keyframes izq { 45%{transform:translateX(max(-35vw,-260px)) scale(1.3)} }
+  .bar { height:14px; background:#0008; border-radius:7px; overflow:hidden; margin:6px 0 2px; }
+  .bar div { height:100%; background:#3ddc5a; transition:width .5s; }
+  .ki div { background:#ffd400; }
+  .yo { font-size:12px; background:#ffd400; color:#000; border-radius:6px; padding:1px 6px; font-weight:800; }
+  .moves { display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; max-width:720px; margin-top:12px; }
+  .burlas { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:10px; }
+  .burlas button { background:#ffffff22; color:#fff; font-size:14px; padding:8px 12px; }
+  #estado { margin-top:10px; font-weight:800; font-size:18px; min-height:24px; text-align:center; }
+  #log { width:100%; max-width:720px; margin-top:10px; background:#0006; border-radius:12px; padding:10px; font-size:14px; min-height:80px; max-height:150px; overflow:auto; }
+  #log p { margin:0 0 3px; }
+  .num { position:fixed; z-index:30; font-size:clamp(30px,9vw,56px); font-weight:900; color:#ff3b3b; text-shadow:0 0 6px #000; pointer-events:none; animation:sube 1s forwards; }
+  .num.cura { color:#3ddc5a; }
+  @keyframes sube { 0%{transform:scale(.3);opacity:0} 25%{transform:scale(1.3);opacity:1} 100%{transform:translateY(-70px);opacity:0} }
+  .globo { position:fixed; z-index:30; background:#fff; color:#000; padding:8px 12px; border-radius:14px; font-weight:700; pointer-events:none; animation:globo 2.2s forwards; }
+  @keyframes globo { 0%{transform:scale(0)} 10%{transform:scale(1.1)} 15%{transform:scale(1)} 85%{opacity:1} 100%{opacity:0;transform:translateY(-20px)} }
+  #aviso { position:fixed; left:0; right:0; top:40%; text-align:center; z-index:40; pointer-events:none; opacity:0;
+           font-size:clamp(28px,8vw,60px); font-weight:900; color:#ffd400; text-shadow:0 0 18px #ff6a00, 0 4px 0 #000; }
+  #aviso.ver { animation:aviso 1.4s; }
+  @keyframes aviso { 0%{opacity:0;transform:scale(3)} 15%{opacity:1;transform:scale(1)} 80%{opacity:1} 100%{opacity:0} }
+  body.tiembla { animation:golpe .4s; }
+  .oculto { display:none !important; }
+</style>
+</head>
+<body>
+<h1>🌐 PELEA ONLINE</h1>
+<div style="margin-bottom:10px"><a href="./">⬅ Menú</a></div>
+
+<!-- Lobby -->
+<div class="caja" id="lobby">
+  <p>Peleá contra un amigo, cada uno desde su celu o compu.</p>
+  <p><button id="crear">🎮 Crear sala (sos Goku 🥋)</button></p>
+  <p style="opacity:.7">— o —</p>
+  <p><input id="cod" maxlength="4" placeholder="CÓDIGO"> <button id="unirse">🚪 Unirse (sos El Gordo 🫃)</button></p>
+  <p id="lobby-msg" style="color:#ff8a8a"></p>
+</div>
+
+<!-- Esperando -->
+<div class="caja oculto" id="espera">
+  <p>Pasale este código a tu amigo:</p>
+  <div class="codigo" id="codigo"></div>
+  <p><button id="compartir">📤 Compartir link</button></p>
+  <p>Esperando que se una... ⏳</p>
+</div>
+
+<!-- Juego -->
+<div id="juego" class="oculto" style="width:100%;display:flex;flex-direction:column;align-items:center">
+  <div class="arena">
+    <div class="lado" id="lado-goku"><div class="avatar" id="av-goku">🥋</div><div><b style="color:var(--goku)" id="nom-goku">Goku</b></div>
+      <div class="bar"><div id="hp-goku"></div></div><small id="txt-goku"></small><div class="bar ki"><div id="ki-goku"></div></div><small>Ki</small></div>
+    <div class="lado" id="lado-gordo"><div class="avatar" id="av-gordo">🫃</div><div><b style="color:var(--gordo)" id="nom-gordo">El Gordo</b></div>
+      <div class="bar"><div id="hp-gordo"></div></div><small id="txt-gordo"></small><div class="bar ki"><div id="ki-gordo"></div></div><small>Ki</small></div>
+  </div>
+  <div id="estado"></div>
+  <div class="moves" id="moves"></div>
+  <div class="burlas" id="burlas"></div>
+  <div id="log"></div>
+  <p><button id="revancha" class="oculto">🔁 Revancha</button></p>
+</div>
+<div id="aviso"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="comun.js"></script>
+<script src="db.js"></script>
+<script>
+const SB = supabase.createClient("https://eluxvcixctwnzyysvoor.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsdXh2Y2l4Y3R3bnp5eXN2b29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMTk5NzAsImV4cCI6MjEwMzY5NTk3MH0.Gq29eHc-X1vEfbxM_9E5mlOynIJCh0pBbsSOPX923IQ");
+const $ = id => document.getElementById(id);
+const rnd = ([a,b]) => a + Math.floor(Math.random()*(b-a+1));
+const espera = ms => new Promise(r => setTimeout(r, ms));
+const MOVES = {
+  goku:  [ { id:"golpe", t:"👊 Piña", ki:0, dmg:[8,14] }, { id:"cargar", t:"🔥 Cargar ki", ki:-35 },
+           { id:"esp", t:"🌊 Kamehameha (50)", ki:50, dmg:[20,30] }, { id:"def", t:"🌍 Genkidama (100)", ki:100, dmg:[38,50] },
+           { id:"cura", t:"🫘 Semilla (1 vez)", ki:0, cura:30, unaVez:true } ],
+  gordo: [ { id:"golpe", t:"🫃 Panzazo", ki:0, dmg:[8,14] }, { id:"cargar", t:"🍔 Comer (cargar)", ki:-35 },
+           { id:"esp", t:"🤢 Eructo 9000 (50)", ki:50, dmg:[20,30] }, { id:"def", t:"🍕 Avalancha de milas (100)", ki:100, dmg:[38,50] },
+           { id:"cura", t:"🥩 Asado (1 vez)", ki:0, cura:30, unaVez:true } ],
+};
+const BURLAS = ["😂 Jajaja", "😤 ¡Vení!", "🍗 Tengo hambre", "💪 Ni me dolió", "🫡 GG"];
+let canal, codigo, yo, S, inicio;
+
+function estadoInicial() {
+  return { hp:{goku:100,gordo:100}, ki:{goku:20,gordo:20}, usado:{goku:false,gordo:false}, turno:"goku", fin:null, n:0,
+           nombres:{ goku:S?.nombres?.goku||"Goku", gordo:S?.nombres?.gordo||"El Gordo" } };
+}
+function log(t) { const p=document.createElement("p"); p.textContent=t; $("log").prepend(p); }
+function aviso(t) { const a=$("aviso"); a.textContent=t; a.classList.remove("ver"); void a.offsetWidth; a.classList.add("ver"); }
+function clase(el,c) { el.classList.remove(c); void el.offsetWidth; el.classList.add(c); setTimeout(()=>el.classList.remove(c),500); }
+function numero(el,t,cura) { const r=el.getBoundingClientRect(), n=document.createElement("div"); n.className="num"+(cura?" cura":"");
+  n.textContent=t; n.style.left=(r.left+r.width/2-24)+"px"; n.style.top=r.top+"px"; document.body.appendChild(n); setTimeout(()=>n.remove(),1000); }
+function globo(quien, t) { const r=$("av-"+quien).getBoundingClientRect(), g=document.createElement("div"); g.className="globo"; g.textContent=t;
+  g.style.left=Math.max(8, r.left)+"px"; g.style.top=(r.top-40)+"px"; document.body.appendChild(g); setTimeout(()=>g.remove(),2200); }
+function beep(f) { if (!AJUSTES.sonido) return; try { const c=new (window.AudioContext||window.webkitAudioContext)(), o=c.createOscillator(), g=c.createGain();
+  o.frequency.value=f; o.type="square"; g.gain.value=.05; o.connect(g); g.connect(c.destination); o.start();
+  g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+.25); o.stop(c.currentTime+.3); } catch(e){} }
+
+function render() {
+  for (const k of ["goku","gordo"]) {
+    $("hp-"+k).style.width = Math.max(0,S.hp[k])+"%"; $("txt-"+k).textContent = Math.max(0,S.hp[k])+" HP";
+    $("ki-"+k).style.width = S.ki[k]+"%"; $("lado-"+k).classList.toggle("turno", !S.fin && S.turno===k);
+    $("nom-"+k).innerHTML = (S.nombres[k]||k) + (k===yo ? ' <span class="yo">VOS</span>' : "");
+  }
+  const miTurno = !S.fin && S.turno === yo;
+  $("estado").textContent = S.fin ? (S.fin===yo ? "🏆 ¡GANASTE!" : "💀 Perdiste...") : miTurno ? "👉 ¡Tu turno!" : "⏳ Turno del rival...";
+  $("moves").innerHTML = "";
+  MOVES[yo].forEach(m => { const b=document.createElement("button"); b.textContent=m.t;
+    b.disabled = !miTurno || (m.ki>0 && S.ki[yo]<m.ki) || (m.unaVez && S.usado[yo]);
+    b.onclick = () => jugar(m); $("moves").appendChild(b); });
+  $("revancha").classList.toggle("oculto", !S.fin);
+}
+
+// Quien juega calcula el resultado y lo manda al otro
+function jugar(m) {
+  if (S.fin || S.turno !== yo) return;
+  const rival = yo==="goku" ? "gordo" : "goku", N = structuredClone(S);
+  const acc = { quien:yo, mov:m.id, texto:m.t };
+  N.ki[yo] = Math.min(100, N.ki[yo] - m.ki);
+  if (m.dmg) { let d = rnd(m.dmg); if (Math.random()<.15) { d=Math.round(d*1.5); acc.crit=true; } if (Math.random()<.08) { d=0; acc.esquiva=true; }
+    N.hp[rival] = Math.max(0, N.hp[rival]-d); acc.dmg = d; }
+  if (m.cura) { N.hp[yo] = Math.min(100, N.hp[yo]+m.cura); N.usado[yo] = true; acc.cura = m.cura; }
+  N.ki[rival] = Math.min(100, N.ki[rival] + 5);
+  if (N.hp[rival] <= 0) N.fin = yo;
+  N.turno = rival; N.n++;
+  canal.send({ type:"broadcast", event:"jugada", payload:{ estado:N, acc } });
+  aplicar(N, acc);
+}
+async function aplicar(N, acc) {
+  if (S && N.n <= S.n && !acc.reinicio) return;
+  const q = acc.quien, r = q==="goku" ? "gordo" : "goku";
+  if (acc.reinicio) { $("av-goku").style.filter = $("av-gordo").style.filter = ""; S = N; $("log").innerHTML=""; log("🔁 ¡Revancha!"); aviso("¡REVANCHA!"); inicio=Date.now(); render(); return; }
+  S = N; render();
+  if (acc.dmg !== undefined) {
+    clase($("av-"+q), q==="goku" ? "ataca-der" : "ataca-izq"); await espera(220);
+    if (acc.esquiva) { numero($("av-"+r),"MISS"); aviso("¡¡LO ESQUIVÓ!!"); log(`💨 ${S.nombres[r]} esquivó ${acc.texto}`); }
+    else { clase($("av-"+r),"golpe"); numero($("av-"+r),"-"+acc.dmg); beep(acc.crit?880:300);
+      if (acc.crit || acc.dmg>=30) { aviso(acc.crit ? "¡¡CRÍTICO!!" : "¡¡DEVASTADOR!!"); document.body.classList.remove("tiembla"); void document.body.offsetWidth; document.body.classList.add("tiembla"); }
+      log(`${q==="goku"?"🥋":"🫃"} ${S.nombres[q]}: ${acc.texto} → -${acc.dmg}${acc.crit?" 💥":""}`); }
+  } else if (acc.cura) { numero($("av-"+q),"+"+acc.cura,true); beep(800); log(`${S.nombres[q]}: ${acc.texto} → +${acc.cura}`); }
+  else { beep(600); log(`${S.nombres[q]}: ${acc.texto}`); }
+  if (S.fin) {
+    aviso(S.fin===yo ? "¡¡GANASTE!!" : "¡¡K.O.!!"); $("av-"+(S.fin==="goku"?"gordo":"goku")).style.filter="grayscale(1)";
+    AJUSTES.resultado("online", S.fin===yo); DB.guardarPartida("online", S.fin===yo, (Date.now()-inicio)/1000);
+  }
+}
+
+function conectar(cod, rol) {
+  codigo = cod; yo = rol;
+  canal = SB.channel("sala-" + cod, { config:{ broadcast:{ self:false }, presence:{ key:rol } } });
+  canal.on("broadcast", { event:"jugada" }, ({ payload }) => aplicar(payload.estado, payload.acc))
+       .on("broadcast", { event:"burla" }, ({ payload }) => globo(payload.quien, payload.t))
+       .on("broadcast", { event:"hola" }, ({ payload }) => { if (yo==="goku" && !S) empezar(payload.nombre); })
+       .on("broadcast", { event:"empieza" }, ({ payload }) => { if (yo==="gordo") { S = payload; mostrarJuego(); } })
+       .on("presence", { event:"sync" }, () => {
+          const roles = Object.keys(canal.presenceState());
+          if (S && !S.fin && roles.length < 2) log("⚠️ El rival se desconectó...");
+       })
+       .subscribe(async st => {
+          if (st !== "SUBSCRIBED") return;
+          await canal.track({ nombre: DB.nombre || (rol==="goku"?"Goku":"El Gordo") });
+          if (rol==="gordo") { canal.send({ type:"broadcast", event:"hola", payload:{ nombre: DB.nombre || "El Gordo" } });
+            setTimeout(() => { if (!S) $("lobby-msg").textContent = "No encontré esa sala. Revisá el código o pedile a tu amigo que la cree de nuevo."; }, 6000); }
+       });
+}
+function empezar(nombreRival) {
+  S = estadoInicial(); S.nombres = { goku: DB.nombre || "Goku", gordo: nombreRival || "El Gordo" };
+  canal.send({ type:"broadcast", event:"empieza", payload:S }); mostrarJuego();
+}
+function mostrarJuego() {
+  $("lobby").classList.add("oculto"); $("espera").classList.add("oculto"); $("juego").classList.remove("oculto");
+  $("burlas").innerHTML = ""; BURLAS.forEach(t => { const b=document.createElement("button"); b.textContent=t;
+    b.onclick = () => { globo(yo,t); canal.send({ type:"broadcast", event:"burla", payload:{ quien:yo, t } }); }; $("burlas").appendChild(b); });
+  inicio = Date.now(); aviso("¡¡PELEEN!!"); render();
+}
+
+$("crear").onclick = () => {
+  const cod = Array.from({length:4}, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random()*32)]).join("");
+  $("lobby").classList.add("oculto"); $("espera").classList.remove("oculto"); $("codigo").textContent = cod;
+  conectar(cod, "goku");
+};
+$("unirse").onclick = () => {
+  const cod = $("cod").value.trim().toUpperCase();
+  if (cod.length !== 4) { $("lobby-msg").textContent = "El código tiene 4 letras."; return; }
+  $("lobby-msg").textContent = "Conectando..."; conectar(cod, "gordo");
+};
+$("compartir").onclick = async () => {
+  const url = location.href.split("?")[0] + "?sala=" + codigo;
+  try { if (navigator.share) await navigator.share({ title:"Pelea online", text:"¡Peleá contra mí! Código: " + codigo, url });
+        else { await navigator.clipboard.writeText(url); $("compartir").textContent = "✅ Link copiado"; } } catch (e) {}
+};
+$("revancha").onclick = () => {
+  const N = estadoInicial(); N.nombres = S.nombres; N.n = 0;
+  $("av-goku").style.filter = $("av-gordo").style.filter = "";
+  canal.send({ type:"broadcast", event:"jugada", payload:{ estado:N, acc:{ reinicio:true } } });
+  aplicar(N, { reinicio:true });
+};
+// Link directo a una sala
+const sala = new URLSearchParams(location.search).get("sala");
+if (sala) { $("cod").value = sala; $("unirse").click(); }
+</script>
+</body>
+</html>
