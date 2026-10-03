@@ -36,7 +36,11 @@
 <h1>💎 TIENDA VIP</h1>
 <div class="sub">Insignias, colores y títulos para lucirte en el chat y el ranking</div>
 
-<div class="caja" id="sin-nombre" style="display:none;text-align:center">Primero poné tu nombre en el <a href="./">menú</a> para usar la tienda VIP.</div>
+<div class="caja" id="sin-nombre" style="display:none;text-align:center">
+  <div style="margin-bottom:8px">Para comprar, poné el mismo nombre que usás para jugar:</div>
+  <input id="nom" maxlength="20" placeholder="Tu nombre" style="padding:10px;border-radius:10px;border:2px solid #ffd400;background:#0006;color:#fff;font-size:16px">
+  <button id="nom-ok" style="padding:10px 16px;border:0;border-radius:10px;font-weight:800;background:#ffd400;cursor:pointer">Listo</button>
+</div>
 
 <div class="caja saldo" id="cab" style="display:none">
   <div><div style="opacity:.8">Tus gemas</div><b id="gemas">…</b></div>
@@ -57,11 +61,14 @@ const ERRORES = { sin_gemas: "💎 No te alcanzan las gemas", ya_lo_tenes: "Ya l
 function toast(t) { const e = $("toast"); e.textContent = t; e.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => e.style.display = "none", 2500); }
 
 async function cargar() {
-  if (!DB.nombre) { $("sin-nombre").style.display = "block"; return; }
-  $("cab").style.display = "flex"; $("secciones").style.display = "block";
-  let items, gemas, compras, equipo;
-  try { [items, gemas, compras, equipo] = await Promise.all([DB.vipItems(), DB.gemas(), DB.misCompras(), DB.miEquipo()]); }
-  catch (e) { $("secciones").innerHTML = `<p class="vacio">No se pudo cargar la tienda. Probá de nuevo en un rato.</p>`; return; }
+  // Los productos se ven siempre; para comprar hace falta el nombre
+  const conNombre = !!DB.nombre;
+  $("sin-nombre").style.display = conNombre ? "none" : "block";
+  $("cab").style.display = conNombre ? "flex" : "none"; $("secciones").style.display = "block";
+  if (!$("secciones").innerHTML) $("secciones").innerHTML = `<p class="vacio">Cargando productos...</p>`;
+  let items, gemas = 0, compras = [], equipo = {};
+  try { [items, gemas, compras, equipo] = await Promise.all([DB.vipItems(), conNombre ? DB.gemas() : 0, conNombre ? DB.misCompras() : [], conNombre ? DB.miEquipo() : {}]); }
+  catch (e) { $("secciones").innerHTML = `<p class="vacio">No se pudo cargar la tienda (${esc(e.message)}). Probá de nuevo en un rato.</p>`; return; }
   const tengo = new Set(compras.map(c => c.item_id));
   $("gemas").textContent = "💎 " + gemas;
   const puesto = t => items.find(i => i.id === equipo[t]);
@@ -74,8 +81,8 @@ async function cargar() {
     h += `<h2>${titulo}</h2><div class="grid" style="margin-bottom:18px">`;
     for (const i of lista) {
       const mio = tengo.has(i.id), esta = equipo[tipo] === i.id;
-      const muestra = tipo === "color" ? `<div class="muestra" style="color:${esc(i.valor)}">${esc(DB.nombre)}</div>` : tipo === "titulo" ? `<div class="muestra" style="opacity:.85">“${esc(i.valor)}”</div>` : "";
-      const boton = !mio ? `<button class="comprar" data-comprar="${i.id}" ${gemas < i.precio ? "disabled" : ""}>💎 ${i.precio}</button>`
+      const muestra = tipo === "color" ? `<div class="muestra" style="color:${esc(i.valor)}">${esc(DB.nombre || "Tu nombre")}</div>` : tipo === "titulo" ? `<div class="muestra" style="opacity:.85">“${esc(i.valor)}”</div>` : "";
+      const boton = !conNombre ? `<button class="comprar" disabled>💎 ${i.precio}</button>` : !mio ? `<button class="comprar" data-comprar="${i.id}" ${gemas < i.precio ? "disabled" : ""}>💎 ${i.precio}</button>`
                   : esta ? `<button class="quitar" data-quitar="${tipo}">Sacar</button>` : `<button class="equipar" data-equipar="${i.id}" data-tipo="${tipo}">Usar</button>`;
       h += `<div class="item ${mio ? "mio" : ""} ${esta ? "puesto" : ""}"><div class="ico">${esc(i.icono)}</div><div class="nom">${esc(i.nombre)}</div><div class="d">${esc(i.descripcion)}</div>${muestra}${boton}</div>`;
     }
@@ -89,6 +96,8 @@ async function cargar() {
   document.querySelectorAll("[data-equipar]").forEach(b => b.onclick = async () => { await DB.equiparVip(+b.dataset.equipar, b.dataset.tipo); toast("✅ ¡Puesto!"); cargar(); });
   document.querySelectorAll("[data-quitar]").forEach(b => b.onclick = async () => { await DB.equiparVip(null, b.dataset.quitar); cargar(); });
 }
+$("nom-ok").onclick = () => { const n = $("nom").value.trim(); if (!n) return; DB.nombre = n; cargar(); };
+$("nom").addEventListener("keydown", e => { if (e.key === "Enter") $("nom-ok").click(); });
 cargar();
 </script>
 </body>
