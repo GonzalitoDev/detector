@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Atrapá la Gallina</title>
+<style>
+  * { box-sizing:border-box; user-select:none; -webkit-user-select:none; }
+  html, body { margin:0; height:100%; overflow:hidden; font-family:system-ui,sans-serif; color:#fff; touch-action:manipulation; }
+  #oficina { position:fixed; inset:0; background:
+      linear-gradient(#0000 70%, #6b4a2b 70%),
+      repeating-linear-gradient(90deg,#d9cfb8 0 80px,#cfc4aa 80px 160px); }
+  .mueble { position:absolute; font-size:clamp(40px,10vw,70px); pointer-events:none; opacity:.9; }
+  #hud { position:fixed; top:0; left:0; right:0; display:flex; justify-content:space-between; align-items:center; gap:8px; padding:10px 14px;
+         background:#0008; font-weight:800; font-size:clamp(15px,4vw,20px); z-index:10; }
+  #hud a { color:#ffd400; text-decoration:none; }
+  #gallina { position:fixed; font-size:clamp(46px,12vw,72px); cursor:pointer; z-index:5; transition:left .35s ease-out, top .35s ease-out; filter:drop-shadow(0 4px 4px #0006); }
+  #gallina.izq { transform:scaleX(-1); }
+  #gallina.atrapada { animation:atrapada .4s; }
+  @keyframes atrapada { 50% { transform:scale(1.8) rotate(30deg); } }
+  #gordo { position:fixed; bottom:4%; left:50%; transform:translateX(-50%); font-size:clamp(56px,15vw,96px); z-index:4; transition:left .25s; pointer-events:none; }
+  #pc { position:fixed; bottom:6%; right:6%; font-size:clamp(50px,13vw,84px); z-index:3; pointer-events:none; }
+  #jefe { position:fixed; top:16%; left:-140px; font-size:clamp(60px,16vw,100px); z-index:8; transition:left .6s; pointer-events:none; }
+  #jefe.mira { left:6%; }
+  #jefe::after { content:"👀"; position:absolute; font-size:.4em; top:-10px; right:-10px; opacity:0; }
+  #jefe.mira::after { opacity:1; }
+  #alerta { position:fixed; left:0; right:0; top:42%; text-align:center; z-index:20; pointer-events:none; opacity:0;
+            font-size:clamp(28px,8vw,56px); font-weight:900; color:#ffd400; text-shadow:0 0 16px #ff2a00, 0 4px 0 #000; }
+  #alerta.ver { animation:alerta 1.2s; }
+  @keyframes alerta { 0%{opacity:0;transform:scale(3)} 15%{opacity:1;transform:scale(1)} 80%{opacity:1} 100%{opacity:0} }
+  #laburar { position:fixed; bottom:3%; left:50%; transform:translateX(-50%); z-index:9; font-size:clamp(16px,4.5vw,22px);
+             padding:14px 22px; border:0; border-radius:14px; font-weight:900; background:#3fb6ff; color:#001a2a; cursor:pointer; box-shadow:0 6px 0 #0077cc; }
+  #laburar.on { background:#3ddc5a; box-shadow:0 6px 0 #1f9a37; }
+  #laburar:active { transform:translateX(-50%) translateY(4px); box-shadow:0 2px 0 #0077cc; }
+  .pluma { position:fixed; z-index:6; pointer-events:none; font-size:22px; animation:pluma 1s ease-out forwards; }
+  @keyframes pluma { to { transform:translate(var(--x),var(--y)) rotate(200deg); opacity:0; } }
+  .num { position:fixed; z-index:15; pointer-events:none; font-size:clamp(26px,7vw,44px); font-weight:900; text-shadow:0 0 6px #000; animation:sube .9s forwards; }
+  @keyframes sube { 0%{transform:scale(.4);opacity:0} 25%{transform:scale(1.3);opacity:1} 100%{transform:translateY(-60px);opacity:0} }
+  body.rojo #oficina { animation:rojo .4s; } @keyframes rojo { 50% { filter:sepia(1) hue-rotate(-50deg) saturate(4); } }
+  .pantalla { position:fixed; inset:0; z-index:30; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:14px; padding:16px; background:#000d; }
+  .pantalla h1 { margin:0; font-size:clamp(30px,9vw,56px); text-shadow:0 0 16px #ffd400; }
+  .pantalla p { margin:0; max-width:440px; line-height:1.45; }
+  .pantalla button { font-size:20px; padding:14px 28px; border:0; border-radius:14px; font-weight:900; background:#ffd400; color:#000; cursor:pointer; }
+</style>
+</head>
+<body>
+<div id="oficina">
+  <div class="mueble" style="left:4%;top:58%">🪴</div><div class="mueble" style="right:30%;top:60%">🗄️</div>
+  <div class="mueble" style="left:40%;top:14%">🕰️</div><div class="mueble" style="right:8%;top:16%">🖼️</div>
+</div>
+<div id="hud"><a href="./">⬅ Menú</a><span id="pts">🐔 0</span><span id="tiempo">⏱️ 60</span><span id="strikes">👔👔👔</span></div>
+<div id="gallina">🐔</div>
+<div id="pc">🖥️</div>
+<div id="gordo">🫃</div>
+<div id="jefe">👨‍💼</div>
+<button id="laburar">💻 HACERME EL QUE LABURO</button>
+<div id="alerta"></div>
+
+<div class="pantalla" id="inicio">
+  <h1>🐔 ATRAPÁ LA GALLINA</h1>
+  <p>Se escapó una gallina en la oficina del Gordo. <b>Tocala</b> para atraparla todas las veces que puedas en 60 segundos.</p>
+  <p>Pero ojo: cuando grita <b>"¡VIENE EL JEFE!"</b>, mantené apretado <b>💻 HACERME EL QUE LABURO</b>. Si el jefe te ve sin laburar, te llevás un reto. <b>Con 3 retos, te echan.</b></p>
+  <button id="jugar">¡A LABURAR! (o no)</button>
+</div>
+<div class="pantalla" id="fin" style="display:none">
+  <h1 id="fin-titulo"></h1>
+  <p id="fin-txt"></p>
+  <button id="otra">🔁 Otro día de laburo</button>
+</div>
+
+<script src="comun.js"></script>
+<script src="db.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const gal = $("gallina"), jefe = $("jefe"), btn = $("laburar");
+let pts, tiempo, strikes, jugando = false, laburando = false, jefeMira = false, timers = [], gx = 0, gy = 0, velGallina;
+
+function beep(f, d=.15, tipo="square") { if (!AJUSTES.sonido) return; try { const a=new (window.AudioContext||window.webkitAudioContext)(), o=a.createOscillator(), g=a.createGain();
+  o.frequency.value=f; o.type=tipo; g.gain.value=.06; o.connect(g); g.connect(a.destination); o.start();
+  g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+d); o.stop(a.currentTime+d+.05); } catch(e){} }
+function cacarear() { [900,1300,900].forEach((f,i)=>setTimeout(()=>beep(f,.07,"sawtooth"), i*70)); }
+function alerta(t) { const a=$("alerta"); a.textContent=t; a.classList.remove("ver"); void a.offsetWidth; a.classList.add("ver"); }
+function numero(x, y, t, color) { const n=document.createElement("div"); n.className="num"; n.textContent=t; n.style.color=color; n.style.left=x+"px"; n.style.top=y+"px";
+  document.body.appendChild(n); setTimeout(()=>n.remove(),900); }
+function plumas(x, y) { for (let i=0;i<8;i++) { const p=document.createElement("div"); p.className="pluma"; p.textContent="🪶"; p.style.left=x+"px"; p.style.top=y+"px";
+  p.style.setProperty("--x",(Math.random()*160-80)+"px"); p.style.setProperty("--y",(Math.random()*-120)+"px"); document.body.appendChild(p); setTimeout(()=>p.remove(),1000); } }
+function hud() { $("pts").textContent = "🐔 " + pts; $("tiempo").textContent = "⏱️ " + tiempo; $("strikes").textContent = "👔".repeat(strikes) + "❌".repeat(3-strikes); }
+
+// La gallina corre a un lugar al azar, y huye si el dedo/mouse se acerca
+function moverGallina(lejosDe) {
+  const W = innerWidth, H = innerHeight, t = gal.offsetWidth || 60;
+  let nx, ny, intentos = 0;
+  do { nx = 10 + Math.random()*(W - t - 20); ny = H*.15 + Math.random()*(H*.62 - t); intentos++; }
+  while (lejosDe && Math.hypot(nx - lejosDe.x, ny - lejosDe.y) < Math.min(W,H)*.35 && intentos < 20);
+  gal.classList.toggle("izq", nx < gx); gx = nx; gy = ny;
+  gal.style.transition = `left ${velGallina}s ease-out, top ${velGallina}s ease-out`;
+  gal.style.left = nx + "px"; gal.style.top = ny + "px";
+  // El Gordo la persigue (aunque sea con la mirada)
+  $("gordo").style.left = Math.max(60, Math.min(W-60, nx + t/2)) + "px";
+}
+function correteo() { if (!jugando) return; moverGallina(); timers.push(setTimeout(correteo, 500 + Math.random()*900 / AJUSTES.mult)); }
+
+gal.addEventListener("pointerdown", e => {
+  if (!jugando) return;
+  if (laburando) { numero(e.clientX, e.clientY, "¡Estás laburando!", "#3fb6ff"); return; }
+  pts++; hud(); cacarear(); plumas(e.clientX, e.clientY); numero(e.clientX, e.clientY - 30, "+1", "#ffd400");
+  gal.classList.remove("atrapada"); void gal.offsetWidth; gal.classList.add("atrapada");
+  if (jefeMira) reto("¡TE VIO CON LA GALLINA!");
+  velGallina = Math.max(.12, velGallina * .93);   // cada vez más rápida
+  moverGallina({ x: e.clientX, y: e.clientY });
+});
+// Si el puntero se acerca, la gallina se asusta
+addEventListener("pointermove", e => {
+  if (!jugando || Math.random() > .08) return;
+  if (Math.hypot(e.clientX - (gx + 30), e.clientY - (gy + 30)) < 90) moverGallina({ x:e.clientX, y:e.clientY });
+});
+
+// Botón de "laburar": hay que mantenerlo apretado
+const empezarLaburo = e => { e.preventDefault(); laburando = true; btn.classList.add("on"); btn.textContent = "⌨️ tiki tiki tiki..."; $("gordo").textContent = "🧑‍💻"; };
+const dejarLaburo = () => { laburando = false; btn.classList.remove("on"); btn.textContent = "💻 HACERME EL QUE LABURO"; $("gordo").textContent = "🫃"; };
+btn.addEventListener("pointerdown", empezarLaburo); addEventListener("pointerup", dejarLaburo); addEventListener("pointercancel", dejarLaburo);
+addEventListener("keydown", e => { if (e.code === "Space" && !laburando) empezarLaburo(e); });
+addEventListener("keyup", e => { if (e.code === "Space") dejarLaburo(); });
+
+function vieneElJefe() {
+  if (!jugando) return;
+  alerta("⚠️ ¡VIENE EL JEFE! ⚠️"); beep(300,.2); setTimeout(()=>beep(300,.2), 250);
+  const aviso = Math.max(600, 1300 / AJUSTES.mult);
+  timers.push(setTimeout(() => {
+    if (!jugando) return;
+    jefe.classList.add("mira"); jefeMira = true;
+    const mirar = 1500 + Math.random()*1500;
+    // Revisa varias veces si estás laburando mientras mira
+    const chequeo = setInterval(() => { if (jefeMira && !laburando) { reto("¡NO ESTÁS LABURANDO!"); clearInterval(chequeo); } }, 250);
+    timers.push(chequeo);
+    timers.push(setTimeout(() => { clearInterval(chequeo); jefe.classList.remove("mira"); jefeMira = false;
+      if (jugando) { alerta("😮‍💨 Se fue..."); timers.push(setTimeout(vieneElJefe, 3000 + Math.random()*5000)); } }, mirar));
+  }, aviso));
+}
+function reto(txt) {
+  if (!jefeMira) return;
+  strikes--; hud(); alerta("😡 " + txt); beep(110,.4);
+  document.body.classList.remove("rojo"); void document.body.offsetWidth; document.body.classList.add("rojo");
+  jefe.classList.remove("mira"); jefeMira = false;
+  if (strikes <= 0) return terminar(true);
+  timers.push(setTimeout(vieneElJefe, 3000 + Math.random()*4000));
+}
+
+function empezar() {
+  timers.forEach(t => { clearTimeout(t); clearInterval(t); }); timers = [];
+  pts = 0; tiempo = 60; strikes = 3; velGallina = .45; jefeMira = false; jefe.classList.remove("mira"); dejarLaburo();
+  $("inicio").style.display = $("fin").style.display = "none"; window.inicio = Date.now();
+  jugando = true; hud(); moverGallina(); correteo();
+  timers.push(setInterval(() => { if (!jugando) return; tiempo--; hud(); if (tiempo <= 10) beep(700,.05); if (tiempo <= 0) terminar(false); }, 1000));
+  timers.push(setTimeout(vieneElJefe, 4000 + Math.random()*3000));
+}
+function terminar(echado) {
+  if (!jugando) return; jugando = false;
+  timers.forEach(t => { clearTimeout(t); clearInterval(t); }); timers = [];
+  jefe.classList.remove("mira"); jefeMira = false;
+  const gano = !echado && pts >= 20;
+  $("fin-titulo").textContent = echado ? "📦 ¡TE ECHARON!" : gano ? "🏆 ¡EMPLEADO DEL MES!" : "⏰ ¡TERMINÓ EL TURNO!";
+  $("fin-txt").innerHTML = echado
+    ? `El jefe te agarró 3 veces. Atrapaste <b>${pts}</b> gallinas antes de juntar tus cosas en una caja.`
+    : `Atrapaste <b>${pts}</b> gallinas y nadie se dio cuenta. ${gano ? "¡Sos una leyenda!" : "Llegá a 20 para ser empleado del mes."}`;
+  $("fin").style.display = "flex"; beep(echado ? 100 : 900, .5);
+  AJUSTES.resultado("gallina", gano);
+  DB.guardarPartida("gallina", gano, (Date.now() - window.inicio) / 1000, pts);
+}
+$("jugar").onclick = empezar; $("otra").onclick = empezar;
+gx = innerWidth/2; gy = innerHeight/2; gal.style.left = gx + "px"; gal.style.top = gy + "px";
+</script>
+</body>
+</html>
