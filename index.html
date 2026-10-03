@@ -4,380 +4,89 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Goku vs El Gordo</title>
+<meta name="description" content="Pelea épica y juego de cartas: Goku contra El Gordo, con IA gratis.">
 <style>
-  :root { --bg:#14102a; --fg:#fff; --goku:#ff8c1a; --gordo:#3fb6ff; --hp:#3ddc5a; }
   * { box-sizing:border-box; }
-  body { margin:0; background:radial-gradient(circle at 50% 30%, #2d2260, var(--bg)); color:var(--fg);
-         font-family:system-ui, sans-serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:16px; }
-  h1 { margin:8px 0 16px; font-size:clamp(22px,6vw,40px); text-shadow:0 0 12px #ffcc00; text-align:center; }
-  .arena { display:flex; gap:16px; justify-content:space-between; width:100%; max-width:720px; }
-  .fighter { flex:1; text-align:center; background:#ffffff10; border-radius:16px; padding:12px; }
-  .avatar { font-size:clamp(60px,18vw,110px); transition:transform .15s; display:inline-block; animation:respira 2s ease-in-out infinite; }
-  @keyframes respira { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-  .hit { animation:shake .4s, rojo .4s; }
-  @keyframes rojo { 50%{filter:drop-shadow(0 0 20px red) brightness(1.6)} }
-  .attack { animation:none; }
-  .dash-der { animation:dashDer .45s ease-in-out; }
-  .dash-izq { animation:dashIzq .45s ease-in-out; }
-  @keyframes dashDer { 0%{transform:none} 45%{transform:translateX(min(40vw,300px)) scale(1.3) rotate(15deg)} 100%{transform:none} }
-  @keyframes dashIzq { 0%{transform:none} 45%{transform:translateX(max(-40vw,-300px)) scale(1.3) rotate(-15deg)} 100%{transform:none} }
-  .esquiva { animation:rueda .6s; }
-  @keyframes rueda { 50%{transform:translateY(-40px) rotate(360deg)} 100%{transform:rotate(720deg)} }
-  .carga { animation:carga .9s; }
-  @keyframes carga { 0%,100%{filter:none;transform:scale(1)} 50%{filter:drop-shadow(0 0 25px #ffd400) drop-shadow(0 0 50px #ff8c1a);transform:scale(1.25)} }
-  .muerto { animation:cae 1s forwards !important; }
-  @keyframes cae { to{transform:rotate(90deg) translateY(20px);opacity:.4;filter:grayscale(1)} }
-  .gana { animation:salta .5s infinite alternate !important; }
-  @keyframes salta { to{transform:translateY(-30px) scale(1.15)} }
-  .part { position:fixed; width:10px; height:10px; border-radius:50%; pointer-events:none; z-index:6; animation:part .7s ease-out forwards; }
-  @keyframes part { to{transform:translate(var(--x),var(--y)) scale(0);opacity:0} }
-  #bola { position:fixed; left:50%; top:-200px; width:160px; height:160px; margin-left:-80px; border-radius:50%; z-index:5; pointer-events:none;
-          background:radial-gradient(circle,#fff,#7fe0ff 40%,#0077ff); box-shadow:0 0 60px 30px #5ad1ff; display:none; }
-  #bola.cae { display:block; animation:bola 1s ease-in forwards; }
-  @keyframes bola { 0%{top:-200px;transform:scale(.5)} 100%{top:35%;transform:scale(1.4);opacity:.2} }
+  body { margin:0; min-height:100vh; color:#fff; font-family:system-ui,sans-serif; overflow-x:hidden;
+         background:radial-gradient(circle at 50% 20%, #3a2a80, #14102a 70%); display:flex; flex-direction:column; align-items:center; padding:24px 16px; }
   #estrellas { position:fixed; inset:0; z-index:-1; pointer-events:none;
     background-image:radial-gradient(2px 2px at 20% 30%,#fff8,transparent),radial-gradient(2px 2px at 70% 60%,#fff6,transparent),
     radial-gradient(1px 1px at 40% 80%,#fff8,transparent),radial-gradient(2px 2px at 85% 15%,#fff7,transparent),radial-gradient(1px 1px at 10% 70%,#fff9,transparent);
     background-size:300px 300px; animation:cielo 40s linear infinite; }
   @keyframes cielo { to{background-position:300px 600px} }
-  button { transition:transform .1s; } button:active:not(:disabled) { transform:scale(.92); }
-  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-10px) rotate(-8deg)} 75%{transform:translateX(10px) rotate(8deg)} }
-  .name { font-weight:800; font-size:20px; }
-  .bar { height:16px; background:#0006; border-radius:8px; overflow:hidden; margin:8px 0 4px; }
-  .bar > div { height:100%; background:var(--hp); transition:width .4s; }
-  .ki > div { background:#ffd400; }
-  small { opacity:.8; }
-  .moves { display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; max-width:720px; margin-top:16px; }
-  button { font-size:16px; padding:14px; border:0; border-radius:12px; cursor:pointer; font-weight:700;
-           background:var(--goku); color:#1a0d00; }
-  button:disabled { opacity:.4; cursor:not-allowed; }
-  #log { width:100%; max-width:720px; margin-top:16px; background:#0005; border-radius:12px; padding:12px;
-         min-height:120px; font-size:15px; line-height:1.5; }
-  #log p { margin:0 0 4px; }
-  .ssj { filter:drop-shadow(0 0 18px #ffe600) drop-shadow(0 0 30px #ffb300); animation:aura 0.6s infinite alternate; }
-  @keyframes aura { from{filter:drop-shadow(0 0 10px #ffe600)} to{filter:drop-shadow(0 0 32px #ffb300)} }
-  body.temblor { animation:temblor .5s; }
-  @keyframes temblor { 0%,100%{transform:translate(0)} 20%{transform:translate(-12px,6px)} 40%{transform:translate(10px,-8px)} 60%{transform:translate(-8px,-4px)} 80%{transform:translate(6px,8px)} }
-  #flash { position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; transition:opacity .4s; z-index:5; }
-  #vineta { position:fixed; inset:0; pointer-events:none; box-shadow:inset 0 0 120px 40px #ff000000; transition:box-shadow .5s; z-index:4; }
-  #vineta.peligro { animation:latido 1s infinite; }
-  @keyframes latido { 0%,100%{box-shadow:inset 0 0 120px 30px #ff000055} 50%{box-shadow:inset 0 0 160px 60px #ff0000aa} }
-  .num { position:fixed; font-size:clamp(36px,10vw,64px); font-weight:900; color:#ff3b3b; text-shadow:0 0 8px #000, 0 0 2px #fff;
-         pointer-events:none; z-index:6; animation:sube 1.1s ease-out forwards; }
-  .num.cura { color:#3ddc5a; }
-  @keyframes sube { 0%{transform:scale(.4);opacity:0} 20%{transform:scale(1.4);opacity:1} 100%{transform:translateY(-90px) scale(1);opacity:0} }
-  #narrador { position:fixed; left:0; right:0; top:38%; text-align:center; font-size:clamp(30px,9vw,70px); font-weight:900;
-              color:#ffd400; text-shadow:0 0 20px #ff6a00, 0 4px 0 #000; pointer-events:none; z-index:7; opacity:0; }
-  #narrador.ver { animation:grito 1.4s ease-out; }
-  @keyframes grito { 0%{opacity:0;transform:scale(3)} 15%{opacity:1;transform:scale(1)} 80%{opacity:1} 100%{opacity:0;transform:scale(.9)} }
-  #rayo { position:fixed; top:40%; left:0; height:40px; width:0; background:linear-gradient(90deg,#fff,#5ad1ff,#0077ff);
-          box-shadow:0 0 30px 10px #5ad1ff; border-radius:20px; z-index:5; pointer-events:none; opacity:0; }
-  #rayo.dispara { animation:rayo .9s ease-out; }
-  @keyframes rayo { 0%{width:0;opacity:1} 60%{width:100%;opacity:1} 100%{width:100%;opacity:0} }
-  .big { position:fixed; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column;
-         background:#000c; font-size:clamp(28px,8vw,56px); font-weight:900; text-align:center; padding:16px; }
-  .big button { margin-top:20px; font-size:20px; }
+  .vs { display:flex; align-items:center; gap:clamp(10px,4vw,30px); font-size:clamp(60px,18vw,120px); margin-top:10px; }
+  .vs span:nth-child(1) { animation:izq 1.2s ease-in-out infinite alternate; }
+  .vs span:nth-child(3) { animation:der 1.2s ease-in-out infinite alternate; }
+  .vs b { font-size:clamp(28px,8vw,52px); color:#ffd400; text-shadow:0 0 20px #ff6a00; animation:late 0.8s infinite alternate; }
+  @keyframes izq { to { transform:translateX(12px) rotate(8deg); } }
+  @keyframes der { to { transform:translateX(-12px) rotate(-8deg); } }
+  @keyframes late { to { transform:scale(1.25); } }
+  h1 { margin:8px 0 4px; font-size:clamp(28px,8vw,56px); text-align:center; text-shadow:0 0 16px #ffcc00, 0 4px 0 #000; letter-spacing:1px; }
+  .sub { opacity:.8; margin-bottom:24px; text-align:center; }
+  .modos { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; width:100%; max-width:640px; }
+  .modo { display:block; text-decoration:none; color:inherit; border-radius:18px; padding:20px; text-align:center;
+          background:linear-gradient(160deg,#ff8c1a33,#ffffff10); border:2px solid #ff8c1a; transition:transform .2s, box-shadow .2s; }
+  .modo.c { background:linear-gradient(160deg,#3fb6ff33,#ffffff10); border-color:#3fb6ff; }
+  .modo:hover { transform:translateY(-6px) scale(1.02); box-shadow:0 12px 30px #000a, 0 0 24px #ffd40066; }
+  .modo .ico { font-size:52px; }
+  .modo h2 { margin:6px 0; }
+  .modo p { margin:0 0 10px; opacity:.85; font-size:14px; }
+  .modo small { opacity:.7; }
+  .panel { width:100%; max-width:640px; margin-top:20px; background:#0005; border-radius:16px; padding:16px; }
+  .panel h3 { margin:0 0 10px; }
+  .fila { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px; }
+  .op { padding:10px 14px; border-radius:10px; border:0; font-weight:700; font-size:15px; cursor:pointer; background:#ffffff22; color:#fff; }
+  .op.on { background:#ffd400; color:#000; }
+  footer { margin-top:24px; opacity:.5; font-size:12px; text-align:center; }
 </style>
 </head>
 <body>
-<h1>⚡ GOKU vs EL GORDO 🍔</h1>
-<a href="cartas.html" style="color:#ffd400;font-weight:700;margin-bottom:10px">🃏 Jugar la versión con cartas</a>
-<div class="arena">
-  <div class="fighter">
-    <div class="avatar" id="av-goku">🥋</div>
-    <div class="name" style="color:var(--goku)">Goku</div>
-    <div class="bar"><div id="hp-goku"></div></div><small id="txt-goku"></small>
-    <div class="bar ki"><div id="ki-goku"></div></div><small>Ki</small>
-  </div>
-  <div class="fighter">
-    <div class="avatar" id="av-gordo">🫃</div>
-    <div class="name" style="color:var(--gordo)">El Gordo</div>
-    <div class="bar"><div id="hp-gordo"></div></div><small id="txt-gordo"></small>
-    <div class="bar ki"><div id="ki-gordo"></div></div><small>Hambre</small>
-  </div>
-</div>
-<div class="moves" id="mv-goku">
-  <button data-m="punio">👊 Piña voladora</button>
-  <button data-m="cargar">🔥 Cargar Ki (+35)</button>
-  <button data-m="kame">🌊 KAMEHAMEHA (50 ki)</button>
-  <button data-m="genki">🌍 Genkidama (100 ki)</button>
-  <button data-m="semilla">🫘 Semilla del ermitaño (1 vez)</button>
-  <button data-m="mate">🧉 Mate cebado (1 vez)</button>
-</div>
-<div id="habla" style="width:100%;max-width:720px;margin-top:12px;padding:12px;border-radius:12px;background:#3fb6ff22;min-height:48px;font-style:italic">🫃💬 <span id="habla-txt">...</span> <small style="opacity:.6">(agente IA: elige sus jugadas)</small></div>
-<div id="roshi" style="width:100%;max-width:720px;margin-top:8px;padding:12px;border-radius:12px;background:#ff8c1a22;min-height:48px">
-  <button id="btn-roshi" style="padding:8px 12px;font-size:14px;background:#ffb36b">🐢 Pedir consejo al Maestro Roshi (IA)</button>
-  <span id="roshi-txt" style="margin-left:8px;font-style:italic"></span>
-</div>
-<div id="log"></div>
-<div id="estrellas"></div><div id="bola"></div><div id="flash"></div><div id="vineta"></div><div id="narrador"></div><div id="rayo"></div>
-<div class="big" id="final"><div id="final-txt"></div><button onclick="reset()">🔁 Revancha</button></div>
+<div id="estrellas"></div>
+<div class="vs"><span>🥋</span><b>VS</b><span>🫃</span></div>
+<h1>GOKU vs EL GORDO</h1>
+<div class="sub">La pelea más épica (y con más milanesas) de la historia</div>
 
+<div class="modos">
+  <a class="modo" href="pelea.html">
+    <div class="ico">⚡</div><h2>Pelea</h2>
+    <p>Kamehameha, Super Saiyajin, eventos locos y El Gordo pensando con IA.</p>
+    <small id="rec-pelea"></small>
+  </a>
+  <a class="modo c" href="cartas.html">
+    <div class="ico">🃏</div><h2>Cartas</h2>
+    <p>Armá tu estrategia con cartas animadas. Energía, escudos y combos.</p>
+    <small id="rec-cartas"></small>
+  </a>
+</div>
+
+<div class="panel">
+  <h3>⚙️ Ajustes</h3>
+  <div class="fila">Dificultad:
+    <button class="op" data-d="facil">😌 Fácil</button>
+    <button class="op" data-d="normal">😤 Normal</button>
+    <button class="op" data-d="dificil">💀 Difícil</button>
+  </div>
+  <div class="fila">Sonido: <button class="op" id="snd"></button></div>
+  <div class="fila"><button class="op" id="borrar">🗑️ Borrar récord</button></div>
+</div>
+
+<footer>Hecho con mucho choripán 🌭</footer>
+
+<script src="comun.js"></script>
 <script>
-const MOVES = {
-  punio:  { ki:0,   dmg:[8,15],  txt:"Goku le encaja una piña voladora" },
-  cargar: { ki:-35, dmg:[0,0],   txt:"Goku grita AAAAAHHHH y carga ki" },
-  kame:   { ki:50,  dmg:[22,32], txt:"KAAA-MEEE-HAAA-MEEE-HAAAAA!!!" },
-  genki:  { ki:100, dmg:[45,60], txt:"¡Goku tira una Genkidama gigante!" },
-};
-const ITEMS = {
-  semilla: { ki:0, dmg:[0,0], txt:"Goku se come una semilla del ermitaño 🫘" },
-  mate:    { ki:0, dmg:[0,0], txt:"Goku se toma un mate bien cebado 🧉" },
-};
-Object.assign(MOVES, ITEMS);
-const GORDO = [
-  { dmg:[14,22], txt:"El Gordo se come un choripán picante y escupe FUEGO 🌶️🔥", fuego:true },
-  { dmg:[0,0],   txt:"El Gordo se morfa una docena de facturas 🍩 ¡y se pone ENORME! (recibe la mitad de daño 2 turnos)", facturas:true },
-  { dmg:[8,14],  txt:"El Gordo te tira un panzazo sísmico 🫃💥" },
-  { dmg:[10,16], txt:"El Gordo suelta un eructo nivel 9000 🤢" },
-  { dmg:[12,20], txt:"El Gordo hace el Choripán Kamehameha 🌭🔥" },
-  { dmg:[0,0],   txt:"El Gordo se distrae pidiendo una pizza 🍕 (no hace nada)" },
-  { heal:[15,25],txt:"El Gordo se come un asado entero y recupera vida 🥩" },
-  { dmg:[18,26], txt:"El Gordo se sienta encima de Goku 😵", hungry:true },
-];
-const ZAS = ["¡ZAS!","¡PUM!","¡CRACK!","¡BOOM!","¡PAF!"];
-let s;
-const $ = id => document.getElementById(id);
-const rnd = ([a,b]) => a + Math.floor(Math.random()*(b-a+1));
-const pick = a => a[Math.floor(Math.random()*a.length)];
-
-// IA gratis (Pollinations, sin clave). Si falla, usa frases locales.
-const FRASES = ["¡Ese golpe me hizo cosquillas, Kakaroto!","Pará que termino el choripán y te fajo.","¿Eso es todo? Mi abuela pega más fuerte.","Después de esta me pido una muzza grande 🍕","¡Te voy a aplastar como milanesa!"];
-let hablando = false;
-async function hablaGordo(situacion) {
-  if (hablando) return; hablando = true;
-  const el = $("habla-txt"); el.textContent = "pensando... 🤔";
-  const prompt = `Sos "El Gordo", un personaje argentino gracioso y bonachón que pelea contra Goku en un juego. Situación: ${situacion}. Respondé con UNA sola frase corta (máximo 15 palabras) de trash talk gracioso, en español rioplatense, con referencias a comida. Sin insultos fuertes. Solo la frase.`;
-  try {
-    const ctrl = new AbortController(); setTimeout(()=>ctrl.abort(), 8000);
-    const r = await fetch("https://text.pollinations.ai/" + encodeURIComponent(prompt) + "?model=openai&seed=" + Math.floor(Math.random()*1e6), { signal: ctrl.signal });
-    if (!r.ok) throw 0;
-    const t = (await r.text()).trim().replace(/^"|"$/g,"").slice(0,160);
-    if (!t) throw 0;
-    el.textContent = t;
-  } catch (e) { el.textContent = pick(FRASES); }
-  hablando = false;
-}
-// ---- AGENTES DE IA GRATIS (Pollinations, sin clave) ----
-async function ia(prompt, ms=7000, json=false) {
-  const ctrl = new AbortController(); const t = setTimeout(()=>ctrl.abort(), ms);
-  try {
-    const r = await fetch("https://text.pollinations.ai/" + encodeURIComponent(prompt) + "?model=openai" + (json?"&json=true":"") + "&seed=" + Math.floor(Math.random()*1e6), { signal: ctrl.signal });
-    if (!r.ok) throw 0; return (await r.text()).trim();
-  } finally { clearTimeout(t); }
-}
-// Agente 1: el cerebro del Gordo elige su jugada y lo que dice
-async function cerebroGordo() {
-  const lista = GORDO.map((g,i)=>`${i}: ${g.txt}`).join("\n");
-  const prompt = `Sos el cerebro de "El Gordo", personaje argentino gracioso que pelea contra Goku. Estado: Goku ${s.goku}/100 vida (${s.ssj?"es Super Saiyajin":"normal"}, ki ${s.ki}), El Gordo ${s.gordo}/130 vida, hambre ${s.hambre}/100. Última jugada: ${$("log").firstChild?.textContent||"ninguna"}.
-Jugadas posibles:\n${lista}
-Elegí la jugada más astuta (si tenés poca vida conviene curarte; si Goku está débil, atacá fuerte). Respondé SOLO un JSON así: {"jugada": numero, "frase": "trash talk corto rioplatense con comida, máx 15 palabras"}`;
-  $("habla-txt").textContent = "pensando la jugada... 🤔";
-  try {
-    const t = await ia(prompt, 6000, true);
-    const j = JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}")+1));
-    const n = parseInt(j.jugada);
-    if (j.frase) $("habla-txt").textContent = String(j.frase).slice(0,160);
-    if (n>=0 && n<GORDO.length) return GORDO[n];
-  } catch (e) { $("habla-txt").textContent = pick(FRASES); }
-  return pick(GORDO);
-}
-// Agente 2: el Maestro Roshi te aconseja
-async function consejoRoshi() {
-  const b=$("btn-roshi"), el=$("roshi-txt"); b.disabled=true; el.textContent="El Maestro Roshi está pensando... 🐢";
-  const libres = Object.keys(MOVES).filter(k => !s.usado[k] && !(MOVES[k].ki>0 && s.ki<MOVES[k].ki)).map(k=>`${k}: ${MOVES[k].txt} (cuesta ${Math.max(0,MOVES[k].ki)} ki)`).join("\n");
-  const prompt = `Sos el Maestro Roshi de Dragon Ball, viejito sabio y chistoso. Aconsejale a Goku qué hacer en su pelea contra "El Gordo". Estado: Goku ${s.goku}/100 vida, ki ${s.ki}${s.ssj?", Super Saiyajin":""}. El Gordo ${s.gordo}/130 vida, hambre ${s.hambre}/100 (al llegar a 100 hace un ataque furioso)${s.escudo?", tiene escudo de facturas":""}.
-Jugadas disponibles:\n${libres}
-Respondé en español rioplatense, máximo 25 palabras: qué jugada usar y por qué, con un chiste.`;
-  try { el.textContent = "🐢 " + (await ia(prompt, 9000)).slice(0,220); }
-  catch (e) { el.textContent = "🐢 " + (s.ki>=50 ? "¡Tirale un Kamehameha, muchacho!" : s.goku<40 && !s.usado.semilla ? "Comete la semilla, que estás hecho bolsa." : "Cargá ki, Goku. La paciencia es la madre de la victoria... y de las siestas."); }
-  b.disabled=false;
-}
-function situacion() { return `Goku tiene ${s.goku} de vida, El Gordo tiene ${s.gordo}. Última jugada: ${$("log").firstChild?.textContent || "empieza la pelea"}`; }
-// ---- DRAMA ----
-const espera = ms => new Promise(r=>setTimeout(r,ms));
-function temblor() { document.body.classList.remove("temblor"); void document.body.offsetWidth; document.body.classList.add("temblor"); }
-function flash(c="#fff") { const f=$("flash"); f.style.background=c; f.style.transition="none"; f.style.opacity=.85; requestAnimationFrame(()=>{ f.style.transition="opacity .5s"; f.style.opacity=0; }); }
-function numero(id, txt, cura) { const r=$(id).getBoundingClientRect(), n=document.createElement("div");
-  n.className="num"+(cura?" cura":""); n.textContent=txt; n.style.left=(r.left+r.width/2-30)+"px"; n.style.top=(r.top)+"px";
-  document.body.appendChild(n); setTimeout(()=>n.remove(),1200); }
-function narrar(t) { const n=$("narrador"); n.textContent=t; n.classList.remove("ver"); void n.offsetWidth; n.classList.add("ver"); }
-function vineta() { $("vineta").classList.toggle("peligro", s.goku>0 && s.goku<=30); }
-function rayo(dir) { const r=$("rayo"); r.style.transform = dir<0 ? "scaleX(-1)" : ""; r.style.transformOrigin="left";
-  if (dir<0) { r.style.left="auto"; r.style.right="0"; r.style.transformOrigin="right"; r.style.transform=""; } else { r.style.left="0"; r.style.right="auto"; }
-  r.classList.remove("dispara"); void r.offsetWidth; r.classList.add("dispara"); }
-async function intro() {
-  s.busy=true; render();
-  for (const t of ["3","2","1","¡¡PELEEN!!"]) { narrar(t); beep(t.length>1?990:520); await espera(t.length>1?1100:700); }
-  s.busy=false; render();
-}
-function chispas(id, color="#ffd400", n=16) { const r=$(id).getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
-  for (let i=0;i<n;i++) { const p=document.createElement("div"), a=Math.random()*6.28, d=60+Math.random()*90;
-    p.className="part"; p.style.left=cx+"px"; p.style.top=cy+"px"; p.style.background=pick([color,"#fff","#ff6a00"]);
-    p.style.setProperty("--x",Math.cos(a)*d+"px"); p.style.setProperty("--y",Math.sin(a)*d+"px");
-    document.body.appendChild(p); setTimeout(()=>p.remove(),750); } }
-function confeti() { for (let i=0;i<60;i++) setTimeout(()=>{ const p=document.createElement("div");
-  p.className="part"; p.style.left=Math.random()*innerWidth+"px"; p.style.top="-10px"; p.style.background=pick(["#ffd400","#ff3b3b","#3ddc5a","#3fb6ff","#c86bff"]);
-  p.style.animationDuration="2s"; p.style.setProperty("--x",(Math.random()*100-50)+"px"); p.style.setProperty("--y",innerHeight+"px");
-  document.body.appendChild(p); setTimeout(()=>p.remove(),2100); }, i*30); }
-function reset() {
-  s = { goku:100, gordo:130, ki:20, hambre:0, busy:false, ssj:false, turnoGordo:false, usado:{}, mate:false, escudo:0, cambio:false };
-  $("av-gordo").style.fontSize=""; $("av-gordo").textContent="🫃";
-  $("av-goku").textContent="🥋"; $("av-goku").classList.remove("ssj","muerto","gana"); $("av-gordo").classList.remove("muerto","gana");
-  $("log").innerHTML = "";
-  $("final").style.display = "none";
-  log("🔔 ¡Arranca la pelea del siglo!");
-  render();
-  vineta(); intro();
-  hablaGordo("empieza la pelea, provocá a Goku");
-}
-function log(t) { const p=document.createElement("p"); p.textContent=t; $("log").prepend(p); }
 function render() {
-  $("hp-goku").style.width = s.goku + "%";
-  $("hp-gordo").style.width = (s.gordo/130*100) + "%";
-  $("txt-goku").textContent = s.goku + " HP";
-  $("txt-gordo").textContent = s.gordo + " HP";
-  $("ki-goku").style.width = s.ki + "%";
-  $("ki-gordo").style.width = s.hambre + "%";
-  document.querySelectorAll("button[data-m]").forEach(b => {
-    const m = MOVES[b.dataset.m];
-    b.disabled = s.busy || s.turnoGordo || s.usado[b.dataset.m] || (m.ki > 0 && s.ki < m.ki);
-  });
-}
-function anim(id, cls) { const e=$(id); e.classList.remove(cls); void e.offsetWidth; e.classList.add(cls); setTimeout(()=>e.classList.remove(cls),950); }
-function beep(f) { try { const c=new (window.AudioContext||window.webkitAudioContext)(), o=c.createOscillator(), g=c.createGain();
-  o.frequency.value=f; o.type="square"; g.gain.value=.05; o.connect(g); g.connect(c.destination); o.start();
-  g.gain.exponentialRampToValueAtTime(.0001, c.currentTime+.25); o.stop(c.currentTime+.3); } catch(e){} }
-
-async function turno(key) {
-  if (s.busy) return;
-  const m = MOVES[key];
-  s.busy = true; s.ki = Math.min(100, s.ki - m.ki); render();
-  if (ITEMS[key]) {
-    s.usado[key] = true; log("✨ " + m.txt);
-    if (key=="semilla") { const h=100-s.goku; s.goku=100; numero("av-goku","+"+h,true); narrar("¡¡VIDA AL MÁXIMO!!"); flash("#3ddc5a"); }
-    else { s.mate=true; narrar("¡¡DOBLE ATAQUE!!"); flash("#7bd04a"); }
-    beep(990); vineta(); render(); await espera(1200); s.busy=false; render(); return;
+  document.querySelectorAll("[data-d]").forEach(b => b.classList.toggle("on", b.dataset.d === AJUSTES.dificultad));
+  const snd = document.getElementById("snd");
+  snd.textContent = AJUSTES.sonido ? "🔊 Activado" : "🔇 Apagado"; snd.classList.toggle("on", AJUSTES.sonido);
+  for (const j of ["pelea", "cartas"]) {
+    const r = AJUSTES.record(j);
+    document.getElementById("rec-" + j).textContent = r.g + r.p ? `🏆 ${r.g} ganadas · 💀 ${r.p} perdidas` : "Todavía no jugaste";
   }
-  const veces = s.mate ? 2 : 1; s.mate = false;
-  for (let v=0; v<veces; v++) {
-  if (v) { narrar("¡¡OTRA VEZ!!"); await espera(500); }
-  if (key=="kame" || key=="genki") {
-    narrar(key=="kame" ? "KAAA... MEEE... HAAA... MEEE..." : "¡¡ENERGÍA DEL UNIVERSO!!");
-    for (let i=0;i<6;i++){ beep(300+i*120); await espera(220); }
-    narrar(key=="kame" ? "¡¡HAAAAAAA!!" : "¡¡GENKIDAMA!!");
-    if (key=="genki") { const b=$("bola"); b.classList.remove("cae"); void b.offsetWidth; b.classList.add("cae"); await espera(900); flash("#9fe8ff"); }
-    else { rayo(1); flash("#fff"); await espera(400); }
-  }
-  if (m.dmg[1]) { anim("av-goku","dash-der"); await espera(200); }
-  if (m.dmg[1]) {
-    let d = rnd(m.dmg);
-    const crit = Math.random() < .15;
-    if (crit) d = Math.round(d*1.5);
-    if (s.ssj) d = Math.round(d*1.5);
-    if (Math.random() < .1) { log("😂 " + m.txt + "... ¡pero El Gordo lo esquiva rodando!"); narrar("¡¡LO ESQUIVÓ!!"); anim("av-gordo","esquiva"); numero("av-gordo","MISS"); }
-    else {
-      if (s.escudo>0) d = Math.ceil(d/2);
-      s.gordo = Math.max(0, s.gordo - d);
-      anim("av-gordo","hit"); chispas("av-gordo", crit?"#ff3b3b":"#ffd400", crit?30:16); beep(crit?880:440); temblor();
-      numero("av-gordo", "-"+d);
-      if (crit) { narrar("¡¡CRÍTICO!!"); flash("#ffd400"); }
-      else if (d>=30) narrar(pick(["¡¡INCREÍBLE!!","¡¡DEVASTADOR!!","¡¡QUÉ PODER!!"]));
-      log(`${pick(ZAS)} ${m.txt} → -${d}${crit?" 💥CRÍTICO":""}`);
-    }
-  } else { log("⚡ " + m.txt); beep(660); flash("#ffd40088"); anim("av-goku","carga"); chispas("av-goku","#ffd400",24); }
-  render();
-  if (s.gordo<=0) break;
-  if (v+1<veces) await espera(700);
-  }
-  if (s.gordo>0 && s.gordo<=25) narrar("¡¡EL GORDO ESTÁ AL LÍMITE!!");
-  if (fin()) return;
-  await espera(1300);
-  gordoTurno();
 }
-// ---- EVENTOS LOCOS ----
-const EVENTOS = [
-  async () => { narrar("☄️ ¡¡METEORITO!! ☄️"); flash("#ff8800"); temblor(); const d=rnd([5,12]);
-    s.goku=Math.max(1,s.goku-d); s.gordo=Math.max(1,s.gordo-d); numero("av-goku","-"+d); numero("av-gordo","-"+d);
-    log(`☄️ Cae un meteorito en la arena y lastima a los dos → -${d}`); },
-  async () => { narrar("🛵 ¡¡DELIVERY!!"); const h=rnd([10,20]); s.gordo=Math.min(130,s.gordo+h); numero("av-gordo","+"+h,true);
-    log(`🛵 Llega el delivery con una pizza para El Gordo → +${h}`); },
-  async () => { narrar("👵 ¡¡LA MAMÁ DEL GORDO!!"); s.hambre=0;
-    log("👵 Aparece la mamá del Gordo: \"¡¿Otra vez peleando?! ¡A dieta!\" (se le vacía el hambre)"); },
-  async () => { narrar("🐉 ¡¡SHENRON!!"); flash("#3ddc5a"); s.ki=100;
-    log("🐉 Aparece Shenron, se aburre y le llena el ki a Goku"); },
-  async () => { narrar("🐔 ¡¡UNA GALLINA!!"); log("🐔 Una gallina cruza la arena. Los dos se quedan mirándola. No pasa nada."); },
-  async () => { narrar("🔄 ¡¡CAMBIO DE CUERPOS!!"); flash("#c86bff"); const a=$("av-goku").textContent;
-    $("av-goku").textContent=$("av-gordo").textContent; $("av-gordo").textContent=a;
-    log("🔄 El Capitán Ginyu pasa y cambia los cuerpos... por un turno"); s.cambio=true; },
-  async () => { narrar("🌧️ ¡¡LLUEVEN EMPANADAS!!"); const h=rnd([5,10]); s.goku=Math.min(100,s.goku+h); s.gordo=Math.min(130,s.gordo+h*2);
-    numero("av-goku","+"+h,true); numero("av-gordo","+"+h*2,true); log(`🥟 Llueven empanadas. Goku come ${h}, El Gordo come el doble.`); },
-  async () => { narrar("💃 ¡¡CUMBIA!!"); for(let i=0;i<6;i++){ beep([523,659,784,659][i%4]); temblor(); await espera(180); }
-    log("💃 Suena una cumbia y los dos se ponen a bailar. No pasa nada, pero la pasaron bárbaro."); },
-];
-async function eventoLoco() {
-  if (s.cambio) { const a=$("av-goku").textContent; $("av-goku").textContent=$("av-gordo").textContent; $("av-gordo").textContent=a; s.cambio=false; log("🔄 Los cuerpos vuelven a la normalidad."); }
-  if (Math.random() > .22) return;
-  await pick(EVENTOS)(); render(); vineta(); await espera(1300);
-}
-async function gordoTurno() {
-  let a = await cerebroGordo();
-  s.hambre = Math.min(100, s.hambre + 20);
-  if (s.hambre >= 100) {
-    s.hambre = 0;
-    a = { dmg:[28,38], txt:"🍔🍕🌭 ¡MODO GORDO FURIOSO! El Gordo hace la AVALANCHA DE MILANESAS", furia:true };
-    render(); narrar("⚠️ MODO GORDO FURIOSO ⚠️"); flash("#ff2a00");
-    for (let i=0;i<4;i++){ beep(150); temblor(); await espera(300); }
-  }
-  if (s.escudo>0 && --s.escudo==0) { $("av-gordo").style.fontSize=""; log("🍩 Al Gordo se le bajaron las facturas."); }
-  if (!a.heal && !a.facturas && a.dmg && a.dmg[1]) { anim("av-gordo","dash-izq"); await espera(200); }
-  if (a.facturas) { s.escudo=2; $("av-gordo").style.fontSize="clamp(90px,26vw,160px)"; narrar("¡¡EL GORDO CRECIÓ!!"); temblor(); beep(120); log(a.txt); }
-  else if (a.heal) { const h=rnd(a.heal); s.gordo=Math.min(130,s.gordo+h); numero("av-gordo","+"+h,true); log(`${a.txt} → +${h}`); }
-  else if (a.dmg[1]) {
-    const d=rnd(a.dmg); s.goku=Math.max(0,s.goku-d);
-    if (a.furia) rayo(-1);
-    if (a.fuego) { rayo(-1); flash("#ff6a00"); narrar("¡¡FUEGO PICANTE!!"); }
-    anim("av-goku","hit"); chispas("av-goku", a.fuego||a.furia?"#ff6a00":"#3fb6ff"); beep(220); temblor(); numero("av-goku","-"+d);
-    if (d>=25) { flash("#ff0000"); narrar("¡¡GOKU ESTÁ EN PROBLEMAS!!"); }
-    log(`${a.txt} → -${d}`);
-  }
-  else log(a.txt);
-  s.ki = Math.min(100, s.ki + 5);
-  render(); vineta();
-  if (fin()) return;
-  await eventoLoco();
-  if (fin()) return;
-  await checkSSJ();
-  s.busy = false; render();
-}
-async function checkSSJ() {
-  if (s.ssj || s.goku > 35) return;
-  s.ssj = true;
-  narrar("¿¡QUÉ ESTÁ PASANDO!?"); for (let i=0;i<5;i++){ temblor(); beep(200+i*150); await espera(350); }
-  flash("#ffe600"); narrar("¡¡SUPER SAIYAJIN!!");
-  s.goku = Math.min(100, s.goku + 25); s.ki = 100;
-  $("av-goku").textContent = "😡"; $("av-goku").classList.add("ssj");
-  log("💛⚡ ¡¡GOKU SE TRANSFORMÓ EN SUPER SAIYAJIN!! (+25 HP, ki al máximo, daño x1.5)");
-  [440,660,880,1100].forEach((f,i)=>setTimeout(()=>beep(f),i*120));
-  render(); vineta(); await espera(1200);
-}
-function fin() {
-  if (s.gordo > 0 && s.goku > 0) return false;
-  const gana = s.gordo <= 0;
-  $("final-txt").innerHTML = gana
-    ? "🏆 ¡GANÓ GOKU!<br><small>El Gordo se fue a comer un pancho para consolarse 🌭</small>"
-    : "🍔 ¡GANÓ EL GORDO!<br><small>Goku quedó aplastado. Se viene la revancha 😤</small>";
-  narrar(gana ? "¡¡K.O.!!" : "¡¡GOKU CAYÓ!!"); flash(); temblor(); vineta();
-  $(gana?"av-gordo":"av-goku").classList.add("muerto"); $(gana?"av-goku":"av-gordo").classList.add("gana"); confeti();
-  $("vineta").classList.remove("peligro");
-  setTimeout(()=>{ $("final").style.display = "flex"; }, 1500);
-  hablaGordo(gana ? "El Gordo perdió la pelea, lamentate gracioso" : "El Gordo ganó la pelea, festejá");
-  s.busy = true; render();
-  return true;
-}
-document.querySelectorAll("button[data-m]").forEach(b => b.onclick = () => turno(b.dataset.m));
-$("btn-roshi").onclick = consejoRoshi;
-reset();
+document.querySelectorAll("[data-d]").forEach(b => b.onclick = () => { AJUSTES.dificultad = b.dataset.d; render(); });
+document.getElementById("snd").onclick = () => { AJUSTES.sonido = !AJUSTES.sonido; render(); };
+document.getElementById("borrar").onclick = () => { try { localStorage.removeItem("record-pelea"); localStorage.removeItem("record-cartas"); } catch (e) {} render(); };
+render();
 </script>
 </body>
 </html>
