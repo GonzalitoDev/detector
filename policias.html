@@ -300,6 +300,41 @@ const TAQUILLAS = { x: DEPTO.x1 + 2.5, z: DEPTO.z1 + 1.6 }, ARMERIA = { x: DEPTO
   const c1 = cartel("👕 TAQUILLAS", "#3b5b7a"); c1.scale.set(3, .75, 1); c1.position.set(TAQUILLAS.x, 2.8, D.z1 + 1); escena.add(c1);
   const c2 = cartel("🔫 ARMERÍA", "#2d2d2d"); c2.scale.set(3, .75, 1); c2.position.set(ARMERIA.x, 2.1, D.z1 + 1); escena.add(c2);
   const c3 = cartel("🚔 DEPARTAMENTO DE POLICÍA", "#0f1d36"); c3.scale.set(10, 2.5, 1); c3.position.set((D.x1 + D.x2) / 2, D.alto + 2.4, (D.z1 + D.z2) / 2); escena.add(c3);
+  // Escudo policial (diseño propio, al estilo Policía de la Ciudad; no es el escudo oficial)
+  function dibujarEscudo(c, cx, cy, r) {
+    c.save(); c.translate(cx, cy);
+    const forma = k => { c.beginPath(); c.moveTo(-r * k, -r * k); c.lineTo(r * k, -r * k); c.lineTo(r * k, r * .25 * k); c.quadraticCurveTo(r * k, r * .85 * k, 0, r * 1.15 * k); c.quadraticCurveTo(-r * k, r * .85 * k, -r * k, r * .25 * k); c.closePath(); };
+    forma(1); c.fillStyle = "#d4af37"; c.fill();                     // borde dorado
+    forma(.86); c.fillStyle = "#0f1d36"; c.fill();                   // fondo azul
+    c.save(); forma(.86); c.clip(); c.fillStyle = "#5ec8f2"; c.fillRect(-r, -r * .1, r * 2, r * .35); c.restore();   // franja celeste
+    c.fillStyle = "#ffffff"; c.beginPath();                          // estrella
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * .2 : r * .48; c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr - r * .1); }
+    c.closePath(); c.fill();
+    c.fillStyle = "#d4af37"; c.font = `bold ${r * .26}px system-ui`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("POLICÍA", 0, r * .62);
+    c.restore();
+  }
+  // Cartel de la fachada con el escudo y el nombre
+  const texFachada = textura((c, w, h) => {
+    c.fillStyle = "#0f1d36"; c.fillRect(0, 0, w, h);
+    c.fillStyle = "#5ec8f2"; c.fillRect(0, h - 22, w, 10); c.fillStyle = "#ffffff"; c.fillRect(0, h - 12, w, 12);
+    dibujarEscudo(c, 110, h / 2 - 8, 70);
+    c.fillStyle = "#ffffff"; c.textAlign = "left"; c.textBaseline = "middle";
+    c.font = "bold 62px system-ui"; c.fillText("DEPARTAMENTO", 215, h / 2 - 40);
+    c.font = "bold 62px system-ui"; c.fillText("DE POLICÍA", 215, h / 2 + 26);
+    c.fillStyle = "#5ec8f2"; c.font = "bold 26px system-ui"; c.fillText("POLICÍA DE LA CIUDAD", 218, h / 2 + 76);
+  }, 1024, 256);
+  const fachada = new THREE.Mesh(new THREE.PlaneGeometry(9, 2.25), new THREE.MeshBasicMaterial({ map: texFachada }));
+  fachada.position.set(D.cx, D.alto - 1, D.z2 + .03); escena.add(fachada);     // arriba de la puerta, mirando a la calle
+  // Escudo grande en el costado del edificio que da a la ciudad
+  const texEscudo = textura((c, w, h) => dibujarEscudo(c, w / 2, h / 2 - 10, w * .4), 256, 256);
+  const escudoLado = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6), new THREE.MeshBasicMaterial({ map: texEscudo, transparent: true }));
+  escudoLado.position.set(D.x2 + .03, D.alto / 2 + .3, D.cz); escudoLado.rotation.y = Math.PI / 2; escena.add(escudoLado);
+  // Mástil con bandera celeste y blanca
+  const mastil = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 7, 8), new THREE.MeshLambertMaterial({ color: 0xcccccc })); mastil.position.set(D.x2 + 1.5, 3.5, D.z2 + 1.5); escena.add(mastil);
+  const texBandera = textura((c, w, h) => { c.fillStyle = "#74acdf"; c.fillRect(0, 0, w, h); c.fillStyle = "#fff"; c.fillRect(0, h / 3, w, h / 3);
+    c.fillStyle = "#f6b40e"; c.beginPath(); c.arc(w / 2, h / 2, h / 9, 0, 7); c.fill(); }, 192, 128);
+  const bandera = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.2), new THREE.MeshBasicMaterial({ map: texBandera, side: THREE.DoubleSide }));
+  bandera.position.set(D.x2 + 2.45, 6.3, D.z2 + 1.5); escena.add(bandera);
 }
 // Lancha en el muelle
 { const l = new THREE.Group(); const casco = new THREE.Mesh(new THREE.BoxGeometry(2.2, .7, 5), new THREE.MeshLambertMaterial({ color: 0xf2f2f2 })); casco.position.y = .35; l.add(casco);
