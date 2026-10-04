@@ -76,6 +76,8 @@
   @media (max-height: 420px) { body.tactil #hud { font-size:12px; } body.tactil #reloj { font-size:20px; } }
   body.tactil #b-rec { display:none; } body.tactil.armado #b-rec, body.tactil.swat #b-rec, body.tactil.halcon #b-rec { display:block; }
   #tiempos button { padding:6px 12px; border-radius:10px; border:2px solid #ffffff33; background:#ffffff14; color:#fff; font-weight:800; cursor:pointer; }
+  #modo-imagen button { padding:6px 12px; border-radius:10px; border:2px solid #ffffff33; background:#ffffff14; color:#fff; font-weight:800; cursor:pointer; }
+  #modo-imagen button.on { border-color:#ffd400; background:#ffd40033; }
   #cant-bots button { padding:6px 12px; border-radius:10px; border:2px solid #ffffff33; background:#ffffff14; color:#fff; font-weight:800; cursor:pointer; }
   #cant-bots button.on { border-color:#ffd400; background:#ffd40033; }
   #tiempos button.on { border-color:#ffd400; background:#ffd40033; }
@@ -233,6 +235,8 @@
     </div>
     <div id="tiempos" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:10px;font-size:14px;align-items:center">⏱️ Práctica:
       <button data-t="240">4 min</button><button data-t="600">10 min</button><button data-t="0" class="on">♾️ Sin límite</button></div>
+    <div id="modo-imagen" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:8px;font-size:14px;align-items:center">🖼️ Imagen:
+      <button data-img="nitida">✨ Nítida</button><button data-img="auto">⚖️ Automática</button><button data-img="rapida">⚡ Rápida</button></div>
     <div id="cant-bots" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:8px;font-size:14px;align-items:center">🤖 Bots:
       <button data-b="4">4</button><button data-b="6" class="on">6</button><button data-b="10">10</button></div>
     <div style="display:flex;gap:8px;justify-content:center;margin-top:10px"><input id="cod" maxlength="4" placeholder="CÓDIGO"><button class="g" id="unirse">🚪 Unirse</button></div>
@@ -354,7 +358,10 @@ const BOLSAS = Array.from({ length: 10 }, (_, i) => { const a = i / 10 * Math.PI
 // Rendimiento: en celulares se dibuja a menor resolución y sin antialias; además la calidad baja sola si los FPS caen
 const ES_TACTIL = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 const renderer = new THREE.WebGLRenderer({ antialias: !ES_TACTIL, powerPreference: "high-performance" });
-let calidad = Math.min(ES_TACTIL ? 1.25 : 1.5, devicePixelRatio);
+// Modo de imagen (se guarda en el teléfono): "nitida" = resolución completa, "auto" = baja solo si se traba mucho, "rapida" = prioriza fluidez
+let modoImagen = "auto"; try { modoImagen = localStorage.getItem("polis-imagen") || "auto"; } catch (e) {}
+const RES_MAX = Math.min(2, devicePixelRatio), RES_MIN = { nitida: RES_MAX, auto: Math.min(RES_MAX, ES_TACTIL ? 1.5 : 1), rapida: 1 };
+let calidad = modoImagen === "rapida" ? 1 : RES_MAX;
 renderer.setPixelRatio(calidad); renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = false;
 document.body.prepend(renderer.domElement);
@@ -2275,13 +2282,15 @@ for (const id of ["pista", "reloj", "rol", "botin", "equipos", "velocimetro", "l
     Object.defineProperty(el, prop, { configurable: true, get() { return d.get.call(this); }, set(v) { if (this["_" + prop] !== v) { this["_" + prop] = v; d.set.call(this, v); } } }); }
 }
 // Calidad automática: si los FPS bajan, se dibuja a menos resolución; si sobran, sube de a poco
-const FPS = { acum: 0, n: 0, max: calidad };
+// (antes bajaba hasta 0,6 de resolución y en los teléfonos se veía pixelado; ahora nunca baja del mínimo del modo elegido)
+const FPS = { acum: 0, n: 0 };
 function ajustarCalidad(dt) {
-  FPS.acum += dt; FPS.n++; if (FPS.acum < 2) return;
+  FPS.acum += dt; FPS.n++; if (FPS.acum < 3) return;
   const fps = FPS.n / FPS.acum; FPS.acum = 0; FPS.n = 0;
-  const antes = calidad;
-  if (fps < 40 && calidad > .6) calidad = Math.max(.6, calidad - .15);
-  else if (fps > 57 && calidad < FPS.max) calidad = Math.min(FPS.max, calidad + .05);
+  const antes = calidad, min = RES_MIN[modoImagen] || 1, max = modoImagen === "rapida" ? 1 : RES_MAX;
+  if (fps < 28 && calidad > min) calidad = Math.max(min, calidad - .25);
+  else if (fps > 50 && calidad < max) calidad = Math.min(max, calidad + .25);
+  else if (calidad < min) calidad = min;
   if (calidad !== antes) renderer.setPixelRatio(calidad);
 }
 function loop(t) {
@@ -2504,6 +2513,10 @@ function nuevaRondaLibre() {
   for (const s of Object.values(jug)) if (s.equipo === "ladron") { s.preso = false; s.res = 100; const l = lugarLibre(ZONAS.guarida, 8); s.x = s.tx = l.x; s.z = s.tz = l.z; }
   feed("🔄 Nueva ronda: los ladrones se escaparon de la cárcel");
 }
+document.querySelectorAll("#modo-imagen [data-img]").forEach(b => { b.classList.toggle("on", b.dataset.img === modoImagen);
+  b.onclick = () => { modoImagen = b.dataset.img; try { localStorage.setItem("polis-imagen", modoImagen); } catch (e) {}
+    calidad = modoImagen === "rapida" ? 1 : RES_MAX; renderer.setPixelRatio(calidad);
+    document.querySelectorAll("#modo-imagen [data-img]").forEach(x => x.classList.toggle("on", x === b)); }; });
 let cantBots = 6;
 document.querySelectorAll("#cant-bots [data-b]").forEach(b => b.onclick = () => { cantBots = +b.dataset.b; document.querySelectorAll("#cant-bots [data-b]").forEach(x => x.classList.toggle("on", x === b)); });
 let rondaEspera = 0, tiempoPractica = 0, libre = false, rondas = { poli: 0, ladron: 0 };   // 0 = práctica sin límite
