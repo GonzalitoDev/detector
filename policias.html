@@ -76,6 +76,18 @@
   #velocimetro { position:fixed; right:16px; bottom:16px; z-index:5; font-weight:900; font-size:28px; text-shadow:0 2px 4px #000; display:none; pointer-events:none;
                  background:#000a; border:2px solid #3b6bff; border-radius:14px; padding:6px 14px; }
   body.tactil #velocimetro { bottom:150px; }
+  #panelSirena { position:fixed; left:12px; top:96px; z-index:6; background:#0b1222ee; border:2px solid #3b6bff; border-radius:14px; padding:8px; width:260px; display:none; font-size:12px; }
+  #panelSirena.on { display:block; }
+  .ps-tit { font-weight:900; text-align:center; margin-bottom:6px; letter-spacing:1px; }
+  .ps-sub { opacity:.7; margin:6px 0 3px; }
+  .ps-fila { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:4px; }
+  .ps-fila button { flex:1; min-width:46px; background:#1b2540; color:#fff; border:1px solid #2e3b60; border-radius:8px; padding:6px 4px; font-size:12px; font-weight:800; cursor:pointer; }
+  .ps-fila button.on { background:#3b6bff; border-color:#8fb0ff; }
+  .ps-fila button.on[data-ps="luces"] { background:linear-gradient(90deg,#d01818,#1840d0); }
+  #panelSirena kbd { font-size:10px; opacity:.6; font-family:inherit; }
+  body.tactil #panelSirena kbd { display:none; }
+  #megafono { position:fixed; left:0; right:0; top:22%; text-align:center; z-index:7; pointer-events:none; font-size:clamp(20px,5vw,38px); font-weight:900; color:#fff;
+              text-shadow:0 0 12px #3b6bff, 0 3px 0 #000; opacity:0; transition:opacity .4s; }
   body.tactil .stick, body.tactil #b-accion { display:block; }
 </style>
 </head>
@@ -93,10 +105,20 @@
     <button class="g" id="tq-ok" style="width:100%;margin-top:14px">✅ Listo</button>
   </div>
 </div>
+<div id="megafono"></div>
 <div id="mira"></div><div id="pista"></div><div id="grande"></div><div id="feed"></div>
 <div id="sirena"></div><div id="rejas"></div>
 <div class="stick" id="stick"><b></b></div><button id="b-accion">🚔</button><button id="b-auto">🚓</button><button id="b-cam">🎥</button>
-<div id="velocimetro"></div><div id="municion"></div><div id="resistencia"><div></div></div><div id="golpe"></div><div id="linterna-txt"></div><div id="granadas"></div><button id="b-granada">💣</button><div id="flashbang"></div><div id="aturdido">😵 ¡ATURDIDO!</div>
+<div id="velocimetro"></div>
+<div id="panelSirena">
+  <div class="ps-tit">🚨 PANEL DE SIRENAS</div>
+  <div class="ps-fila"><button data-ps="luces">🚨 Luces <kbd>H</kbd></button><button data-ps="sonido">🔊 Sonido <kbd>J</kbd></button></div>
+  <div class="ps-sub">Tono <kbd>T</kbd></div>
+  <div class="ps-fila"><button data-tono="wail">Wail</button><button data-tono="yelp">Yelp</button><button data-tono="hilo">Hi-Lo</button><button data-tono="phaser">Phaser</button></div>
+  <div class="ps-sub">Luces <kbd>P</kbd></div>
+  <div class="ps-fila"><button data-patron="alterno">Alternado</button><button data-patron="rapido">Rápido</button><button data-patron="todas">Todas</button><button data-patron="crucero">Crucero</button></div>
+  <div class="ps-fila"><button data-ps="bocina">📯 Bocina <kbd>B</kbd></button><button data-ps="megafono">📢 Megáfono <kbd>M</kbd></button></div>
+</div><div id="municion"></div><div id="resistencia"><div></div></div><div id="golpe"></div><div id="linterna-txt"></div><div id="granadas"></div><button id="b-granada">💣</button><div id="flashbang"></div><div id="aturdido">😵 ¡ATURDIDO!</div>
 
 <div class="pantalla" id="menu">
   <h1>🚓 POLIS Y LADRONES 💰</h1>
@@ -116,7 +138,7 @@
     </div>
     <div style="display:flex;gap:8px;justify-content:center;margin-top:10px"><input id="cod" maxlength="4" placeholder="CÓDIGO"><button class="g" id="unirse">🚪 Unirse</button></div>
     <p id="msg" style="color:#ff8a8a;margin:8px 0 0"></p>
-    <p style="opacity:.7;font-size:13px;margin:10px 0 0">Compu: WASD para moverte, mouse para mirar (hacé click para capturar el mouse), Shift para correr, click o E para atrapar o liberar. Los polis suben y bajan del patrullero con F (H prende la sirena). L prende la linterna. Grupo Halcón: G granada aturdidora, N visión nocturna. C cambia la cámara (primera persona, tercera persona o aérea). En el 🚔 Departamento de Policía: taquillas para elegir división y uniforme, y armería para recargar. SWAT: click sostenido para disparar, R para recargar. Celu: joystick para moverte, arrastrá la pantalla para mirar, botón amarillo para la acción.</p>
+    <p style="opacity:.7;font-size:13px;margin:10px 0 0">Compu: WASD para moverte, mouse para mirar (hacé click para capturar el mouse), Shift para correr, click o E para atrapar o liberar. Los polis suben y bajan del patrullero con F. Adentro tenés el panel de sirenas: H luces, J sonido, T tono, P patrón de luces, B bocina, M megáfono. L prende la linterna. Grupo Halcón: G granada aturdidora, N visión nocturna. C cambia la cámara (primera persona, tercera persona o aérea). En el 🚔 Departamento de Policía: taquillas para elegir división y uniforme, y armería para recargar. SWAT: click sostenido para disparar, R para recargar. Celu: joystick para moverte, arrastrá la pantalla para mirar, botón amarillo para la acción.</p>
   </div>
 </div>
 
@@ -492,14 +514,14 @@ const autos = (() => {
 })();
 function resetAutos() { for (const a of autos) Object.assign(a, { x: a.x0, z: a.z0, tx: a.x0, tz: a.z0, h: 0, th: 0, vel: 0, conductor: null, sirena: true }); }
 let miAuto = null, sirenaT = 0, sirenaAlt = false, mirarAuto = 0;
-function subirAuto(a) {
+function subirAuto(a) { setTimeout(pintarPanel, 0);
   if (a.conductor || yo.equipo !== "poli" || yo.preso) return;
   if (a.tipo === "camioneta" && !ARMADO(yo.clase)) { grande("🚙 Solo para SWAT y Grupo Halcón", "#f2c200"); return; }
   a.conductor = yo.id; miAuto = a; yaw = a.h + Math.PI; pitch = -.05;
   enviar("auto", { i: a.i, quien: yo.id, sube: true });
   grande(a.tipo === "camioneta" ? "🚙 GRUPO ESPECIAL TÁCTICO" : a.tipo === "moto" ? "🏍️ ¡MOTORIZADA!" : "🚓 ¡A PATRULLAR!", a.tipo === "camioneta" ? "#f2c200" : "#5a8aff"); beep(500, .1); setTimeout(() => beep(800, .1), 120);
 }
-function bajarAuto() {
+function bajarAuto() { setTimeout(pintarPanel, 0);
   const a = miAuto; if (!a) return;
   for (const lado of [1, -1, 2, -2]) { const x = a.x + Math.cos(a.h) * 2 * lado, z = a.z - Math.sin(a.h) * 2 * lado; if (!choca(x, z)) { yo.x = x; yo.z = z; break; } }
   a.conductor = null; a.vel = 0; miAuto = null; yaw = a.h + Math.PI + mirarAuto; mirarAuto = 0;
@@ -521,15 +543,79 @@ function manejar(a, dt) {
   else { a.x = nx; a.z = nz; }
   yo.x = a.x; yo.z = a.z;
 }
+// ================== PANEL DE SIRENAS ==================
+const TONOS = ["wail", "yelp", "hilo", "phaser"], PATRONES = ["alterno", "rapido", "todas", "crucero"];
+const MEGAFONO = ["📢 ¡POLICÍA! ¡DETÉNGASE!", "📢 ¡MANOS ARRIBA!", "📢 ¡ESTÁ RODEADO, ENTRÉGUESE!", "📢 ¡CORRASE QUE PASO!", "📢 ¡ALTO, POLICÍA DE LA CIUDAD!"];
+let megaIdx = 0;
+// Qué luces están prendidas ahora según el patrón
+function fasesLuces(a, t) {
+  if (!a.conductor || !a.sirena) return { rojo: false, azul: false, fuerza: 0 };
+  const p = a.patron || "alterno";
+  if (p === "crucero") return { rojo: true, azul: true, fuerza: 1.2 };
+  if (p === "todas") { const on = Math.floor(t / 130) % 2 === 0; return { rojo: on, azul: on, fuerza: on ? 3.6 : 0 }; }
+  if (p === "rapido") { const c = t % 640; const r = c < 60 || (c > 120 && c < 180), z = (c > 320 && c < 380) || (c > 440 && c < 500); return { rojo: r, azul: z, fuerza: r || z ? 3.6 : 0 }; }
+  const f = Math.floor(t / 180) % 2; return { rojo: !!f, azul: !f, fuerza: 3.2 };
+}
+// Motor de sonido: un oscilador que cambia de frecuencia según el tono elegido
+let sirOsc = null, sirGan = null;
+function sonidoSirena(t) {
+  const activo = miAuto && miAuto.sirena && miAuto.sonido !== false && AJUSTES.sonido && jugando;
+  if (!activo) { if (sirGan) sirGan.gain.setTargetAtTime(0, sirGan.context.currentTime, .05); return; }
+  try {
+    if (!sirOsc) { const c = beep.c || (beep.c = new (window.AudioContext || window.webkitAudioContext)());
+      sirOsc = c.createOscillator(); sirGan = c.createGain(); sirOsc.type = "sawtooth"; sirGan.gain.value = 0; sirOsc.connect(sirGan); sirGan.connect(c.destination); sirOsc.start(); }
+    const tono = miAuto.tono || "wail"; let f;
+    if (tono === "wail") f = 700 + 600 * (.5 - .5 * Math.cos(2 * Math.PI * t / 3600));
+    else if (tono === "yelp") f = 700 + 600 * (.5 - .5 * Math.cos(2 * Math.PI * t / 330));
+    else if (tono === "hilo") f = Math.floor(t / 450) % 2 ? 960 : 720;
+    else f = 900 + 500 * Math.abs(Math.sin(t / 35));
+    const c = sirGan.context; sirOsc.frequency.setTargetAtTime(f, c.currentTime, .01); sirGan.gain.setTargetAtTime(.025, c.currentTime, .05);
+  } catch (e) {}
+}
+function bocina(x, z, mia) {
+  const d = Math.hypot(x - yo.x, z - yo.z); if (d > 45) return;
+  const v = Math.max(.01, .07 * (1 - d / 45));
+  beep(233, .6, "sawtooth", v); beep(294, .6, "sawtooth", v);
+  if (mia) enviar("bocina", { x: +x.toFixed(1), z: +z.toFixed(1) });
+}
+function megafono(x, z, msg, mio) {
+  const d = Math.hypot(x - yo.x, z - yo.z); if (d > 40) return;
+  const e = $("megafono"); e.textContent = msg; e.style.opacity = 1; clearTimeout(megafono.t); megafono.t = setTimeout(() => e.style.opacity = 0, 2200);
+  [520, 0, 520].forEach((f, i) => f && setTimeout(() => beep(f, .12, "square", .04 * (1 - d / 40)), i * 140));
+  if (mio) enviar("megafono", { x: +x.toFixed(1), z: +z.toFixed(1), msg });
+}
+function accionSirena(que) {
+  const a = miAuto; if (!a) return;
+  if (que === "luces") a.sirena = !a.sirena;
+  else if (que === "sonido") a.sonido = a.sonido === false;
+  else if (que === "tono") { a.tono = TONOS[(TONOS.indexOf(a.tono || "wail") + 1) % TONOS.length]; a.sirena = true; a.sonido = true; }
+  else if (que === "patron") { a.patron = PATRONES[(PATRONES.indexOf(a.patron || "alterno") + 1) % PATRONES.length]; a.sirena = true; }
+  else if (que === "bocina") bocina(a.x, a.z, true);
+  else if (que === "megafono") { megafono(a.x, a.z, MEGAFONO[megaIdx], true); megaIdx = (megaIdx + 1) % MEGAFONO.length; }
+  pintarPanel();
+}
+function pintarPanel() {
+  const a = miAuto; $("panelSirena").classList.toggle("on", !!a); if (!a) return;
+  document.querySelectorAll("[data-ps=luces]").forEach(b => b.classList.toggle("on", !!a.sirena));
+  document.querySelectorAll("[data-ps=sonido]").forEach(b => b.classList.toggle("on", a.sonido !== false));
+  document.querySelectorAll("[data-tono]").forEach(b => b.classList.toggle("on", (a.tono || "wail") === b.dataset.tono));
+  document.querySelectorAll("[data-patron]").forEach(b => b.classList.toggle("on", (a.patron || "alterno") === b.dataset.patron));
+}
+document.querySelectorAll("[data-ps]").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); accionSirena(b.dataset.ps); }));
+document.querySelectorAll("[data-tono]").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); if (miAuto) { miAuto.tono = b.dataset.tono; miAuto.sirena = true; miAuto.sonido = true; pintarPanel(); } }));
+document.querySelectorAll("[data-patron]").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); if (miAuto) { miAuto.patron = b.dataset.patron; miAuto.sirena = true; pintarPanel(); } }));
+addEventListener("keydown", e => { if (!miAuto || e.repeat) return;
+  const k = { KeyJ: "sonido", KeyT: "tono", KeyP: "patron", KeyB: "bocina", KeyM: "megafono" }[e.code]; if (k) accionSirena(k); });
+
 function pintarAuto(a, t) {
   const m = a.mesh; m.position.set(a.x, 0, a.z); m.rotation.y = a.h;
   // Las ruedas giran según la velocidad
   const dtR = Math.min(.05, (t - (a._tR ?? t)) / 1000); a._tR = t;
   if (m.userData.ruedas) for (const r of m.userData.ruedas) r.rotation.x += (a.vel || 0) * dtR / m.userData.radio;
   if (m.userData.cuadro) m.userData.cuadro.rotation.z += ((a.conductor ? -(a.giro || 0) * Math.min(.45, Math.abs(a.vel) / 40) : .12) - m.userData.cuadro.rotation.z) * .15;   // la moto se inclina
-  const prendida = a.conductor && a.sirena, fase = Math.floor(t / 180) % 2;
-  m.userData.rojo.material.color.setHex(prendida && fase ? 0xff2020 : 0x550000);
-  m.userData.azul.material.color.setHex(prendida && !fase ? 0x2050ff : 0x000055);
+  const fl = fasesLuces(a, t);
+  m.userData.rojo.material.color.setHex(fl.rojo ? 0xff2020 : 0x550000);
+  m.userData.azul.material.color.setHex(fl.azul ? 0x2050ff : 0x000055);
   m.userData.cartel.visible = !!a.conductor && a !== miAuto;
 }
 
@@ -682,6 +768,8 @@ function conectar(cod, host) {
     .on("broadcast", { event: "paquete" }, ({ payload: p }) => tomarPaquete(p.i, p.quien))
     .on("broadcast", { event: "entregaP" }, ({ payload: p }) => entregarPaquete(p.quien))
     .on("broadcast", { event: "irrupcion" }, ({ payload: p }) => irrupcion(p.quien))
+    .on("broadcast", { event: "bocina" }, ({ payload: p }) => bocina(p.x, p.z, false))
+    .on("broadcast", { event: "megafono" }, ({ payload: p }) => megafono(p.x, p.z, String(p.msg).slice(0, 60), false))
     .on("broadcast", { event: "granada" }, ({ payload: p }) => lanzar(p.de, ...p.o, ...p.v))
     .on("broadcast", { event: "fin" }, ({ payload: p }) => terminar(p.gana))
     .on("broadcast", { event: "auto" }, ({ payload: p }) => { const a = autos[p.i]; if (!a) return;
@@ -694,7 +782,7 @@ function recibirPos(p) {
   if (!s) { if (!jugando) return; s = jug[p.id] = nuevoJug(p.id, p.nombre, p.equipo, false, p.clase); s.div = p.div || "patrulla"; s.uni = p.uni || "azul"; s.mesh = crearMuneco(p.equipo, p.nombre, p.clase, s.div, s.uni); feed(`👋 Entró ${p.nombre}`); }
   if ((p.div && p.div !== s.div) || (p.uni && p.uni !== s.uni)) { s.div = p.div || s.div; s.uni = p.uni || s.uni; escena.remove(s.mesh); s.mesh = crearMuneco(s.equipo, s.nombre, s.clase, s.div, s.uni); }
   s.tx = p.x; s.tz = p.z; s.rot = p.rot + Math.PI;   // la cámara mira hacia -z y el muñeco hacia +z if (p.res !== undefined) s.res = p.res; s.preso = p.preso; s.bolsa = p.bolsa; s.paquete = !!p.paq; s.visto = Date.now(); s.auto = p.auto ?? null;
-  if (s.auto !== null && autos[s.auto] && autos[s.auto] !== miAuto) { const a = autos[s.auto]; a.conductor = p.id; a.tx = p.x; a.tz = p.z; a.th = p.ah; a.sirena = p.sir; a.vel = p.av; }
+  if (s.auto !== null && autos[s.auto] && autos[s.auto] !== miAuto) { const a = autos[s.auto]; a.conductor = p.id; a.tx = p.x; a.tz = p.z; a.th = p.ah; a.sirena = p.sir; a.patron = p.sp || "alterno"; a.vel = p.av; }
 }
 
 // ================== REGLAS ==================
@@ -771,7 +859,7 @@ addEventListener("keydown", e => { if (e.code === "KeyC" && !e.repeat && jugando
 addEventListener("keydown", e => { teclas[e.code] = true;
   if (e.code === "KeyE" || (e.code === "Space" && !miAuto)) accionPedida = true;
   if (e.code === "KeyF" && !e.repeat) autoPedido = true;
-  if (e.code === "KeyH" && miAuto) { miAuto.sirena = !miAuto.sirena; } });
+  if (e.code === "KeyH" && miAuto && !e.repeat) accionSirena("luces"); });
 let autoPedido = false, pistaDepto = "";
 addEventListener("keyup", e => { teclas[e.code] = false; });
 renderer.domElement.addEventListener("click", () => { if (!jugando || document.body.classList.contains("tactil")) return;
@@ -957,9 +1045,8 @@ const balizasCarcel = [0, 1].map(i => { const l = new THREE.PointLight(i ? 0x205
   const b = new THREE.Mesh(new THREE.SphereGeometry(.35, 10, 8), new THREE.MeshBasicMaterial({ color: i ? 0x2050ff : 0xff2020 })); b.position.copy(l.position); escena.add(b);
   return { l, b }; });
 function actualizarLuces(t) {
-  const fase = Math.floor(t / 180) % 2;
-  for (const a of autos) { const luz = a.mesh.userData.luz, on = a.conductor && a.sirena;
-    luz.intensity = on ? 3.2 : 0; luz.color.setHex(fase ? 0xff1a1a : 0x1a4dff); }
+  for (const a of autos) { const luz = a.mesh.userData.luz, fl = fasesLuces(a, t);
+    luz.intensity = fl.fuerza; luz.color.setHex(fl.rojo && fl.azul ? 0xb040ff : fl.rojo ? 0xff1a1a : 0x1a4dff); }
   balizasCarcel.forEach((z, i) => { const on = (Math.floor(t / 400) + i) % 2 === 0; z.l.intensity = on ? 1.6 : .1; z.b.visible = on; });
   // Si hay patrulleros con sirena cerca, la pantalla también titila un poco
   const cerca = autos.some(a => a.conductor && a.sirena && Math.hypot(a.x - yo.x, a.z - yo.z) < 14);
@@ -1055,7 +1142,7 @@ function empezar(finTs) {
   if (!document.body.classList.contains("tactil")) renderer.domElement.requestPointerLock?.();
 }
 function terminar(gana) {
-  if (!jugando) return; jugando = false; document.exitPointerLock?.(); nocturna(false); if (miAuto) { miAuto.conductor = null; miAuto = null; }
+  if (!jugando) return; jugando = false; document.exitPointerLock?.(); nocturna(false); if (miAuto) { miAuto.conductor = null; miAuto = null; } pintarPanel(); sonidoSirena(0);
   const gane = gana === equipo;
   $("fin-tit").textContent = gana === "poli" ? "👮 ¡GANÓ LA POLICÍA!" : "🦹 ¡GANARON LOS LADRONES!";
   $("fin-txt").innerHTML = `${gane ? "🏆 ¡Ganaste!" : "💀 Perdiste"}<br>Botín robado: $${botin.toLocaleString("es-AR")} de $${META.toLocaleString("es-AR")}<br><br>` +
@@ -1155,7 +1242,7 @@ function loop(t) {
       }
       pintarAuto(a, t);
     }
-    if (miAuto && miAuto.sirena && (sirenaT -= dt) <= 0) { sirenaT = .42; sirenaAlt = !sirenaAlt; beep(sirenaAlt ? 950 : 700, .38, "sawtooth", .018); }
+    sonidoSirena(t);
     $("velocimetro").style.display = miAuto ? "block" : "none";
     if (miAuto) $("velocimetro").textContent = `${miAuto.tipo === "camioneta" ? "🚙" : miAuto.tipo === "moto" ? "🏍️" : "🚓"} ${Math.round(Math.abs(miAuto.vel) * 3.6)} km/h${miAuto.sirena ? " 🚨" : ""}`;
     // Bolsas que vuelven a aparecer
@@ -1170,7 +1257,7 @@ function loop(t) {
     $("b-accion").textContent = yo.equipo === "poli" ? "🚔" : "🔓";
     if (quedan <= 0 && (soyHost || !online)) { const g = botin >= META ? "ladron" : "poli"; enviar("fin", { gana: g }); terminar(g); }
     if (online && t - ultPos > 80) { ultPos = t; enviar("pos", { id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, uni: yo.uni, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, bolsa: yo.bolsa, paq: !!yo.paquete,
-      auto: miAuto ? miAuto.i : null, ah: miAuto ? +miAuto.h.toFixed(2) : 0, av: miAuto ? +miAuto.vel.toFixed(1) : 0, sir: miAuto ? miAuto.sirena : false }); }
+      auto: miAuto ? miAuto.i : null, ah: miAuto ? +miAuto.h.toFixed(2) : 0, av: miAuto ? +miAuto.vel.toFixed(1) : 0, sir: miAuto ? miAuto.sirena : false, sp: miAuto ? (miAuto.patron || "alterno") : "" }); }
   } else { yaw += dt * .1; }
   // Mi propio muñeco (se ve en tercera persona o vista aérea)
   if (yo) {
