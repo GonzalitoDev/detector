@@ -289,7 +289,7 @@ function generarCiudad() {
     }
 }
 // Terrenos reservados: ahí no se construye nada de la ciudad (departamento de policía y casa narco), con 2 m de vereda alrededor
-const RESERVADOS = [ { x1: -58, x2: -47, z1: -4, z2: 5.5 }, { x1: -76, x2: -60, z1: -4, z2: 12 }, { x1: 20, x2: 36, z1: -4, z2: 12 }, { x1: 39, x2: 49, z1: -48, z2: -40 } ];
+const RESERVADOS = [ { x1: -52, x2: -36, z1: -4, z2: 12 }, { x1: -76, x2: -60, z1: -4, z2: 12 }, { x1: 20, x2: 36, z1: -4, z2: 12 }, { x1: 39, x2: 49, z1: -48, z2: -40 } ];
 function poner(e) { if (!RESERVADOS.some(R => e.x1 < R.x2 + 2 && e.x2 > R.x1 - 2 && e.z1 < R.z2 + 2 && e.z2 > R.z1 - 2)) edificios.push(e); }
 generarCiudad();
 // Aeropuerto, afuera de la ciudad hacia el este (se entra por la calle z = 16)
@@ -581,7 +581,7 @@ function actualizarAviones(t) {
 }
 // ---- Departamento de Policía (al lado de la cárcel) ----
 // Lado oeste de la ciudad, lejos de los lugares de los ladrones (guarida, banco, casa narco y muelle)
-const DEPTO = { x1: -58, x2: -47, z1: -4, z2: 5.5, alto: 4.2, puertaX1: -53.7, puertaX2: -51.3 };
+const DEPTO = { x1: -49.5, x2: -38.5, z1: -2.5, z2: 7, alto: 4.2, puertaX1: -45.2, puertaX2: -42.8 };   // adentro de su propia manzana: ya no corta la calle
 DEPTO.cx = (DEPTO.x1 + DEPTO.x2) / 2; DEPTO.cz = (DEPTO.z1 + DEPTO.z2) / 2; DEPTO.px = (DEPTO.puertaX1 + DEPTO.puertaX2) / 2;
 const OFICINA = { x1: DEPTO.x2 - 3.6, x2: DEPTO.x2 - .4, z1: DEPTO.z1 + 4.2, z2: DEPTO.z2 - .4, puertaZ1: DEPTO.z1 + 4.6, puertaZ2: DEPTO.z1 + 5.9, mesaX: DEPTO.x2 - 1.6, mesaZ: DEPTO.z1 + 6.8 };
 const TAQUILLAS = { x: DEPTO.x1 + 2.5, z: DEPTO.z1 + 1.6 }, ARMERIA = { x: DEPTO.x2 - 2.5, z: DEPTO.z1 + 1.6 }, COMPU = { x: DEPTO.x1 + 1.9, z: DEPTO.cz };
@@ -643,7 +643,7 @@ const TAQUILLAS = { x: DEPTO.x1 + 2.5, z: DEPTO.z1 + 1.6 }, ARMERIA = { x: DEPTO
     const c5 = cartel("⭐ OFICINA DEL COMISARIO", "#5a3a1a"); c5.scale.set(3.6, .9, 1); c5.position.set((O.x1 + O.x2) / 2, 3.3, (O.z1 + O.z2) / 2); escena.add(c5); }
   const c1 = cartel("👕 TAQUILLAS", "#3b5b7a"); c1.scale.set(3, .75, 1); c1.position.set(TAQUILLAS.x, 2.8, D.z1 + 1); escena.add(c1);
   const c2 = cartel("🔫 ARMERÍA", "#2d2d2d"); c2.scale.set(3, .75, 1); c2.position.set(ARMERIA.x, 2.1, D.z1 + 1); escena.add(c2);
-  const c3 = cartel("🚔 DEPARTAMENTO DE POLICÍA", "#0f1d36"); c3.scale.set(10, 2.5, 1); c3.position.set((D.x1 + D.x2) / 2, D.alto + 2.4, (D.z1 + D.z2) / 2); escena.add(c3);
+  const c3 = cartel("🚔 DEPARTAMENTO DE POLICÍA", "#0f1d36"); c3.scale.set(10, 2.5, 1); c3.position.set((D.x1 + D.x2) / 2, D.alto + 5.6, (D.z1 + D.z2) / 2); escena.add(c3);
   // Escudo policial (diseño propio, al estilo Policía de la Ciudad; no es el escudo oficial)
   function dibujarEscudo(c, cx, cy, r) {
     c.save(); c.translate(cx, cy);
@@ -668,17 +668,54 @@ const TAQUILLAS = { x: DEPTO.x1 + 2.5, z: DEPTO.z1 + 1.6 }, ARMERIA = { x: DEPTO
     c.fillStyle = "#5ec8f2"; c.font = "bold 26px system-ui"; c.fillText("POLICÍA DE LA CIUDAD", 218, h / 2 + 76);
   }, 1024, 256);
   const fachada = new THREE.Mesh(new THREE.PlaneGeometry(9, 2.25), new THREE.MeshBasicMaterial({ map: texFachada }));
-  fachada.position.set(D.cx, D.alto - 1, D.z2 + .03); escena.add(fachada);     // arriba de la puerta, mirando a la calle
+  fachada.position.set(D.cx, D.alto + 1.7, D.z2 + .05); escena.add(fachada);     // arriba de la puerta, mirando a la calle
   // Escudo grande en el costado del edificio que da a la ciudad
   const texEscudo = textura((c, w, h) => dibujarEscudo(c, w / 2, h / 2 - 10, w * .4), 256, 256);
   const escudoLado = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6), new THREE.MeshBasicMaterial({ map: texEscudo, transparent: true }));
-  escudoLado.position.set(D.x2 + .03, D.alto / 2 + .3, D.cz); escudoLado.rotation.y = Math.PI / 2; escena.add(escudoLado);
+  escudoLado.position.set(D.x2 + .05, D.alto + 1.7, D.cz); escudoLado.rotation.y = Math.PI / 2; escena.add(escudoLado);
   // Mástil con bandera celeste y blanca
   const mastil = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 7, 8), new THREE.MeshLambertMaterial({ color: 0xcccccc })); mastil.position.set(D.x2 + 1.5, 3.5, D.z2 + 1.5); escena.add(mastil);
   const texBandera = textura((c, w, h) => { c.fillStyle = "#74acdf"; c.fillRect(0, 0, w, h); c.fillStyle = "#fff"; c.fillRect(0, h / 3, w, h / 3);
     c.fillStyle = "#f6b40e"; c.beginPath(); c.arc(w / 2, h / 2, h / 9, 0, 7); c.fill(); }, 192, 128);
   const bandera = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.2), new THREE.MeshBasicMaterial({ map: texBandera, side: THREE.DoubleSide }));
   bandera.position.set(D.x2 + 2.45, 6.3, D.z2 + 1.5); escena.add(bandera);
+  // ---- Fachada más linda: primer piso con ventanas, marquesina en la entrada, escalones, plaza con canteros y faroles ----
+  const L = c => new THREE.MeshLambertMaterial({ color: c });
+  const texPiso = textura((c, w, h) => { c.fillStyle = "#dfe6ee"; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 8; i++) { c.fillStyle = "#24476e"; c.fillRect(6 + i * 32, 18, 22, 34); c.fillStyle = (i * 3) % 5 ? "#ffe6a8" : "#9fd0ff"; c.fillRect(8 + i * 32, 20, 18, 30); } }, 256, 64);
+  texPiso.wrapS = THREE.RepeatWrapping; texPiso.repeat.set(2, 1);
+  const matPiso = new THREE.MeshLambertMaterial({ map: texPiso, emissiveMap: texPiso, emissive: 0x555555 });
+  const alto2 = 3.4, piso2 = new THREE.Mesh(new THREE.BoxGeometry(D.x2 - D.x1, alto2, D.z2 - D.z1), [matPiso, matPiso, L(0x0f1d36), L(0x0f1d36), matPiso, matPiso]);
+  piso2.position.set(D.cx, D.alto + .35 + alto2 / 2, D.cz); escena.add(piso2);
+  const franja2 = new THREE.Mesh(new THREE.BoxGeometry(D.x2 - D.x1 + .1, .25, D.z2 - D.z1 + .1), L(0x5ec8f2)); franja2.position.set(D.cx, D.alto + .35 + alto2, D.cz); escena.add(franja2);
+  const parapeto = new THREE.Mesh(new THREE.BoxGeometry(D.x2 - D.x1 + .5, .5, D.z2 - D.z1 + .5), L(0x0f1d36)); parapeto.position.set(D.cx, D.alto + .6 + alto2, D.cz); escena.add(parapeto);
+  // Barra de luces y antena en el techo
+  for (const [x, c] of [[-.8, 0xff2020], [0, 0xffffff], [.8, 0x2050ff]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(.75, .25, .35), new THREE.MeshBasicMaterial({ color: c })); b.position.set(D.cx + x, D.alto + 1.05 + alto2, D.z2 - .6); escena.add(b); }
+  const ant = new THREE.Mesh(new THREE.CylinderGeometry(.04, .08, 5, 6), L(0x888888)); ant.position.set(D.x1 + 1.2, D.alto + alto2 + 3, D.z1 + 1.2); escena.add(ant);
+  // Marquesina sobre la puerta, con columnas y escalones
+  const marq = new THREE.Mesh(new THREE.BoxGeometry(5, .25, 2.4), L(0x0f1d36)); marq.position.set(D.px, 3.3, D.z2 + 1.1); escena.add(marq);
+  const borde = new THREE.Mesh(new THREE.BoxGeometry(5.02, .1, 2.42), L(0x5ec8f2)); borde.position.set(D.px, 3.18, D.z2 + 1.1); escena.add(borde);
+  for (const dx of [-2.3, 2.3]) { const col = new THREE.Mesh(new THREE.CylinderGeometry(.12, .12, 3.2, 10), L(0xf0f0f0)); col.position.set(D.px + dx, 1.6, D.z2 + 2.1); escena.add(col);
+    edificios.push({ x1: D.px + dx - .15, x2: D.px + dx + .15, z1: D.z2 + 1.95, z2: D.z2 + 2.25, h: 3.2, arbol: true }); }
+  for (let k = 0; k < 2; k++) { const e = new THREE.Mesh(new THREE.BoxGeometry(4.4, .12, .5), L(0xbfc6ce)); e.position.set(D.px, .06 + k * .06, D.z2 + .3 + (1 - k) * .45); escena.add(e); }
+  const texEnt = textura((c, w, h) => { c.fillStyle = "#0f1d36"; c.fillRect(0, 0, w, h); c.fillStyle = "#ffffff"; c.font = "bold 40px system-ui"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("👮 ENTRADA", w / 2, h / 2 + 2); }, 256, 64);
+  const ent = new THREE.Mesh(new THREE.PlaneGeometry(2.4, .55), new THREE.MeshBasicMaterial({ map: texEnt })); ent.position.set(D.px, 3.3, D.z2 + 2.32); escena.add(ent);
+  // Plaza de adelante: baldosas, canteros con arbustos, faroles y dos banderas azules con el escudo
+  const plaza = new THREE.Mesh(new THREE.PlaneGeometry(16, 12 - D.z2 + 1), L(0xb8b2a6)); plaza.rotation.x = -Math.PI / 2; plaza.position.set(-44, .025, (D.z2 + 12) / 2 + .5); escena.add(plaza);
+  const plaza2 = new THREE.Mesh(new THREE.PlaneGeometry(16, D.z2 + 4), L(0x9a958b)); plaza2.rotation.x = -Math.PI / 2; plaza2.position.set(-44, .02, (D.z2 - 4) / 2); escena.add(plaza2);
+  for (const x of [D.px - 4.2, D.px + 4.2]) {
+    const cant = new THREE.Mesh(new THREE.BoxGeometry(1.4, .5, 1.4), L(0x8a8f99)); cant.position.set(x, .25, D.z2 + 3.4); escena.add(cant);
+    const arb = new THREE.Mesh(new THREE.IcosahedronGeometry(.75, 0), new THREE.MeshLambertMaterial({ color: 0x2f7d32, flatShading: true })); arb.position.set(x, .95, D.z2 + 3.4); escena.add(arb);
+    edificios.push({ x1: x - .7, x2: x + .7, z1: D.z2 + 2.7, z2: D.z2 + 4.1, h: .5, arbol: true }); }
+  const texBP = textura((c, w, h) => { c.fillStyle = "#1e4fd8"; c.fillRect(0, 0, w, h); dibujarEscudo(c, w / 2, h / 2 - 6, h * .32); }, 192, 128);
+  for (const x of [D.x1 + .6, D.x2 - .6]) {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, 6, 8), L(0xcccccc)); m.position.set(x, 3, D.z2 + 5); escena.add(m);
+    const b = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1), new THREE.MeshBasicMaterial({ map: texBP, side: THREE.DoubleSide })); b.position.set(x + .8, 5.4, D.z2 + 5); escena.add(b); }
+  for (const x of [D.px - 6, D.px + 6]) { const f = new THREE.Mesh(new THREE.CylinderGeometry(.07, .1, 3.6, 6), L(0x2a2d33)); f.position.set(x, 1.8, D.z2 + 4.6); escena.add(f);
+    const g2 = new THREE.Mesh(new THREE.SphereGeometry(.3, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffe9b0 })); g2.position.set(x, 3.7, D.z2 + 4.6); escena.add(g2); }
+  // Ventanas en las paredes de planta baja (de afuera)
+  for (const [x, z, ry] of [[D.x1 - .03, D.cz - 2, -Math.PI / 2], [D.x1 - .03, D.cz + 2, -Math.PI / 2], [D.x2 + .03, D.cz - 2.5, Math.PI / 2], [D.cx - 3.5, D.z2 + .03, 0], [D.cx + 3.8, D.z2 + .03, 0]]) {
+    const v = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.2), new THREE.MeshLambertMaterial({ color: 0x9fd0ff, emissive: 0x2a4a6a })); v.position.set(x, 2.5, z); v.rotation.y = ry; escena.add(v); }
 }
 // ================== PUERTO (muelle) ==================
 {
