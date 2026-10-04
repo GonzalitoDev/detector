@@ -860,7 +860,8 @@ function opticas(g, frenteZ, atrasZ, y, sep, ancho = .38) {
 }
 function espejos(g, x, y, z, color) { for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.BoxGeometry(.18, .12, .1), new THREE.MeshLambertMaterial({ color })); e.position.set(s * x, y, z); g.add(e); } }
 
-function crearPatrullero() {
+function crearPatrullero(estilo = "ciudad") {
+  const prov = estilo === "provincia";   // diseño inspirado en la Policía de la Provincia de Buenos Aires (sin escudos oficiales)
   const g = new THREE.Group();
   const blanco = new THREE.MeshLambertMaterial({ color: 0xf4f4f4 }), negro = new THREE.MeshLambertMaterial({ color: 0x151515 });
   const vidrio = new THREE.MeshLambertMaterial({ color: 0x1b2633, polygonOffset: true, polygonOffsetFactor: -1 });
@@ -871,9 +872,17 @@ function crearPatrullero() {
   const parante = new THREE.Mesh(new THREE.BoxGeometry(2.04, .44, .12), blanco); parante.position.set(0, 1.22, -.15); g.add(parante);
   // Franjas celeste y azul oscuro a los costados, y "POLICÍA" en las puertas
   for (const s of [-1, 1]) {
+    if (prov) {
+      // Banda azul ancha con filete celeste, "POLICÍA" en blanco sobre la banda y "PROVINCIA" arriba
+      const banda = new THREE.Mesh(new THREE.PlaneGeometry(4.3, .36), new THREE.MeshBasicMaterial({ color: 0x0d3a8c })); banda.position.set(s * 1.0, .6, 0); banda.rotation.y = s * Math.PI / 2; g.add(banda);
+      const filete = new THREE.Mesh(new THREE.PlaneGeometry(4.3, .06), new THREE.MeshBasicMaterial({ color: 0x5ec8f2 })); filete.position.set(s * 1.001, .81, 0); filete.rotation.y = s * Math.PI / 2; g.add(filete);
+      const txt = new THREE.Mesh(new THREE.PlaneGeometry(1.6, .28), textoPlano("POLICÍA", null, "#ffffff", 1.6, .28)); txt.position.set(s * 1.002, .6, .1); txt.rotation.y = s * Math.PI / 2; g.add(txt);
+      const txt2 = new THREE.Mesh(new THREE.PlaneGeometry(1.7, .2), textoPlano("PROVINCIA", null, "#0d3a8c", 1.7, .2)); txt2.position.set(s * 1.002, .92, .1); txt2.rotation.y = s * Math.PI / 2; g.add(txt2);
+    } else {
     const f1 = new THREE.Mesh(new THREE.PlaneGeometry(4.2, .16), new THREE.MeshBasicMaterial({ color: 0x5ec8f2 })); f1.position.set(s * 1.0, .66, 0); f1.rotation.y = s * Math.PI / 2; g.add(f1);
     const f2 = new THREE.Mesh(new THREE.PlaneGeometry(4.2, .06), new THREE.MeshBasicMaterial({ color: 0x0f1d36 })); f2.position.set(s * 1.001, .55, 0); f2.rotation.y = s * Math.PI / 2; g.add(f2);
     const txt = new THREE.Mesh(new THREE.PlaneGeometry(1.5, .26), textoPlano("POLICÍA", null, "#0f1d36", 1.5, .26)); txt.position.set(s * 1.002, .84, .1); txt.rotation.y = s * Math.PI / 2; g.add(txt);
+    }
     for (const z of [-.75, .55]) { const junta = new THREE.Mesh(new THREE.PlaneGeometry(.025, .55), new THREE.MeshBasicMaterial({ color: 0x9a9a9a })); junta.position.set(s * 1.003, .72, z); junta.rotation.y = s * Math.PI / 2; g.add(junta); }
     const manija = new THREE.Mesh(new THREE.BoxGeometry(.03, .04, .16), negro); manija.position.set(s * 1.0, .9, -.35); g.add(manija);
     const pasa = new THREE.Mesh(new THREE.BoxGeometry(.06, .2, 4.3), negro); pasa.position.set(s * .97, .38, 0); g.add(pasa);   // zócalo
@@ -886,10 +895,13 @@ function crearPatrullero() {
   espejos(g, 1.06, 1.02, .95, 0xf4f4f4);
   const antena = new THREE.Mesh(new THREE.CylinderGeometry(.01, .01, .6, 4), negro); antena.position.set(.5, 1.75, -.9); g.add(antena);
   // Número en el techo (para el helicóptero)
-  const num = new THREE.Mesh(new THREE.PlaneGeometry(.9, .45), textoPlano("C-" + (10 + Math.floor(Math.random() * 89)), null, "#0f1d36", .9, .45, 256)); num.rotation.x = -Math.PI / 2; num.position.set(0, 1.49, -.55); g.add(num);
+  if (prov) {   // capó con banda azul y "POLICÍA" adelante y atrás
+    const capo = new THREE.Mesh(new THREE.PlaneGeometry(1.2, .7), new THREE.MeshBasicMaterial({ color: 0x0d3a8c })); capo.rotation.x = -Math.PI / 2 + .12; capo.position.set(0, 1.0, 1.55); g.add(capo);
+    for (const [z, ry] of [[2.39, 0], [-2.35, Math.PI]]) { const t = new THREE.Mesh(new THREE.PlaneGeometry(1.1, .18), textoPlano("POLICÍA", "#0d3a8c", "#ffffff", 1.1, .18)); t.position.set(0, .58, z); t.rotation.y = ry; g.add(t); } }
+  const num = new THREE.Mesh(new THREE.PlaneGeometry(.9, .45), textoPlano((prov ? "P-" : "C-") + (10 + Math.floor(Math.random() * 89)), null, prov ? "#0d3a8c" : "#0f1d36", .9, .45, 256)); num.rotation.x = -Math.PI / 2; num.position.set(0, 1.49, -.55); g.add(num);
   const { rojo, azul } = barraLuces(g, 0, 1.52, .05, 1.3);
   const ruedas = [[-.92, 1.38], [.92, 1.38], [-.92, -1.38], [.92, -1.38]].map(([x, z]) => rueda(g, x, .37, z, .37, .26, 0xc8c8c8));
-  const c = cartel("🚓 POLICÍA", "#1e4fd8"); c.scale.set(2.4, .6, 1); c.position.y = 2.4; c.visible = false; g.add(c);
+  const c = cartel(prov ? "🚓 POLICÍA PROVINCIA" : "🚓 POLICÍA", prov ? "#0d3a8c" : "#1e4fd8"); c.scale.set(prov ? 3.2 : 2.4, prov ? .8 : .6, 1); c.position.y = 2.4; c.visible = false; g.add(c);
   g.userData = { rojo, azul, cartel: c, ruedas, radio: .37 };
   escena.add(g); return g;
 }
@@ -1002,7 +1014,7 @@ const autos = (() => {
   const orden = [0, 2, 4, 6, 1, 3, 5, 7, 8, 9].map(k => lugares[k]);   // patrulleros adelante, camionetas atrás, motos en la punta
   return tipos.map((tipo, i) => { const p = orden[i];
     return { i, tipo, r: tipo === "camioneta" ? 1.6 : tipo === "moto" ? .7 : AUTO_R, max: tipo === "camioneta" ? 23 : tipo === "moto" ? 31 : 26, x0: p.x0, z0: p.z0, h0: p.h0, x: p.x0, z: p.z0, h: p.h0, vel: 0, conductor: null, sirena: true,
-      tx: p.x0, tz: p.z0, th: p.h0, mesh: tipo === "camioneta" ? crearCamioneta() : tipo === "moto" ? crearMoto() : crearPatrullero() }; });
+      tx: p.x0, tz: p.z0, th: p.h0, mesh: tipo === "camioneta" ? crearCamioneta() : tipo === "moto" ? crearMoto() : crearPatrullero(i >= 2 ? "provincia" : "ciudad") }; });
 })();
 function resetAutos() { for (const a of autos) Object.assign(a, { x: a.x0, z: a.z0, tx: a.x0, tz: a.z0, h: a.h0, th: a.h0, vel: 0, conductor: null, sirena: true, balizas: false }); }
 let miAuto = null, sirenaT = 0, sirenaAlt = false, mirarAuto = 0;
