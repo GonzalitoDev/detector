@@ -55,7 +55,7 @@
   #aturdido { position:fixed; left:0; right:0; top:44%; text-align:center; font-size:30px; font-weight:900; z-index:8; pointer-events:none; display:none; color:#fff; text-shadow:0 0 10px #000; }
   #municion { position:fixed; right:16px; bottom:70px; z-index:5; font-weight:900; font-size:22px; text-shadow:0 2px 4px #000; display:none; pointer-events:none;
               background:#000a; border:2px solid #9bb15a; border-radius:12px; padding:6px 12px; }
-  body.swat #municion { display:block; }
+  body.swat #municion, body.armado #municion { display:block; }
   #resistencia { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); width:220px; height:14px; background:#0008; border-radius:7px; overflow:hidden; z-index:5; display:none; }
   #resistencia div { height:100%; background:#3ddc5a; transition:width .2s; }
   body.ladron #resistencia { display:block; }
@@ -101,6 +101,14 @@
   <div class="izq"><span id="rol"></span><span id="botin"></span><span id="estado"></span></div>
   <div id="reloj"></div>
   <div id="equipos"></div>
+</div>
+<div id="armeria" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
+  <div style="max-width:640px;margin:0 auto;background:#1d1a10;border:2px solid #ffd400;border-radius:16px;padding:16px">
+    <h2 style="margin:0 0 4px;text-align:center">🔫 Armería</h2>
+    <div style="text-align:center;opacity:.8;font-size:13px;margin-bottom:10px">Elegí qué arma llevar. Al equiparla se recarga completa.</div>
+    <div id="ar-lista" class="tq"></div>
+    <button class="g" id="ar-ok" style="width:100%;margin-top:14px">✅ Listo</button>
+  </div>
 </div>
 <div id="taquillas" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
   <div style="max-width:640px;margin:0 auto;background:#0f1d36;border:2px solid #5ec8f2;border-radius:16px;padding:16px">
@@ -933,7 +941,7 @@ function conectar(cod, host) {
     .on("broadcast", { event: "empieza" }, ({ payload }) => { if (!soyHost) empezar(payload.fin); })
     .on("broadcast", { event: "pos" }, ({ payload: p }) => recibirPos(p))
     .on("broadcast", { event: "disparo" }, ({ payload: p }) => verDisparo(p))
-    .on("broadcast", { event: "dano" }, ({ payload: p }) => recibirDano(p.ladron, p.de, p.dmg))
+    .on("broadcast", { event: "dano" }, ({ payload: p }) => recibirDano(p.ladron, p.de, p.dmg, Math.min(4000, +p.at || 0)))
     .on("broadcast", { event: "atrapa" }, ({ payload: p }) => atrapado(p.ladron, p.poli))
     .on("broadcast", { event: "libera" }, ({ payload: p }) => liberar(p.quien))
     .on("broadcast", { event: "bolsa" }, ({ payload: p }) => tomarBolsa(p.i, p.quien))
@@ -1056,7 +1064,7 @@ renderer.domElement.addEventListener("touchmove", e => { e.preventDefault();
     else { yaw -= (t.clientX - q.x) * .005; pitch = Math.max(-1.2, Math.min(1.2, pitch - (t.clientY - q.y) * .005)); q.x = t.clientX; q.y = t.clientY; } } }, { passive: false });
 const soltar = e => { for (const t of e.changedTouches) { const q = toques[t.identifier]; if (q && q.izq) { joy.x = joy.y = 0; $("stick").querySelector("b").style.transform = ""; } delete toques[t.identifier]; } };
 renderer.domElement.addEventListener("touchend", soltar); renderer.domElement.addEventListener("touchcancel", soltar);
-$("b-accion").addEventListener("touchstart", e => { e.preventDefault(); accionPedida = true; tactilDispara = ARMADO(clase); });
+$("b-accion").addEventListener("touchstart", e => { e.preventDefault(); accionPedida = true; tactilDispara = TENGO_ARMA(); });
 $("b-accion").addEventListener("touchend", () => { tactilDispara = false; });
 $("b-auto").addEventListener("touchstart", e => { e.preventDefault(); autoPedido = true; });
 $("b-cam").addEventListener("touchstart", e => { e.preventDefault(); cambiarCamara(); });
@@ -1071,16 +1079,31 @@ const dentro = (s, Z, extra = 0) => Math.hypot(s.x - Z.x, s.z - Z.z) < Z.r + ext
 // ================== SWAT: AMETRALLADORA ==================
 // Arcade y sin sangre: cada impacto le baja "resistencia" al ladrón; en 0 se rinde y va preso.
 const CARGADOR = 30, CADENCIA = .09, DANO = 9, ALCANCE = 45;
+// Armas que el jugador se equipa en la armería del departamento
+const ARMAS = {
+  ninguna:  { nom: "Sin arma",      ico: "✋", d: "Atrapás con las manos, como siempre." },
+  pistola:  { nom: "Pistola 9 mm",  ico: "🔫", d: "15 balas, tiro a tiro (un click por disparo). Precisa.", carg: 15, cad: .25, dano: 14, alc: 40, disp: .012, rec: 1.2, largo: .55, color: 0x151515 },
+  escopeta: { nom: "Escopeta",      ico: "💥", d: "6 cartuchos de 6 perdigones. Muy fuerte de cerca, no llega lejos.", carg: 6, cad: .85, dano: 6, perd: 6, alc: 18, disp: .08, rec: 2.4, largo: 1.35, color: 0x3a2a1a },
+  taser:    { nom: "Táser",         ico: "⚡", d: "Una descarga que aturde al ladrón 3 segundos. Alcance corto.", carg: 1, cad: .5, dano: 0, aturde: 3000, alc: 9, disp: .006, rec: 2.5, largo: .5, color: 0xf2c200 },
+  fusil:    { nom: "Fusil de asalto", ico: "🪖", d: "30 balas en ráfaga. Solo SWAT y Grupo Halcón.", carg: 30, cad: CADENCIA, dano: DANO, alc: ALCANCE, disp: .03, rec: 1.5, largo: 1, color: 0x151515, auto: true, soloArmado: true },
+};
+let miArma = "ninguna";
+const ARMA = () => ARMAS[miArma] || ARMAS.ninguna, TENGO_ARMA = () => miArma !== "ninguna";
+function equiparArma(k) {
+  miArma = k; const A = ARMA(); balas = A.carg || 0; recargando = 0;
+  document.body.classList.toggle("armado", TENGO_ARMA());
+  armaVista.scale.set(1, 1, A.largo || 1); armaVista.userData.cuerpo.material.color.setHex(A.color || 0x151515);
+}
 let balas = 0, recargando = 0, enfriar = 0, disparando = false;
 addEventListener("mousedown", e => { if (e.button === 0 && document.pointerLockElement === renderer.domElement) disparando = true; });
 addEventListener("mouseup", () => disparando = false);
-addEventListener("keydown", e => { if (e.code === "KeyR" && ARMADO(clase)) recargar(); if (e.code === "KeyL") linterna.visible = !linterna.visible; });
-function recargar() { if (recargando || balas === CARGADOR) return; recargando = 1.5; beep(300, .08); setTimeout(() => beep(500, .08), 600); }
+addEventListener("keydown", e => { if (e.code === "KeyR" && TENGO_ARMA()) recargar(); if (e.code === "KeyL") linterna.visible = !linterna.visible; });
+function recargar() { if (recargando || balas === ARMA().carg) return; recargando = ARMA().rec || 1.5; beep(300, .08); setTimeout(() => beep(500, .08), 600); }
 // Arma en la mano (se ve en primera persona)
 escena.add(camara);
 const armaVista = new THREE.Group();
 { const negro = new THREE.MeshLambertMaterial({ color: 0x151515 }), gris = new THREE.MeshLambertMaterial({ color: 0x3a3a3a });
-  const cuerpo = new THREE.Mesh(new THREE.BoxGeometry(.09, .12, .5), negro); armaVista.add(cuerpo);
+  const cuerpo = new THREE.Mesh(new THREE.BoxGeometry(.09, .12, .5), negro.clone()); armaVista.add(cuerpo); armaVista.userData.cuerpo = cuerpo;
   const canon = new THREE.Mesh(new THREE.CylinderGeometry(.022, .022, .3, 8), gris); canon.rotation.x = Math.PI / 2; canon.position.z = -.38; armaVista.add(canon);
   const mango = new THREE.Mesh(new THREE.BoxGeometry(.07, .16, .08), negro); mango.position.set(0, -.12, .08); mango.rotation.x = .3; armaVista.add(mango);
   const carg = new THREE.Mesh(new THREE.BoxGeometry(.06, .18, .07), gris); carg.position.set(0, -.13, -.1); armaVista.add(carg); }
@@ -1106,8 +1129,8 @@ function paredEnMedio(o, d, hasta) {
   return null;
 }
 // Busca a qué ladrón le pega un disparo desde "o" en dirección "d"
-function apuntar(o, d, deEquipo) {
-  let mejor = null, dist = ALCANCE;
+function apuntar(o, d, deEquipo, alc = ALCANCE) {
+  let mejor = null, dist = alc;
   for (const s of Object.values(jug)) {
     if (s.equipo === deEquipo || s.preso) continue;
     const vx = s.x - o.x, vz = s.z - o.z, k = vx * d.x + vz * d.z; if (k < 0 || k > dist) continue;
@@ -1117,21 +1140,23 @@ function apuntar(o, d, deEquipo) {
   const pared = paredEnMedio(o, d, dist);
   return pared !== null ? { s: null, dist: pared } : { s: mejor, dist };
 }
-function disparar(tirador, o, d) {
-  const r = apuntar(o, d, tirador.equipo);
+function disparar(tirador, o, d, dano = DANO, alc = ALCANCE, aturde = 0, sonido = true) {
+  const r = apuntar(o, d, tirador.equipo, alc);
   trazo(o, d, r.dist);
   if (tirador === yo) { fogonazo.visible = true; luzFogonazo.intensity = 3; setTimeout(() => { fogonazo.visible = false; luzFogonazo.intensity = 0; }, 45);
-    armaVista.position.z = -.4; beep(140 + Math.random() * 40, .05, "square", .05);
+    armaVista.position.z = -.4; if (sonido) aturde ? beep(1800, .15, "sawtooth", .03) : beep(140 + Math.random() * 40, .05, "square", .05);
     enviar("disparo", { de: tirador.id, o: [o.x, o.y, o.z].map(v => +v.toFixed(2)), d: [d.x, d.y, d.z].map(v => +v.toFixed(3)), l: +r.dist.toFixed(1) }); }
   else if (Math.hypot(o.x - yo.x, o.z - yo.z) < 40) beep(160, .04, "square", .015);
-  if (r.s) { enviar("dano", { ladron: r.s.id, de: tirador.id, dmg: DANO }); recibirDano(r.s.id, tirador.id, DANO); }
+  if (r.s) { enviar("dano", { ladron: r.s.id, de: tirador.id, dmg: dano, at: aturde }); recibirDano(r.s.id, tirador.id, dano, aturde); }
 }
 function verDisparo(p) { const o = new THREE.Vector3(...p.o), d = new THREE.Vector3(...p.d); trazo(o, d, p.l);
   if (Math.hypot(o.x - yo.x, o.z - yo.z) < 40) beep(160, .04, "square", .015); }
-function recibirDano(idLadron, idDe, dmg) {
+function recibirDano(idLadron, idDe, dmg, aturde = 0) {
   const l = jug[idLadron]; if (!l || l.preso) return;
   // Solo descuenta quien controla al ladrón (él mismo, o el dueño del bot); el resto lo ve por "pos"
   if (l !== yo && !l.bot) { if (l.mesh) { l.mesh.scale.setScalar(1.08); setTimeout(() => l.mesh && l.mesh.scale.setScalar(1), 80); } return; }
+  if (aturde) { if (l === yo) { aturdidoHasta = Math.max(aturdidoHasta, Date.now() + aturde); grande("⚡ ¡TE DIERON CON EL TÁSER!", "#f2c200"); } else l.aturdido = Date.now() + aturde;
+    feed(`⚡ ${jug[idDe]?.nombre || "Un poli"} aturdió a ${l.nombre} con el táser`); }
   l.res = Math.max(0, l.res - dmg); l.ultGolpe = Date.now();
   if (l === yo) { $("golpe").style.opacity = .55; setTimeout(() => $("golpe").style.opacity = 0, 90); beep(90, .06, "sawtooth", .04); }
   if (l.res <= 0) { feed(`🪖 ${jug[idDe]?.nombre || "El SWAT"} redujo a ${l.nombre}`); enviar("atrapa", { ladron: l.id, poli: idDe }); atrapado(l.id, idDe); }
@@ -1141,23 +1166,26 @@ function actualizarSwat(dt, t) {
     if (z.t <= 0) { escena.remove(z.l); z.l.geometry.dispose(); trazos.splice(i, 1); } }
   // La resistencia de los ladrones se recupera despacio si no les pegan
   for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso && (s === yo || s.bot) && Date.now() - (s.ultGolpe || 0) > 3000) s.res = Math.min(100, s.res + dt * 8);
-  armaVista.visible = ARMADO(clase) && jugando && !miAuto && modoCam === 0;
+  armaVista.visible = TENGO_ARMA() && jugando && !miAuto && modoCam === 0;
   armaVista.position.z += (-.45 - armaVista.position.z) * Math.min(1, dt * 15);
   armaVista.position.y = -.2 + ((teclas.KeyW || joy.y) && jugando ? Math.sin(t / 110) * .01 : 0);
-  if (!ARMADO(clase) || !jugando || yo.preso || miAuto) return;
+  if (!TENGO_ARMA() || !jugando || yo.preso || miAuto) return;
+  const A = ARMA();
   enfriar -= dt;
-  if (recargando > 0) { recargando -= dt; if (recargando <= 0) { recargando = 0; balas = CARGADOR; } }
+  if (recargando > 0) { recargando -= dt; if (recargando <= 0) { recargando = 0; balas = A.carg; } }
   const quiere = disparando || tactilDispara;
   if (quiere && !recargando && enfriar <= 0) {
     if (balas <= 0) { recargar(); }
-    else { balas--; enfriar = CADENCIA;
-      const d = new THREE.Vector3(); camara.getWorldDirection(d);
-      d.x += (Math.random() - .5) * .03; d.y += (Math.random() - .5) * .03; d.normalize();
+    else { balas--; enfriar = A.cad; if (!A.auto) { disparando = false; tactilDispara = false; }   // semiautomática: un toque, un tiro
       const o = new THREE.Vector3(); camara.getWorldPosition(o);
-      pitch += .006;   // retroceso
-      disparar(yo, o, d); }
+      for (let k = 0; k < (A.perd || 1); k++) {
+        const d = new THREE.Vector3(); camara.getWorldDirection(d);
+        d.x += (Math.random() - .5) * A.disp; d.y += (Math.random() - .5) * A.disp; d.z += (Math.random() - .5) * A.disp; d.normalize();
+        disparar(yo, o, d, A.dano, A.alc, A.aturde || 0, k === 0); }
+      pitch += A.perd ? .03 : .006;   // retroceso
+    }
   }
-  $("municion").textContent = recargando ? "🔄 Recargando..." : `🔫 ${balas} / ${CARGADOR}`;
+  $("municion").textContent = recargando ? "🔄 Recargando..." : `${A.ico} ${balas} / ${A.carg}`;
 }
 let tactilDispara = false;
 
@@ -1241,6 +1269,17 @@ function abrirTaquillas() {
   };
   pintar();
 }
+function abrirArmeria() {
+  document.exitPointerLock?.(); $("armeria").style.display = "block";
+  const pintar = () => {
+    $("ar-lista").innerHTML = Object.entries(ARMAS).filter(([, a]) => !a.soloArmado || ARMADO(yo.clase)).map(([k, a]) =>
+      `<button data-arma="${k}" class="${miArma === k ? "on" : ""}">${a.ico} ${a.nom}<small>${a.d}</small></button>`).join("");
+    $("ar-lista").querySelectorAll("[data-arma]").forEach(b => b.onclick = () => { equiparArma(b.dataset.arma); beep(400, .06, "square"); setTimeout(() => beep(650, .06, "square"), 90); pintar(); });
+  };
+  pintar();
+}
+$("ar-ok").onclick = () => { $("armeria").style.display = "none"; const A = ARMA(); grande(TENGO_ARMA() ? `${A.ico} ${A.nom.toUpperCase()} EQUIPADA` : "✋ SIN ARMA", "#ffd400");
+  if (!document.body.classList.contains("tactil")) renderer.domElement.requestPointerLock?.(); };
 $("tq-ok").onclick = () => { $("taquillas").style.display = "none"; grande(`${DIVISIONES[yo.div].ico} ${DIVISIONES[yo.div].nom.toUpperCase()}`, "#5ec8f2");
   if (!document.body.classList.contains("tactil")) renderer.domElement.requestPointerLock?.(); };
 
@@ -1309,7 +1348,7 @@ function empezar(finTs) {
   quitarDisturbio(); DIST.prog = 0; DIST.prox = Date.now() + 35000;
   resetAutos(); miAuto = null; document.body.classList.toggle("poli", equipo === "poli");
   yo = jug[miId] = nuevoJug(miId, miNombre(), equipo, false, clase);
-  balas = ARMADO(clase) ? CARGADOR : 0; recargando = 0; granadas = clase === "halcon" ? 3 : 0; nocturna(false);
+  equiparArma(ARMADO(clase) ? "fusil" : "ninguna"); recargando = 0; granadas = clase === "halcon" ? 3 : 0; nocturna(false);
   document.body.classList.toggle("swat", clase === "swat"); document.body.classList.toggle("halcon", clase === "halcon"); document.body.classList.toggle("ladron", equipo === "ladron");
   yaw = equipo === "poli" ? Math.PI * .75 : -Math.PI * .75; pitch = 0;
   if (!online) {
@@ -1344,8 +1383,8 @@ function loop(t) {
         pistaDepto = `👕 E: abrir las taquillas (división y uniforme)`;
         if (accionPedida) { accionPedida = false; abrirTaquillas(); }
       } else if (Math.hypot(yo.x - ARMERIA.x, yo.z - (DEPTO.z1 + 2)) < 1.9) {
-        pistaDepto = ARMADO(yo.clase) ? "🔫 E: recargar todo en la armería" : "🔫 La armería es para SWAT y Grupo Halcón";
-        if (accionPedida && ARMADO(yo.clase)) { balas = CARGADOR; recargando = 0; if (yo.clase === "halcon") granadas = 3; accionPedida = false; grande("🔫 ¡EQUIPO RECARGADO!", "#ffd400"); beep(500, .1); setTimeout(() => beep(800, .1), 120); }
+        pistaDepto = "🔫 E: abrir la armería (elegir arma y recargar)";
+        if (accionPedida) { abrirArmeria(); balas = ARMA().carg || 0; recargando = 0; if (yo.clase === "halcon") granadas = 3; accionPedida = false; beep(500, .1); setTimeout(() => beep(800, .1), 120); }
       } else pistaDepto = "";
     } else pistaDepto = "";
     // Subir / bajar del patrullero
