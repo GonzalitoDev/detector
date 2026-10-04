@@ -157,6 +157,14 @@
   <div id="reloj"></div>
   <div id="equipos"></div>
 </div>
+<div id="super" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
+  <div style="max-width:520px;margin:0 auto;background:#3a0a0c;border:2px solid #f2c200;border-radius:16px;padding:16px">
+    <h2 style="margin:0 0 4px;text-align:center">🛒 Supermercado</h2>
+    <div id="su-frase" style="text-align:center;font-style:italic;opacity:.85;margin-bottom:10px"></div>
+    <div id="su-lista" class="tq"></div>
+    <button class="g" id="su-ok" style="width:100%;margin-top:12px">👋 Chau, gracias</button>
+  </div>
+</div>
 <div id="comisario" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
   <div style="max-width:520px;margin:0 auto;background:#2a1a10;border:2px solid #d4af37;border-radius:16px;padding:16px;line-height:1.6">
     <h2 style="margin:0 0 6px;text-align:center">⭐ Oficina del Comisario</h2>
@@ -298,17 +306,21 @@ generarCiudad();
 const AUTOPISTA = { z1: -28, z2: -12, medio: -20 };
 const AER = { x1: 84, x2: 172, z1: -44, z2: 44, puerta1: 12, puerta2: 20 };
 // Aguantadero de los ladrones, afuera de la ciudad hacia el sur (se entra por la calle x = 40)
+// Supermercado, afuera de la ciudad hacia el norte (se entra por la calle x = -8)
+const SUPER = { x1: -44, x2: 28, z1: -132, puerta1: -12, puerta2: -4, ex1: -20, ex2: 4, ez1: -116, ez2: -100, entrada1: -10.5, entrada2: -5.5 };
 const AGU = { x1: 14, x2: 86, z1: 82, z2: 138, puerta1: 36, puerta2: 44 };
 // Puerto, afuera de la ciudad hacia el oeste (se entra por la calle z = -32); más allá de x = -118 es agua
 const PUERTO = { x1: -150, x2: -84, z1: -62, z2: -2, puerta1: -36, puerta2: -12, agua: -118, muelleZ1: -35, muelleZ2: -29, muelleX: -138 };
 function choca(x, z, r = RADIO, eq = null) {
   const mitad = CIUDAD.tam / 2;
-  const enCiudad = x > -mitad - 1 && x < mitad + 1 && z > -mitad + r && z < mitad + 1;
+  const enCiudad = x > -mitad - 1 && x < mitad + 1 && z > -mitad - 1 && z < mitad + 1;
   const enAer = x > mitad - 1 && x < AER.x2 - r && z > AER.z1 + r && z < AER.z2 - r;
   const enPuerto = x < -mitad + 1 && x > PUERTO.x1 + r && z > PUERTO.z1 + r && z < PUERTO.z2 - r &&
     (x > PUERTO.agua + r || (x > PUERTO.muelleX + r && z > PUERTO.muelleZ1 + r && z < PUERTO.muelleZ2 - r));   // al agua no se puede entrar, salvo por el muelle
   const enAgu = z > mitad - 1 && x > AGU.x1 + r && x < AGU.x2 - r && z < AGU.z2 - r;
-  if (!enCiudad && !enAer && !enPuerto && !enAgu) return true;
+  const enSuper = z < -mitad + 1 && x > SUPER.x1 + r && x < SUPER.x2 - r && z > SUPER.z1 + r;
+  if (Math.abs(z + mitad) < r + .3 && x > -mitad && x < mitad && !(x > SUPER.puerta1 + r && x < SUPER.puerta2 - r)) return true;   // paredón norte con portón al súper
+  if (!enCiudad && !enAer && !enPuerto && !enAgu && !enSuper) return true;
   if (Math.abs(z - mitad) < r + .3 && x > -mitad && x < mitad && !(x > AGU.puerta1 + r && x < AGU.puerta2 - r)) return true;   // paredón sur con portón al aguantadero
   if (Math.abs(x + mitad) < r + .3 && !(z > PUERTO.puerta1 + r && z < PUERTO.puerta2 - r)) return true;   // paredón oeste con portón al puerto
   if (Math.abs(x - mitad) < r + .3 && !(z > AER.puerta1 + r && z < AER.puerta2 - r) && !(z > AUTOPISTA.z1 + r && z < AUTOPISTA.z2 - r)) return true;   // paredón con portón hacia el aeropuerto
@@ -454,7 +466,8 @@ const coloresEd = [0x8a8fa3, 0xa38a7a, 0x7a8fa3, 0x9a9a9a, 0xb0a080, 0x6f7f8f];
   instancias(new THREE.CylinderGeometry(.03, .05, 4, 4), new THREE.MeshBasicMaterial({ color: 0xff3030 }), antenas);
   // Paredón del borde y edificios lejanos (no se puede llegar)
   const borde = [];
-  borde.push([0, 1.2, -mitad - .3, 0]);
+  { const n1 = SUPER.puerta1 + mitad, n2 = mitad - SUPER.puerta2;   // lado norte: dos tramos con el portón del supermercado
+    borde.push([-mitad + n1 / 2, 1.2, -mitad - .3, 0, n1 / (CIUDAD.tam + 1), 1, 1], [mitad - n2 / 2, 1.2, -mitad - .3, 0, n2 / (CIUDAD.tam + 1), 1, 1]); }
   { const s1 = AGU.puerta1 + mitad, s2 = mitad - AGU.puerta2;   // lado sur: dos tramos con el portón del aguantadero
     borde.push([-mitad + s1 / 2, 1.2, mitad + .3, 0, s1 / (CIUDAD.tam + 1), 1, 1], [mitad - s2 / 2, 1.2, mitad + .3, 0, s2 / (CIUDAD.tam + 1), 1, 1]); }
   { const m1 = PUERTO.puerta1 + mitad, m2 = mitad - PUERTO.puerta2;   // lado oeste: dos tramos con el portón del puerto
@@ -467,6 +480,7 @@ const coloresEd = [0x8a8fa3, 0xa38a7a, 0x7a8fa3, 0x9a9a9a, 0xb0a080, 0x6f7f8f];
     if (Math.cos(a) > .35) continue;   // del lado del aeropuerto no hay edificios
     if (Math.cos(a) < -.6 && Math.sin(a) < .3) continue;   // ni del lado del puerto
     if (Math.sin(a) > .55 && Math.cos(a) > -.25) continue;   // ni del lado del aguantadero
+    if (Math.sin(a) < -.6 && Math.cos(a) > -.55 && Math.cos(a) < .4) continue;   // ni del lado del supermercado
     lejos.push([Math.cos(a) * r, h / 2, Math.sin(a) * r, -a, w, h, w]); }
   const tl = texVentanas.clone(), tle = texLuces.clone(); tl.needsUpdate = tle.needsUpdate = true; tl.repeat.set(2, 8); tle.repeat.set(2, 8);
   instancias(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0x5a6070, map: tl, emissiveMap: tle, emissive: 0xffffff, emissiveIntensity: .8 }), lejos);
@@ -771,6 +785,86 @@ const TAQUILLAS = { x: DEPTO.x1 + 2.5, z: DEPTO.z1 + 1.6 }, ARMERIA = { x: DEPTO
   for (const [x, z, ry] of [[D.x1 - .03, D.cz - 2, -Math.PI / 2], [D.x1 - .03, D.cz + 2, -Math.PI / 2], [D.x2 + .03, D.cz - 2.5, Math.PI / 2], [D.cx - 3.5, D.z2 + .03, 0], [D.cx + 3.8, D.z2 + .03, 0]]) {
     const v = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.2), new THREE.MeshLambertMaterial({ color: 0x9fd0ff, emissive: 0x2a4a6a })); v.position.set(x, 2.5, z); v.rotation.y = ry; escena.add(v); }
 }
+// ================== SUPERMERCADO ==================
+// Un "súper chino" de barrio afuera de la ciudad: estacionamiento, cartel, góndolas, heladeras y el señor Li en la caja.
+// Se le puede comprar (gratis, con espera): gaseosa para correr más rápido y alfajor para recuperar resistencia.
+{
+  const S = SUPER, L = c => new THREE.MeshLambertMaterial({ color: c }), mitad = CIUDAD.tam / 2;
+  const plano = (x1, z1, x2, z2, c, y) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(x2 - x1, z2 - z1), L(c)); m.rotation.x = -Math.PI / 2; m.position.set((x1 + x2) / 2, y, (z1 + z2) / 2); escena.add(m); };
+  plano(S.x1, S.z1, S.x2, -mitad, 0x3d5a32, .005);                                   // pasto
+  plano(S.puerta1, S.ez2, S.puerta2, -mitad, 0x2b2d33, .015);                          // calle de entrada
+  plano(-24, S.ez2, 8, -90, 0x45484f, .02);                                            // estacionamiento
+  for (let x = -22; x <= 6; x += 3.2) { if (x > S.puerta1 - 1.6 && x < S.puerta2 + 1.6) continue; const r = new THREE.Mesh(new THREE.PlaneGeometry(.12, 4.5), new THREE.MeshBasicMaterial({ color: 0xe8e8e8 })); r.rotation.x = -Math.PI / 2; r.position.set(x, .03, -95); escena.add(r); }
+  // Autos de clientes estacionados (se chocan)
+  [[-19, -95, 0x8a1a1a], [-12.6, -95, 0xd8d8d8], [1.4, -95, 0x1a3a7a]].forEach(([x, z, c]) => { const a = new THREE.Group();
+    const b = new THREE.Mesh(new THREE.BoxGeometry(1.8, .8, 4.2), L(c)); b.position.y = .6; a.add(b);
+    const t = new THREE.Mesh(new THREE.BoxGeometry(1.6, .6, 2.2), L(0x1b2633)); t.position.set(0, 1.25, -.2); a.add(t);
+    for (const [dx, dz] of [[-.9, 1.3], [.9, 1.3], [-.9, -1.3], [.9, -1.3]]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(.33, .33, .25, 10), L(0x111111)); w.rotation.z = Math.PI / 2; w.position.set(dx, .33, dz); a.add(w); }
+    a.position.set(x, 0, z); escena.add(a); edificios.push({ x1: x - .95, x2: x + .95, z1: z - 2.15, z2: z + 2.15, h: 1.5, arbol: true }); });
+  // Edificio: paredes con la entrada en el frente (mirando a la ciudad)
+  const alto = 4.2, g = .3, pared = L(0xf1ece0);
+  const paredes = [[S.ex1, S.ez1, S.ex2, S.ez1 + g], [S.ex1, S.ez1, S.ex1 + g, S.ez2], [S.ex2 - g, S.ez1, S.ex2, S.ez2], [S.ex1, S.ez2 - g, S.entrada1, S.ez2], [S.entrada2, S.ez2 - g, S.ex2, S.ez2]];
+  for (const [x1, z1, x2, z2] of paredes) { const m = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1, alto, z2 - z1), pared); m.position.set((x1 + x2) / 2, alto / 2, (z1 + z2) / 2); escena.add(m); edificios.push({ x1, z1, x2, z2, h: alto }); }
+  const techo = new THREE.Mesh(new THREE.BoxGeometry(S.ex2 - S.ex1 + .6, .3, S.ez2 - S.ez1 + .6), L(0xc0392b)); techo.position.set((S.ex1 + S.ex2) / 2, alto + .15, (S.ez1 + S.ez2) / 2); escena.add(techo);
+  const pisoS = new THREE.Mesh(new THREE.PlaneGeometry(S.ex2 - S.ex1, S.ez2 - S.ez1), new THREE.MeshLambertMaterial({ map: textura((c, w, h) => { for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { c.fillStyle = (i + j) % 2 ? "#e8e4dc" : "#cfcac0"; c.fillRect(i * 16, j * 16, 16, 16); } }, 128, 128) }));
+  pisoS.material.map.wrapS = pisoS.material.map.wrapT = THREE.RepeatWrapping; pisoS.material.map.repeat.set(6, 4);
+  pisoS.rotation.x = -Math.PI / 2; pisoS.position.set((S.ex1 + S.ex2) / 2, .025, (S.ez1 + S.ez2) / 2); escena.add(pisoS);
+  // Vidriera y cartel rojo y dorado
+  for (const [a, b] of [[S.ex1 + .5, S.entrada1 - .5], [S.entrada2 + .5, S.ex2 - .5]]) { const v = new THREE.Mesh(new THREE.PlaneGeometry(b - a, 2), new THREE.MeshLambertMaterial({ color: 0x9fd0ff, emissive: 0x2a4a5a })); v.position.set((a + b) / 2, 1.6, S.ez2 + .02); escena.add(v); }
+  const texSup = textura((c, w, h) => { c.fillStyle = "#c0161b"; c.fillRect(0, 0, w, h); c.fillStyle = "#f2c200"; c.fillRect(0, 0, w, 8); c.fillRect(0, h - 8, w, 8);
+    c.fillStyle = "#f2c200"; c.textAlign = "center"; c.textBaseline = "middle"; c.font = "bold 70px system-ui"; c.fillText("SUPERMERCADO", w / 2, h * .42); c.font = "bold 40px system-ui"; c.fillText("超市 · ABIERTO TODOS LOS DÍAS", w / 2, h * .8); }, 1024, 192);
+  const cartelS = new THREE.Mesh(new THREE.PlaneGeometry(14, 2.6), new THREE.MeshBasicMaterial({ map: texSup })); cartelS.position.set((S.ex1 + S.ex2) / 2, alto - .3, S.ez2 + .05); escena.add(cartelS);
+  // Faroles rojos colgando de la entrada
+  for (const x of [S.entrada1 - .6, S.entrada2 + .6]) { const f = new THREE.Mesh(new THREE.SphereGeometry(.3, 10, 8), new THREE.MeshBasicMaterial({ color: 0xff3a2a })); f.scale.y = 1.3; f.position.set(x, 2.6, S.ez2 + .5); escena.add(f); }
+  // Góndolas con productos de colores y heladeras con luz
+  const texProd = textura((c, w, h) => { const cols = ["#e53935", "#fdd835", "#43a047", "#1e88e5", "#fb8c00", "#8e24aa", "#ffffff", "#6d4c41"];
+    for (let f = 0; f < 4; f++) { c.fillStyle = "#777"; c.fillRect(0, f * 32 + 28, w, 4); for (let i = 0; i < 16; i++) { c.fillStyle = cols[(i * 3 + f * 5) % cols.length]; c.fillRect(i * 8 + 1, f * 32 + 6 + (i % 3) * 2, 6, 22 - (i % 3) * 2); } } }, 128, 128);
+  const matG = [L(0xdddddd), L(0xdddddd), L(0xdddddd), L(0xdddddd), new THREE.MeshLambertMaterial({ map: texProd }), new THREE.MeshLambertMaterial({ map: texProd })];
+  for (const x of [-16, -11, -6]) { const go = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.9, 9), [new THREE.MeshLambertMaterial({ map: texProd }), new THREE.MeshLambertMaterial({ map: texProd }), L(0xdddddd), L(0xdddddd), L(0xdddddd), L(0xdddddd)]);
+    go.position.set(x, .95, -109); escena.add(go); edificios.push({ x1: x - .6, x2: x + .6, z1: -113.5, z2: -104.5, h: 1.9 }); }
+  const helad = new THREE.Mesh(new THREE.BoxGeometry(S.ex2 - S.ex1 - 6, 2.2, .9), [L(0xeeeeee), L(0xeeeeee), L(0xeeeeee), L(0xeeeeee), new THREE.MeshLambertMaterial({ map: texProd, emissive: 0x335577 }), L(0xeeeeee)]);
+  helad.position.set((S.ex1 + S.ex2) / 2 - 2, 1.1, S.ez1 + .8); escena.add(helad); edificios.push({ x1: S.ex1 + 1, x2: S.ex2 - 5, z1: S.ez1, z2: S.ez1 + 1.3, h: 2.2 });
+  // Caja: mostrador con caja registradora, al lado de la entrada
+  const most = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1, 1), L(0x8a5a2a)); most.position.set(-1, .5, -103.2); escena.add(most);
+  const caja = new THREE.Mesh(new THREE.BoxGeometry(.6, .35, .45), L(0x2a2a2a)); caja.position.set(-1.6, 1.18, -103.2); escena.add(caja);
+  const gato = new THREE.Group(); gato.position.set(.2, 1, -103.2); escena.add(gato);   // gato de la suerte en el mostrador
+  { const c1 = new THREE.Mesh(new THREE.BoxGeometry(.22, .24, .16), L(0xf6f2ea)); c1.position.y = .12; gato.add(c1); const c2 = new THREE.Mesh(new THREE.SphereGeometry(.12, 10, 8), L(0xf6f2ea)); c2.position.y = .32; gato.add(c2);
+    const pata = new THREE.Mesh(new THREE.BoxGeometry(.05, .14, .05), L(0xf6f2ea)); pata.position.set(.12, .3, .03); gato.add(pata); SUPER.pata = pata; }
+  edificios.push({ x1: -2.7, x2: .7, z1: -103.7, z2: -102.7, h: 1 });
+  const cS = cartel("🛒 SUPERMERCADO", "#c0161b"); cS.scale.set(7, 1.75, 1); cS.position.set((S.ex1 + S.ex2) / 2, alto + 3, (S.ez1 + S.ez2) / 2); escena.add(cS);
+  const cP = cartel("🛒 SÚPER ↑", "#c0161b"); cP.scale.set(5, 1.25, 1); cP.position.set(S.puerta2 + 2, 5, -mitad + 2); escena.add(cP);
+}
+// El señor Li, el dueño, atiende la caja (persona normal: delantal rojo, camisa blanca)
+const senorLi = new THREE.Group(); senorLi.position.set(-1, 0, -104.6); escena.add(senorLi);
+{ const L = c => new THREE.MeshLambertMaterial({ color: c });
+  const piernas = new THREE.Mesh(new THREE.BoxGeometry(.42, .9, .24), L(0x2a2a3a)); piernas.position.y = .45; senorLi.add(piernas);
+  const cuerpo = new THREE.Mesh(new THREE.BoxGeometry(.52, .66, .28), L(0xf4f4f4)); cuerpo.position.y = 1.25; senorLi.add(cuerpo);
+  const delantal = new THREE.Mesh(new THREE.BoxGeometry(.46, .8, .02), L(0xc0161b)); delantal.position.set(0, 1.05, .15); senorLi.add(delantal);
+  for (const x of [-.34, .34]) { const b = new THREE.Mesh(new THREE.BoxGeometry(.14, .55, .16), L(0xf4f4f4)); b.position.set(x, 1.28, 0); senorLi.add(b); }
+  const cab = new THREE.Mesh(new THREE.SphereGeometry(.19, 14, 10), L(0xe8c39e)); cab.position.y = 1.82; cab.scale.y = 1.1; senorLi.add(cab);
+  const pelo = new THREE.Mesh(new THREE.SphereGeometry(.2, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2.2), L(0x1a1a1a)); pelo.position.y = 1.86; senorLi.add(pelo);
+  const ant = new THREE.Mesh(new THREE.BoxGeometry(.3, .06, .02), L(0x222222)); ant.position.set(0, 1.86, .19); senorLi.add(ant);   // anteojos
+  const n = cartel("Sr. Li · cajero", "#c0161b"); n.scale.set(2.4, .6, 1); n.position.y = 2.5; senorLi.add(n); }
+const COMPRAS = {
+  gaseosa: { nom: "Gaseosa", ico: "🥤", d: "Corrés 25% más rápido durante 20 s.", espera: 45000 },
+  alfajor: { nom: "Alfajor", ico: "🍫", d: "Recuperás toda la resistencia (si sos ladrón) y te saca el aturdimiento.", espera: 45000 },
+  agua: { nom: "Agua", ico: "💧", d: "Gratis, para el calor. No hace nada, pero el señor Li te saluda.", espera: 5000 },
+};
+const comprasListas = {}; let rapidoHasta = 0;
+const FRASES_LI = ["¡Hola, amigo! ¿Qué llevás hoy?", "Pasá, pasá, tenemos de todo.", "¿Te cobro? Hoy invita la casa.", "Cuidado afuera, que anda la policía corriendo."];
+function abrirSuper() { document.exitPointerLock?.(); $("super").style.display = "block"; pintarSuper(); }
+function pintarSuper() {
+  const ahora = Date.now();
+  $("su-frase").textContent = `"${FRASES_LI[Math.floor(ahora / 15000) % FRASES_LI.length]}"`;
+  $("su-lista").innerHTML = Object.entries(COMPRAS).map(([k, c]) => { const e = Math.ceil(((comprasListas[k] || 0) - ahora) / 1000);
+    return `<button data-compra="${k}" ${e > 0 ? "disabled" : ""}>${c.ico} ${c.nom}${e > 0 ? ` (${e}s)` : ""}<small>${c.d}</small></button>`; }).join("");
+  $("su-lista").querySelectorAll("[data-compra]").forEach(b => b.onclick = () => { const k = b.dataset.compra; comprasListas[k] = Date.now() + COMPRAS[k].espera;
+    if (k === "gaseosa") { rapidoHasta = Date.now() + 20000; grande("🥤 ¡A CORRER!", "#5ec8f2"); }
+    if (k === "alfajor") { yo.res = 100; aturdidoHasta = 0; grande("🍫 ¡QUÉ RICO!", "#c08040"); }
+    if (k === "agua") grande("💧 \"¡Gracias, vuelva pronto!\"", "#9fd0ff");
+    beep(1200, .06, "triangle"); setTimeout(() => beep(1500, .08, "triangle"), 80); pintarSuper(); });
+}
+$("su-ok").onclick = () => { $("super").style.display = "none"; if (!document.body.classList.contains("tactil")) renderer.domElement.requestPointerLock?.(); };
 // ================== AGUANTADERO (guarida de los ladrones) ==================
 // Un predio abandonado afuera de la ciudad: galpones viejos, desarmadero de autos, tachos con fuego y contenedor-oficina
 {
@@ -2211,6 +2305,12 @@ function loop(t) {
         if (accionPedida) { abrirArmeria(); balas = ARMA().carg || 0; recargando = 0; if (yo.clase === "halcon") granadas = 3; accionPedida = false; beep(500, .1); setTimeout(() => beep(800, .1), 120); }
       } else pistaDepto = "";
     } else pistaDepto = "";
+    // Supermercado: cualquiera puede comprarle al señor Li
+    if (!miAuto && !yo.preso && Math.hypot(yo.x - senorLi.position.x, yo.z - (senorLi.position.z + 2.6)) < 1.8) {
+      pistaDepto = "🛒 E: comprarle al señor Li";
+      if (accionPedida) { accionPedida = false; abrirSuper(); }
+    }
+    if (SUPER.pata) SUPER.pata.rotation.x = Math.sin(t / 250) * .6;   // el gatito saluda
     // Subir / bajar del patrullero
     let autoCerca = null;
     if (yo.equipo === "poli" && !miAuto) { let dm = 3.2; for (const a of autos) { const d = Math.hypot(a.x - yo.x, a.z - yo.z); if (!a.conductor && d < dm) { dm = d; autoCerca = a; } } }   // el más cercano
@@ -2221,7 +2321,7 @@ function loop(t) {
       const f = (teclas.KeyW || teclas.ArrowUp ? 1 : 0) - (teclas.KeyS || teclas.ArrowDown ? 1 : 0) - joy.y;
       const r = (teclas.KeyD || teclas.ArrowRight ? 1 : 0) - (teclas.KeyA || teclas.ArrowLeft ? 1 : 0) + joy.x;
       const corre = teclas.ShiftLeft || teclas.ShiftRight || Math.hypot(joy.x, joy.y) > .9;
-      const vel = (yo.equipo === "poli" ? 6.5 : 6.2) * (corre ? 1.5 : 1) * (yo.div === "motorizada" ? 1.1 : 1);
+      const vel = (yo.equipo === "poli" ? 6.5 : 6.2) * (corre ? 1.5 : 1) * (yo.div === "motorizada" ? 1.1 : 1) * (Date.now() < rapidoHasta ? 1.25 : 1);
       mover(yo, -Math.sin(yaw) * f + Math.cos(yaw) * r, -Math.cos(yaw) * f - Math.sin(yaw) * r, vel, dt);
     } else if (teclas.KeyW || joy.y) { yo.x += (Math.random() - .5) * .02; }
     // Cerca de alguien / de algo
@@ -2345,7 +2445,7 @@ function loop(t) {
 }
 // Junta en una sola malla todos los objetos fijos que comparten material (veredas, rayas, carteles pintados, aeropuerto...)
 function fusionarEstaticos() {
-  const dyn = new Set([AER.faro, puerta.mesh, conoLuz, ...AGU.fuegos, ...PAQUETES.map(p => p.mesh), ...balizasCarcel.map(b => b.b)]);
+  const dyn = new Set([SUPER.pata, AER.faro, puerta.mesh, conoLuz, ...AGU.fuegos, ...PAQUETES.map(p => p.mesh), ...balizasCarcel.map(b => b.b)]);
   const grupos = new Map();
   for (const m of [...escena.children]) {
     if (!m.isMesh || m.isInstancedMesh || m.children.length || dyn.has(m) || Array.isArray(m.material) || !m.visible) continue;
