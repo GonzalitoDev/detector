@@ -157,6 +157,15 @@
   <div id="reloj"></div>
   <div id="equipos"></div>
 </div>
+<div id="comisario" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
+  <div style="max-width:520px;margin:0 auto;background:#2a1a10;border:2px solid #d4af37;border-radius:16px;padding:16px;line-height:1.6">
+    <h2 style="margin:0 0 6px;text-align:center">⭐ Oficina del Comisario</h2>
+    <div id="cm-txt"></div>
+    <button class="g" id="cm-orden" style="width:100%;margin-top:12px">🎖️ Pedir orden del día</button>
+    <div style="font-size:12px;opacity:.75;margin-top:4px">La orden marca 15 s al ladrón más peligroso para toda la policía. Una vez por minuto.</div>
+    <button class="g" id="cm-ok" style="width:100%;margin-top:10px">✅ Volver al servicio</button>
+  </div>
+</div>
 <div id="compu" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
   <div style="max-width:680px;margin:0 auto;background:#06243f;border:2px solid #5ec8f2;border-radius:12px;padding:0;font-family:ui-monospace,monospace;color:#d8f4ff;overflow:hidden">
     <div style="background:#5ec8f2;color:#06243f;padding:8px 14px;font-weight:900;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span>💻 RENAPER · CONSULTA POLICIAL</span><span style="font-size:12px">Sistema del juego · datos ficticios</span></div>
@@ -574,6 +583,7 @@ function actualizarAviones(t) {
 // Lado oeste de la ciudad, lejos de los lugares de los ladrones (guarida, banco, casa narco y muelle)
 const DEPTO = { x1: -58, x2: -47, z1: -4, z2: 5.5, alto: 4.2, puertaX1: -53.7, puertaX2: -51.3 };
 DEPTO.cx = (DEPTO.x1 + DEPTO.x2) / 2; DEPTO.cz = (DEPTO.z1 + DEPTO.z2) / 2; DEPTO.px = (DEPTO.puertaX1 + DEPTO.puertaX2) / 2;
+const OFICINA = { x1: DEPTO.x2 - 3.6, x2: DEPTO.x2 - .4, z1: DEPTO.z1 + 4.2, z2: DEPTO.z2 - .4, puertaZ1: DEPTO.z1 + 4.6, puertaZ2: DEPTO.z1 + 5.9, mesaX: DEPTO.x2 - 1.6, mesaZ: DEPTO.z1 + 6.8 };
 const TAQUILLAS = { x: DEPTO.x1 + 2.5, z: DEPTO.z1 + 1.6 }, ARMERIA = { x: DEPTO.x2 - 2.5, z: DEPTO.z1 + 1.6 }, COMPU = { x: DEPTO.x1 + 1.9, z: DEPTO.cz };
 {
   const D = DEPTO, g = .4, matP = new THREE.MeshLambertMaterial({ color: 0xdfe6ee }), matF = new THREE.MeshLambertMaterial({ color: 0x0f1d36 });
@@ -608,6 +618,29 @@ const TAQUILLAS = { x: DEPTO.x1 + 2.5, z: DEPTO.z1 + 1.6 }, ARMERIA = { x: DEPTO
     const resp = new THREE.Mesh(new THREE.BoxGeometry(.08, .6, .5), negro); resp.position.set(ex + 1.2, .8, ez); escena.add(resp);
     edificios.push({ x1: D.x1, z1: ez - 1, x2: ex + .55, z2: ez + 1, h: .8 });
     const c4 = cartel("💻 RENAPER", "#06243f"); c4.scale.set(2.6, .65, 1); c4.position.set(ex, 2.2, ez); escena.add(c4); }
+  // Oficina del comisario (esquina del frente a la derecha): tabique con puerta, vidrio arriba, escritorio, biblioteca y bandera
+  { const O = OFICINA, alto = 2.7, matT = new THREE.MeshLambertMaterial({ color: 0x8a6a4a }), vidrio = new THREE.MeshLambertMaterial({ color: 0x9fc4e8, transparent: true, opacity: .35 });
+    const tabique = (x1, z1, x2, z2) => { const m = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1, 1.3, z2 - z1), matT); m.position.set((x1 + x2) / 2, .65, (z1 + z2) / 2); escena.add(m);
+      const v = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1, alto - 1.3, z2 - z1), vidrio); v.position.set((x1 + x2) / 2, 1.3 + (alto - 1.3) / 2, (z1 + z2) / 2); escena.add(v);
+      edificios.push({ x1, z1, x2, z2, h: alto }); };
+    tabique(O.x1, O.z1, O.x2, O.z1 + .2);                         // pared norte
+    tabique(O.x1, O.z1, O.x1 + .2, O.puertaZ1);                    // pared oeste, antes de la puerta
+    tabique(O.x1, O.puertaZ2, O.x1 + .2, O.z2);                    // pared oeste, después de la puerta
+    const alfombra = new THREE.Mesh(new THREE.PlaneGeometry(O.x2 - O.x1 - .3, O.z2 - O.z1 - .3), new THREE.MeshLambertMaterial({ color: 0x6a1a22 })); alfombra.rotation.x = -Math.PI / 2; alfombra.position.set((O.x1 + O.x2) / 2 + .1, .03, (O.z1 + O.z2) / 2 + .1); escena.add(alfombra);
+    const madera = new THREE.MeshLambertMaterial({ color: 0x4a2e1a });
+    const esc = new THREE.Mesh(new THREE.BoxGeometry(.9, .78, 1.8), madera); esc.position.set(O.mesaX, .39, O.mesaZ); escena.add(esc);
+    edificios.push({ x1: O.mesaX - .45, x2: O.mesaX + .45, z1: O.mesaZ - .9, z2: O.mesaZ + .9, h: .8 });
+    const placa = new THREE.Mesh(new THREE.PlaneGeometry(.8, .2), new THREE.MeshBasicMaterial({ map: textura((c, w, h) => { c.fillStyle = "#d4af37"; c.fillRect(0, 0, w, h); c.fillStyle = "#1a1a1a"; c.font = "bold 40px system-ui"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("COMISARIO", w / 2, h / 2 + 2); }, 256, 64) }));
+    placa.rotation.y = -Math.PI / 2; placa.position.set(O.mesaX - .46, .6, O.mesaZ); escena.add(placa);
+    const mon = new THREE.Mesh(new THREE.BoxGeometry(.06, .4, .6), new THREE.MeshLambertMaterial({ color: 0x151515 })); mon.position.set(O.mesaX + .2, 1, O.mesaZ - .5); escena.add(mon);
+    const silla = new THREE.Mesh(new THREE.BoxGeometry(.6, 1.1, .6), new THREE.MeshLambertMaterial({ color: 0x1a1a1a })); silla.position.set(O.mesaX + .9, .55, O.mesaZ); escena.add(silla);
+    const biblio = new THREE.Mesh(new THREE.BoxGeometry(.5, 2.2, 1.8), madera); biblio.position.set(O.x2 - .25, 1.1, O.z1 + 1.3); escena.add(biblio);
+    for (let i = 0; i < 4; i++) { const libros = new THREE.Mesh(new THREE.BoxGeometry(.05, .35, 1.6), new THREE.MeshLambertMaterial({ color: [0xa02020, 0x204080, 0x207040, 0xc09020][i] })); libros.position.set(O.x2 - .52, .45 + i * .5, O.z1 + 1.3); escena.add(libros); }
+    edificios.push({ x1: O.x2 - .5, x2: O.x2, z1: O.z1 + .4, z2: O.z1 + 2.2, h: 2.2 });
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, 2.2), new THREE.MeshLambertMaterial({ color: 0xd4af37 })); mast.position.set(O.x2 - .4, 1.1, O.z2 - .4); escena.add(mast);
+    const band = new THREE.Mesh(new THREE.PlaneGeometry(.8, .55), new THREE.MeshBasicMaterial({ map: textura((c, w, h) => { c.fillStyle = "#74acdf"; c.fillRect(0, 0, w, h); c.fillStyle = "#fff"; c.fillRect(0, h / 3, w, h / 3); c.fillStyle = "#f6b40e"; c.beginPath(); c.arc(w / 2, h / 2, h / 9, 0, 7); c.fill(); }, 96, 64), side: THREE.DoubleSide }));
+    band.position.set(O.x2 - .4, 1.9, O.z2 - .8); band.rotation.y = Math.PI / 2; escena.add(band);
+    const c5 = cartel("⭐ OFICINA DEL COMISARIO", "#5a3a1a"); c5.scale.set(3.6, .9, 1); c5.position.set((O.x1 + O.x2) / 2, 3.3, (O.z1 + O.z2) / 2); escena.add(c5); }
   const c1 = cartel("👕 TAQUILLAS", "#3b5b7a"); c1.scale.set(3, .75, 1); c1.position.set(TAQUILLAS.x, 2.8, D.z1 + 1); escena.add(c1);
   const c2 = cartel("🔫 ARMERÍA", "#2d2d2d"); c2.scale.set(3, .75, 1); c2.position.set(ARMERIA.x, 2.1, D.z1 + 1); escena.add(c2);
   const c3 = cartel("🚔 DEPARTAMENTO DE POLICÍA", "#0f1d36"); c3.scale.set(10, 2.5, 1); c3.position.set((D.x1 + D.x2) / 2, D.alto + 2.4, (D.z1 + D.z2) / 2); escena.add(c3);
@@ -1933,6 +1966,9 @@ function loop(t) {
       if (Math.hypot(yo.x - TAQUILLAS.x, yo.z - (DEPTO.z1 + 1.6)) < 1.8 && !ARMADO(yo.clase)) {
         pistaDepto = `👕 E: abrir las taquillas (división y uniforme)`;
         if (accionPedida) { accionPedida = false; abrirTaquillas(); }
+      } else if (Math.hypot(yo.x - (OFICINA.mesaX - 1.1), yo.z - OFICINA.mesaZ) < 1.4) {
+        pistaDepto = "⭐ E: hablar con el Comisario";
+        if (accionPedida) { accionPedida = false; abrirComisario(); }
       } else if (Math.hypot(yo.x - COMPU.x, yo.z - COMPU.z) < 1.6) {
         pistaDepto = "💻 E: usar la computadora (RENAPER: buscar personas)";
         if (accionPedida) { accionPedida = false; abrirCompu(); }
@@ -2089,6 +2125,36 @@ function fusionarEstaticos() {
   }
   return antes - despues;
 }
+// ================== COMISARIO ==================
+// Está en su oficina. Da el parte de la partida y una "orden del día": marca 15 s al ladrón más peligroso (cada 60 s).
+let comisario = null, ordenLista = 0;
+const FRASES_COM = ["Buen trabajo, agente. La ciudad cuenta con usted.", "Quiero a esos delincuentes tras las rejas antes del final del turno.", "Cuide a sus compañeros y no se arriesgue de más.", "Recuerde: primero la seguridad de los vecinos.", "La Casa de Gobierno nos pidió máxima atención hoy."];
+function crearComisario() { if (comisario) return; comisario = crearMuneco("poli", "Comisario", "poli", "patrulla", "gala"); comisario.position.set(OFICINA.mesaX + .9, 0, OFICINA.mesaZ); comisario.rotation.y = -Math.PI / 2; }
+function abrirComisario() {
+  if (yo.equipo !== "poli") { grande("⭐ \"¡Usted no puede estar acá!\"", "#ff8a8a"); return; }
+  document.exitPointerLock?.(); $("comisario").style.display = "block"; pintarComisario();
+}
+function pintarComisario() {
+  const L = Object.values(jug).filter(s => s.equipo === "ladron"), P = Object.values(jug).filter(s => s.equipo === "poli");
+  const mejor = P.slice().sort((a, b) => (b.atrapados || 0) - (a.atrapados || 0))[0];
+  const espera = Math.ceil((ordenLista - Date.now()) / 1000);
+  $("cm-txt").innerHTML = `<p style="font-style:italic">"${FRASES_COM[Math.floor(Date.now() / 20000) % FRASES_COM.length]}"</p>
+    <b>📋 Parte de situación</b><br>🦹 Ladrones libres: ${L.filter(s => !s.preso).length} · ⛓️ presos: ${L.filter(s => s.preso).length}<br>
+    💰 Botín robado: $${botin.toLocaleString("es-AR")} de $${META.toLocaleString("es-AR")}<br>
+    ${mejor && mejor.atrapados ? `🏅 Mejor agente: ${esc(mejor.nombre)} (${mejor.atrapados} detenciones)<br>` : ""}
+    ${DIST.activo ? "🔥 Hay un disturbio activo<br>" : ""}${CAR.activa ? "🏛️ La caravana presidencial está en la calle<br>" : ""}`;
+  const b = $("cm-orden"); b.disabled = espera > 0; b.textContent = espera > 0 ? `🎖️ Orden del día (${espera}s)` : "🎖️ Pedir orden del día";
+}
+$("cm-orden").onclick = () => {
+  if (Date.now() < ordenLista) return;
+  let obj = null, pts = -1;
+  for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso) { const p = (s.robado || 0) + (s.bolsa || s.paquete ? 5000 : 0); if (p > pts) { pts = p; obj = s; } }
+  if (!obj) { grande("⭐ \"No hay nadie suelto. ¡Bien hecho!\"", "#5ec8f2"); return; }
+  ordenLista = Date.now() + 60000; pedidoCaptura(obj.id, yo.id, true); capturas[obj.id] = Date.now() + 15000;
+  grande(`⭐ "¡Tráiganme a ${obj.nombre}!"`, "#ffd400"); pintarComisario();
+};
+$("cm-ok").onclick = () => { $("comisario").style.display = "none"; if (!document.body.classList.contains("tactil")) renderer.domElement.requestPointerLock?.(); };
+crearComisario();
 fusionarEstaticos();
 requestAnimationFrame(loop);
 
