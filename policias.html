@@ -517,7 +517,7 @@ const autos = (() => {
     return { i, tipo, r: tipo === "camioneta" ? 1.6 : tipo === "moto" ? .7 : AUTO_R, max: tipo === "camioneta" ? 23 : tipo === "moto" ? 31 : 26, x0: p.x0, z0: p.z0, x: p.x0, z: p.z0, h: 0, vel: 0, conductor: null, sirena: true,
       tx: p.x0, tz: p.z0, th: 0, mesh: tipo === "camioneta" ? crearCamioneta() : tipo === "moto" ? crearMoto() : crearPatrullero() }; });
 })();
-function resetAutos() { for (const a of autos) Object.assign(a, { x: a.x0, z: a.z0, tx: a.x0, tz: a.z0, h: 0, th: 0, vel: 0, conductor: null, sirena: true }); }
+function resetAutos() { for (const a of autos) Object.assign(a, { x: a.x0, z: a.z0, tx: a.x0, tz: a.z0, h: 0, th: 0, vel: 0, conductor: null, sirena: true, balizas: false }); }
 let miAuto = null, sirenaT = 0, sirenaAlt = false, mirarAuto = 0;
 function subirAuto(a) { setTimeout(pintarPanel, 0);
   if (a.conductor || yo.equipo !== "poli" || yo.preso) return;
@@ -529,8 +529,8 @@ function subirAuto(a) { setTimeout(pintarPanel, 0);
 function bajarAuto() { setTimeout(pintarPanel, 0);
   const a = miAuto; if (!a) return;
   for (const lado of [1, -1, 2, -2]) { const x = a.x + Math.cos(a.h) * 2 * lado, z = a.z - Math.sin(a.h) * 2 * lado; if (!choca(x, z)) { yo.x = x; yo.z = z; break; } }
-  a.conductor = null; a.vel = 0; miAuto = null; yaw = a.h + Math.PI + mirarAuto; mirarAuto = 0;
-  enviar("auto", { i: a.i, quien: yo.id, sube: false, x: a.x, z: a.z, h: a.h });
+  a.conductor = null; a.vel = 0; a.balizas = !!a.sirena; miAuto = null; yaw = a.h + Math.PI + mirarAuto; mirarAuto = 0;
+  enviar("auto", { i: a.i, quien: yo.id, sube: false, x: a.x, z: a.z, h: a.h, sir: a.sirena, sp: a.patron || "alterno" });
 }
 function manejar(a, dt) {
   const acel = (teclas.KeyW || teclas.ArrowUp ? 1 : 0) - (teclas.KeyS || teclas.ArrowDown ? 1 : 0) - joy.y;
@@ -554,7 +554,7 @@ const MEGAFONO = ["📢 ¡POLICÍA! ¡DETÉNGASE!", "📢 ¡MANOS ARRIBA!", "�
 let megaIdx = 0;
 // Qué luces están prendidas ahora según el patrón
 function fasesLuces(a, t) {
-  if (!a.conductor || !a.sirena) return { rojo: false, azul: false, fuerza: 0 };
+  if (!(a.conductor || a.balizas) || !a.sirena) return { rojo: false, azul: false, fuerza: 0 };
   const p = a.patron || "alterno";
   if (p === "crucero") return { rojo: true, azul: true, fuerza: 1.2 };
   if (p === "todas") { const on = Math.floor(t / 130) % 2 === 0; return { rojo: on, azul: on, fuerza: on ? 3.6 : 0 }; }
@@ -875,7 +875,7 @@ function conectar(cod, host) {
     .on("broadcast", { event: "fin" }, ({ payload: p }) => terminar(p.gana))
     .on("broadcast", { event: "auto" }, ({ payload: p }) => { const a = autos[p.i]; if (!a) return;
       if (p.sube) { if (a === miAuto && a.conductor === yo.id && p.quien < yo.id) { bajarAuto(); feed("🚓 Otro poli agarró ese patrullero"); } if (a !== miAuto) a.conductor = p.quien; }
-      else if (a.conductor === p.quien) { a.conductor = null; a.vel = 0; a.x = a.tx = p.x; a.z = a.tz = p.z; a.h = a.th = p.h; } })
+      else if (a.conductor === p.quien) { a.conductor = null; a.vel = 0; a.x = a.tx = p.x; a.z = a.tz = p.z; a.h = a.th = p.h; a.sirena = !!p.sir; a.balizas = !!p.sir; a.patron = p.sp || "alterno"; } })
     .subscribe(async st => { if (st === "SUBSCRIBED") await canal.track({ nombre: miNombre(), equipo, clase, host }); });
 }
 function recibirPos(p) {
@@ -1151,7 +1151,7 @@ function actualizarLuces(t) {
     luz.intensity = fl.fuerza; luz.color.setHex(fl.rojo && fl.azul ? 0xb040ff : fl.rojo ? 0xff1a1a : 0x1a4dff); }
   balizasCarcel.forEach((z, i) => { const on = (Math.floor(t / 400) + i) % 2 === 0; z.l.intensity = on ? 1.6 : .1; z.b.visible = on; });
   // Si hay patrulleros con sirena cerca, la pantalla también titila un poco
-  const cerca = autos.some(a => a.conductor && a.sirena && Math.hypot(a.x - yo.x, a.z - yo.z) < 14);
+  const cerca = autos.some(a => (a.conductor || a.balizas) && a.sirena && Math.hypot(a.x - yo.x, a.z - yo.z) < 14);
   $("sirena").style.opacity = cerca ? .55 : 0; $("sirena").classList.toggle("on", cerca);
 }
 
