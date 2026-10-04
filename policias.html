@@ -76,6 +76,8 @@
   @media (max-height: 420px) { body.tactil #hud { font-size:12px; } body.tactil #reloj { font-size:20px; } }
   body.tactil #b-rec { display:none; } body.tactil.armado #b-rec, body.tactil.swat #b-rec, body.tactil.halcon #b-rec { display:block; }
   #tiempos button { padding:6px 12px; border-radius:10px; border:2px solid #ffffff33; background:#ffffff14; color:#fff; font-weight:800; cursor:pointer; }
+  #cant-bots button { padding:6px 12px; border-radius:10px; border:2px solid #ffffff33; background:#ffffff14; color:#fff; font-weight:800; cursor:pointer; }
+  #cant-bots button.on { border-color:#ffd400; background:#ffd40033; }
   #tiempos button.on { border-color:#ffd400; background:#ffd40033; }
   #b-salir { position:fixed; left:50%; top:44px; transform:translateX(-50%); z-index:6; display:none; padding:4px 12px; border:0; border-radius:10px; font-weight:800; background:#000a; color:#fff; font-size:12px; cursor:pointer; }
   body.libre.jugando #b-salir { display:block; }
@@ -214,6 +216,8 @@
     </div>
     <div id="tiempos" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:10px;font-size:14px;align-items:center">⏱️ Práctica:
       <button data-t="240">4 min</button><button data-t="600">10 min</button><button data-t="0" class="on">♾️ Sin límite</button></div>
+    <div id="cant-bots" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:8px;font-size:14px;align-items:center">🤖 Bots:
+      <button data-b="4">4</button><button data-b="6" class="on">6</button><button data-b="10">10</button></div>
     <div style="display:flex;gap:8px;justify-content:center;margin-top:10px"><input id="cod" maxlength="4" placeholder="CÓDIGO"><button class="g" id="unirse">🚪 Unirse</button></div>
     <p id="msg" style="color:#ff8a8a;margin:8px 0 0"></p>
     <p style="opacity:.7;font-size:13px;margin:10px 0 0">Compu: WASD para moverte, mouse para mirar (hacé click para capturar el mouse), Shift para correr, click o E para atrapar o liberar. Los polis suben y bajan del patrullero con F. Adentro tenés el panel de sirenas: H luces, J sonido, T tono, P patrón de luces, B bocina, M megáfono. L prende la linterna. Grupo Halcón: G granada aturdidora, N visión nocturna. C cambia la cámara (primera persona, tercera persona o aérea). En el 🚔 Departamento de Policía: taquillas para elegir división y uniforme, y armería para recargar. SWAT: click sostenido para disparar, R para recargar. Celu: joystick para moverte, arrastrá la pantalla para mirar, botón amarillo para la acción.</p>
@@ -254,7 +258,7 @@ const META = 10000, DURACION = 240, ATRAPA = 2.2, RADIO = 0.45;
 const CIUDAD = { tam: 168, cuadra: 16, calle: 8 };
 const edificios = [];   // { x1, z1, x2, z2, h }
 const ZONAS = { banco: { x: 0, z: -40, r: 6 }, guarida: { x: 44, z: 44, r: 5 }, carcel: { x: -44, z: 44, r: 5 },
-                narco: { x: 44, z: -44, r: 6 }, muelle: { x: -46, z: -44, r: 5 } };
+                narco: { x: 44, z: -44, r: 6 }, muelle: { x: -110, z: -32, r: 5 } };   // el muelle está en el puerto, afuera de la ciudad (oeste)
 // Casa narco: paredes con una puerta blindada que solo el SWAT puede romper
 const CASA = { x1: 39, x2: 49, z1: -48, z2: -40, alto: 3.6, grosor: .4, puertaZ1: -45.1, puertaZ2: -42.9 };
 const puerta = { cerrada: true, hasta: 0 };   // "hasta": cuándo se repara después de una irrupción
@@ -281,11 +285,16 @@ function poner(e) { if (!RESERVADOS.some(R => e.x1 < R.x2 + 2 && e.x2 > R.x1 - 2
 generarCiudad();
 // Aeropuerto, afuera de la ciudad hacia el este (se entra por la calle z = 16)
 const AER = { x1: 84, x2: 172, z1: -44, z2: 44, puerta1: 12, puerta2: 20 };
+// Puerto, afuera de la ciudad hacia el oeste (se entra por la calle z = -32); más allá de x = -118 es agua
+const PUERTO = { x1: -150, x2: -84, z1: -62, z2: -2, puerta1: -36, puerta2: -28, agua: -118, muelleZ1: -35, muelleZ2: -29, muelleX: -138 };
 function choca(x, z, r = RADIO, eq = null) {
   const mitad = CIUDAD.tam / 2;
-  const enCiudad = x > -mitad + r && x < mitad + 1 && z > -mitad + r && z < mitad - r;
+  const enCiudad = x > -mitad - 1 && x < mitad + 1 && z > -mitad + r && z < mitad - r;
   const enAer = x > mitad - 1 && x < AER.x2 - r && z > AER.z1 + r && z < AER.z2 - r;
-  if (!enCiudad && !enAer) return true;
+  const enPuerto = x < -mitad + 1 && x > PUERTO.x1 + r && z > PUERTO.z1 + r && z < PUERTO.z2 - r &&
+    (x > PUERTO.agua + r || (x > PUERTO.muelleX + r && z > PUERTO.muelleZ1 + r && z < PUERTO.muelleZ2 - r));   // al agua no se puede entrar, salvo por el muelle
+  if (!enCiudad && !enAer && !enPuerto) return true;
+  if (Math.abs(x + mitad) < r + .3 && !(z > PUERTO.puerta1 + r && z < PUERTO.puerta2 - r)) return true;   // paredón oeste con portón al puerto
   if (Math.abs(x - mitad) < r + .3 && !(z > AER.puerta1 + r && z < AER.puerta2 - r)) return true;   // paredón con portón hacia el aeropuerto
   if (puerta.cerrada && eq !== "ladron" && x + r > CASA.x1 - .3 && x - r < CASA.x1 + .3 && z + r > CASA.puertaZ1 && z - r < CASA.puertaZ2) return true;
   return cercanos(x, z).some(e => x + r > e.x1 && x - r < e.x2 && z + r > e.z1 && z - r < e.z2);
@@ -429,13 +438,16 @@ const coloresEd = [0x8a8fa3, 0xa38a7a, 0x7a8fa3, 0x9a9a9a, 0xb0a080, 0x6f7f8f];
   instancias(new THREE.CylinderGeometry(.03, .05, 4, 4), new THREE.MeshBasicMaterial({ color: 0xff3030 }), antenas);
   // Paredón del borde y edificios lejanos (no se puede llegar)
   const borde = [];
-  for (const [x, z, ry] of [[0, -mitad - .3, 0], [0, mitad + .3, 0], [-mitad - .3, 0, Math.PI / 2]]) borde.push([x, 1.2, z, ry]);
+  for (const [x, z, ry] of [[0, -mitad - .3, 0], [0, mitad + .3, 0]]) borde.push([x, 1.2, z, ry]);
+  { const m1 = PUERTO.puerta1 + mitad, m2 = mitad - PUERTO.puerta2;   // lado oeste: dos tramos con el portón del puerto
+    borde.push([-mitad - .3, 1.2, -mitad + m1 / 2, Math.PI / 2, m1 / (CIUDAD.tam + 1), 1, 1], [-mitad - .3, 1.2, mitad - m2 / 2, Math.PI / 2, m2 / (CIUDAD.tam + 1), 1, 1]); }
   const T = CIUDAD.tam + 1, l1 = AER.puerta1 + mitad, l2 = mitad - AER.puerta2;   // lado este: dos tramos con el portón en el medio
   borde.push([mitad + .3, 1.2, -mitad + l1 / 2, Math.PI / 2, l1 / T, 1, 1], [mitad + .3, 1.2, mitad - l2 / 2, Math.PI / 2, l2 / T, 1, 1]);
   instancias(new THREE.BoxGeometry(CIUDAD.tam + 1, 2.4, .6), new THREE.MeshLambertMaterial({ color: 0x4a4d55 }), borde);
   const lejos = [];
   for (let i = 0; i < 70; i++) { const a = i / 70 * Math.PI * 2 + az() * .05, r = mitad + 14 + az() * 30, h = 15 + az() * 45, w = 6 + az() * 8;
     if (Math.cos(a) > .35) continue;   // del lado del aeropuerto no hay edificios
+    if (Math.cos(a) < -.6 && Math.sin(a) < .3) continue;   // ni del lado del puerto
     lejos.push([Math.cos(a) * r, h / 2, Math.sin(a) * r, -a, w, h, w]); }
   const tl = texVentanas.clone(), tle = texLuces.clone(); tl.needsUpdate = tle.needsUpdate = true; tl.repeat.set(2, 8); tle.repeat.set(2, 8);
   instancias(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0x5a6070, map: tl, emissiveMap: tle, emissive: 0xffffff, emissiveIntensity: .8 }), lejos);
@@ -635,11 +647,46 @@ const TAQUILLAS = { x: DEPTO.x1 + 2.5, z: DEPTO.z1 + 1.6 }, ARMERIA = { x: DEPTO
   const bandera = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.2), new THREE.MeshBasicMaterial({ map: texBandera, side: THREE.DoubleSide }));
   bandera.position.set(D.x2 + 2.45, 6.3, D.z2 + 1.5); escena.add(bandera);
 }
-// Lancha en el muelle
-{ const l = new THREE.Group(); const casco = new THREE.Mesh(new THREE.BoxGeometry(2.2, .7, 5), new THREE.MeshLambertMaterial({ color: 0xf2f2f2 })); casco.position.y = .35; l.add(casco);
-  const cab = new THREE.Mesh(new THREE.BoxGeometry(1.6, .8, 1.4), new THREE.MeshLambertMaterial({ color: 0x0aa0b0 })); cab.position.set(0, 1.1, -.6); l.add(cab);
-  l.position.set(ZONAS.muelle.x - 7, 0, ZONAS.muelle.z); escena.add(l);
-  const agua = new THREE.Mesh(new THREE.PlaneGeometry(9, 14), new THREE.MeshBasicMaterial({ color: 0x0b3a66 })); agua.rotation.x = -Math.PI / 2; agua.position.set(ZONAS.muelle.x - 7, .01, ZONAS.muelle.z); escena.add(agua); }
+// ================== PUERTO (muelle) ==================
+{
+  const P = PUERTO, L = c => new THREE.MeshLambertMaterial({ color: c });
+  const plano = (x1, z1, x2, z2, mat, y) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(x2 - x1, z2 - z1), mat); m.rotation.x = -Math.PI / 2; m.position.set((x1 + x2) / 2, y, (z1 + z2) / 2); escena.add(m); return m; };
+  const agua = plano(-260, -140, P.agua, 80, new THREE.MeshLambertMaterial({ color: 0x0b3a66, emissive: 0x04162a }), -.15);   // río grande
+  plano(P.agua, P.z1, P.x2, P.z2, L(0x5a5d63), .01);                                         // explanada de cemento
+  plano(P.x2 - 0, P.puerta1, -CIUDAD.tam / 2, P.puerta2, L(0x2b2d33), .015);
+  const borde = new THREE.Mesh(new THREE.BoxGeometry(.6, .5, P.z2 - P.z1), L(0xd8c040)); borde.position.set(P.agua + .3, .1, (P.z1 + P.z2) / 2); escena.add(borde);
+  // Muelle de madera que entra al agua
+  const madera = L(0x7a5230);
+  const muelle = new THREE.Mesh(new THREE.BoxGeometry(P.agua - P.muelleX, .3, P.muelleZ2 - P.muelleZ1), madera); muelle.position.set((P.agua + P.muelleX) / 2, 0, (P.muelleZ1 + P.muelleZ2) / 2); escena.add(muelle);
+  for (let x = P.muelleX + 1; x < P.agua; x += 3) for (const z of [P.muelleZ1 + .2, P.muelleZ2 - .2]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(.18, .18, 1.6), madera); p.position.set(x, -.3, z); escena.add(p); }
+  // Lanchas amarradas
+  for (const [x, z, c] of [[-128, -38, 0x0aa0b0], [-133, -26, 0xd02030]]) { const l = new THREE.Group();
+    const casco = new THREE.Mesh(new THREE.BoxGeometry(5, .8, 2.2), L(0xf2f2f2)); casco.position.y = .1; l.add(casco);
+    const proa = new THREE.Mesh(new THREE.ConeGeometry(1.1, 1.6, 4), L(0xf2f2f2)); proa.rotation.z = -Math.PI / 2; proa.rotation.x = Math.PI / 4; proa.position.set(3.2, .1, 0); l.add(proa);
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(1.4, .8, 1.6), L(c)); cab.position.set(-.6, .9, 0); l.add(cab);
+    l.position.set(x, 0, z); escena.add(l); }
+  // Contenedores apilados (se chocan)
+  const colores = [0xc0392b, 0x2e86c1, 0x27ae60, 0xf39c12, 0x8e44ad, 0x16a085];
+  let k = 0;
+  for (const [x0, z0] of [[-110, -56], [-110, -12], [-98, -56], [-98, -12]]) {
+    for (let i = 0; i < 2; i++) for (let pi = 0; pi < 2; pi++) { const c = new THREE.Mesh(new THREE.BoxGeometry(6, 2.5, 2.4), L(colores[k++ % colores.length])); c.position.set(x0, 1.25 + pi * 2.5, z0 + i * 2.5); escena.add(c); }
+    edificios.push({ x1: x0 - 3, x2: x0 + 3, z1: z0 - 1.2, z2: z0 + 3.7, h: 5, arbol: true });
+  }
+  // Grúa del puerto
+  const ama = L(0xf2c200), gru = new THREE.Group(); gru.position.set(-121, 0, -48); escena.add(gru);
+  for (const [x, z] of [[-1.5, -1.5], [1.5, -1.5], [-1.5, 1.5], [1.5, 1.5]]) { const p = new THREE.Mesh(new THREE.BoxGeometry(.4, 14, .4), ama); p.position.set(x, 7, z); gru.add(p); }
+  const brazo = new THREE.Mesh(new THREE.BoxGeometry(22, .8, .8), ama); brazo.position.set(-4, 14.2, 0); gru.add(brazo);
+  const cable = new THREE.Mesh(new THREE.BoxGeometry(.05, 7, .05), L(0x222222)); cable.position.set(-12, 10.5, 0); gru.add(cable);
+  edificios.push({ x1: -122.8, x2: -119.2, z1: -49.8, z2: -46.2, h: 14, arbol: true });
+  // Depósito
+  const dep = new THREE.Mesh(new THREE.BoxGeometry(12, 6, 10), L(0x8a8f99)); dep.position.set(-98, 3, -47); escena.add(dep);
+  const techoD = new THREE.Mesh(new THREE.BoxGeometry(12.6, .4, 10.6), L(0x5a5f69)); techoD.position.set(-98, 6.2, -47); escena.add(techoD);
+  const cD = cartel("🚤 PUERTO", "#0aa0b0"); cD.scale.set(6, 1.5, 1); cD.position.set(-98, 8.5, -47); escena.add(cD);
+  edificios.push({ x1: -104, x2: -92, z1: -52, z2: -42, h: 6 });
+  // Bolardos y faroles
+  for (let z = P.z1 + 4; z < P.z2 - 2; z += 6) { const b = new THREE.Mesh(new THREE.CylinderGeometry(.2, .25, .6, 8), L(0x222222)); b.position.set(P.agua + 1, .3, z); escena.add(b); }
+  const cP = cartel("🚤 PUERTO ←", "#0aa0b0"); cP.scale.set(6, 1.5, 1); cP.position.set(-CIUDAD.tam / 2 + 2, 5, P.puerta1 - 2); escena.add(cP);
+}
 // Rejas de la cárcel
 for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2, b = new THREE.Mesh(new THREE.CylinderGeometry(.08, .08, 3), new THREE.MeshLambertMaterial({ color: 0x999999 }));
   b.position.set(ZONAS.carcel.x + Math.cos(a) * ZONAS.carcel.r, 1.5, ZONAS.carcel.z + Math.sin(a) * ZONAS.carcel.r); escena.add(b); }
@@ -1808,6 +1855,9 @@ function pensarBot(b, dt) {
   if (adentro(b, D) !== adentro(o, D)) o = adentro(b, D) ? (b.z > DEPTO.z2 - 1.2 ? { x: DEPTO.px, z: DEPTO.z2 + 2.5 } : { x: DEPTO.px, z: DEPTO.z2 - .4 })
                                                       : (Math.abs(b.x - DEPTO.px) < 1 && b.z > DEPTO.z2 - .5 ? { x: DEPTO.px, z: DEPTO.cz } : { x: DEPTO.px, z: DEPTO.z2 + 2 });
   else if (adentro(b, N) !== adentro(o, N)) o = adentro(b, N) ? (b.x < CASA.x1 + 1.2 ? { x: 36.5, z: -44 } : { x: CASA.x1 + .4, z: -44 }) : (Math.abs(b.z + 44) < 1 && b.x < CASA.x1 + .5 ? { x: 44, z: -44.5 } : { x: 37, z: -44 });
+  // Puerto: para entrar o salir hay que pasar por el portón del paredón oeste
+  { const enP = p => p.x < -CIUDAD.tam / 2, gz = (PUERTO.puerta1 + PUERTO.puerta2) / 2;
+    if (enP(b) !== enP(o)) { const w = { x: enP(b) ? -CIUDAD.tam / 2 - 3 : -CIUDAD.tam / 2 + 3, z: gz }; if (Math.hypot(b.x - w.x, b.z - w.z) > 1.2 && !(Math.abs(b.z - gz) < 1.5 && Math.abs(b.x + CIUDAD.tam / 2) < 3)) o = w; } }
   // Camina hacia el objetivo esquivando edificios con un pequeño desvío
   b.desvio = (b.desvio || 0) - dt;
   let dx = o.x - b.x, dz = o.z - b.z;
@@ -1835,6 +1885,10 @@ function empezar(finTs) {
   if (!online) {
     const n = equipo === "poli" ? [["ladron", "Ladrón Bot 1"], ["ladron", "Ladrón Bot 2"], ["ladron", "Ladrón Bot 3"], ["poli", "Poli Bot"]]
                                : [["poli", "Poli Bot"], ["swat", "SWAT Bot"], ["halcon", "Halcón Bot"], ["ladron", "Ladrón Bot"]];
+    // Más bots según lo elegido en el menú (se agregan de a uno por equipo, empezando por el contrario)
+    const extraP = ["poli", "swat", "halcon"]; let k = 2;
+    while (n.length < cantBots) { const contrario = equipo === "poli" ? "ladron" : "poli", eq = n.length % 2 ? (contrario === "poli" ? "ladron" : "poli") : contrario;
+      const cl = eq === "poli" ? extraP[k % 3] : "ladron"; n.push([cl, `${cl === "ladron" ? "Ladrón" : cl === "poli" ? "Poli" : cl === "swat" ? "SWAT" : "Halcón"} Bot ${k++}`]); }
     n.forEach(([cl, nom], i) => { const id = "bot" + i, eq = ARMADO(cl) ? "poli" : cl; jug[id] = nuevoJug(id, nom, eq, true, cl); jug[id].mesh = crearMuneco(eq, nom, cl); });
   }
   fin = finTs || Date.now() + DURACION * 1000; inicioT = Date.now(); jugando = true; document.body.classList.add("jugando");
@@ -2046,6 +2100,8 @@ function nuevaRondaLibre() {
   for (const s of Object.values(jug)) if (s.equipo === "ladron") { s.preso = false; s.res = 100; const l = lugarLibre(ZONAS.guarida, 8); s.x = s.tx = l.x; s.z = s.tz = l.z; }
   feed("🔄 Nueva ronda: los ladrones se escaparon de la cárcel");
 }
+let cantBots = 6;
+document.querySelectorAll("#cant-bots [data-b]").forEach(b => b.onclick = () => { cantBots = +b.dataset.b; document.querySelectorAll("#cant-bots [data-b]").forEach(x => x.classList.toggle("on", x === b)); });
 let rondaEspera = 0, tiempoPractica = 0, libre = false, rondas = { poli: 0, ladron: 0 };   // 0 = práctica sin límite
 document.querySelectorAll("#tiempos [data-t]").forEach(b => b.onclick = () => { tiempoPractica = +b.dataset.t; document.querySelectorAll("#tiempos [data-t]").forEach(x => x.classList.toggle("on", x === b)); });
 $("practica").onclick = () => { online = false; libre = !tiempoPractica; rondas = { poli: 0, ladron: 0 }; rondaEspera = 0; document.body.classList.toggle("libre", libre);
