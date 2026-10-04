@@ -289,15 +289,18 @@ function generarCiudad() {
     }
 }
 // Terrenos reservados: ahí no se construye nada de la ciudad (departamento de policía y casa narco), con 2 m de vereda alrededor
-const RESERVADOS = [ { x1: -52, x2: -36, z1: -4, z2: 12 }, { x1: -76, x2: -60, z1: -4, z2: 12 }, { x1: 20, x2: 36, z1: -4, z2: 12 }, { x1: 39, x2: 49, z1: -48, z2: -40 } ];
+const RESERVADOS = [ { x1: -84, x2: 84, z1: -28, z2: -12 },   // fila de manzanas libre para la autopista
+  { x1: -52, x2: -36, z1: -4, z2: 12 }, { x1: -76, x2: -60, z1: -4, z2: 12 }, { x1: 20, x2: 36, z1: -4, z2: 12 }, { x1: 39, x2: 49, z1: -48, z2: -40 } ];
 function poner(e) { if (!RESERVADOS.some(R => e.x1 < R.x2 + 2 && e.x2 > R.x1 - 2 && e.z1 < R.z2 + 2 && e.z2 > R.z1 - 2)) edificios.push(e); }
 generarCiudad();
 // Aeropuerto, afuera de la ciudad hacia el este (se entra por la calle z = 16)
+// Autopista: atraviesa la ciudad de oeste a este (donde antes había una fila de manzanas), del puerto al aeropuerto
+const AUTOPISTA = { z1: -28, z2: -12, medio: -20 };
 const AER = { x1: 84, x2: 172, z1: -44, z2: 44, puerta1: 12, puerta2: 20 };
 // Aguantadero de los ladrones, afuera de la ciudad hacia el sur (se entra por la calle x = 40)
 const AGU = { x1: 14, x2: 86, z1: 82, z2: 138, puerta1: 36, puerta2: 44 };
 // Puerto, afuera de la ciudad hacia el oeste (se entra por la calle z = -32); más allá de x = -118 es agua
-const PUERTO = { x1: -150, x2: -84, z1: -62, z2: -2, puerta1: -36, puerta2: -28, agua: -118, muelleZ1: -35, muelleZ2: -29, muelleX: -138 };
+const PUERTO = { x1: -150, x2: -84, z1: -62, z2: -2, puerta1: -36, puerta2: -12, agua: -118, muelleZ1: -35, muelleZ2: -29, muelleX: -138 };
 function choca(x, z, r = RADIO, eq = null) {
   const mitad = CIUDAD.tam / 2;
   const enCiudad = x > -mitad - 1 && x < mitad + 1 && z > -mitad + r && z < mitad + 1;
@@ -308,7 +311,7 @@ function choca(x, z, r = RADIO, eq = null) {
   if (!enCiudad && !enAer && !enPuerto && !enAgu) return true;
   if (Math.abs(z - mitad) < r + .3 && x > -mitad && x < mitad && !(x > AGU.puerta1 + r && x < AGU.puerta2 - r)) return true;   // paredón sur con portón al aguantadero
   if (Math.abs(x + mitad) < r + .3 && !(z > PUERTO.puerta1 + r && z < PUERTO.puerta2 - r)) return true;   // paredón oeste con portón al puerto
-  if (Math.abs(x - mitad) < r + .3 && !(z > AER.puerta1 + r && z < AER.puerta2 - r)) return true;   // paredón con portón hacia el aeropuerto
+  if (Math.abs(x - mitad) < r + .3 && !(z > AER.puerta1 + r && z < AER.puerta2 - r) && !(z > AUTOPISTA.z1 + r && z < AUTOPISTA.z2 - r)) return true;   // paredón con portón hacia el aeropuerto
   if (puerta.cerrada && eq !== "ladron" && x + r > CASA.x1 - .3 && x - r < CASA.x1 + .3 && z + r > CASA.puertaZ1 && z - r < CASA.puertaZ2) return true;
   return cercanos(x, z).some(e => x + r > e.x1 && x - r < e.x2 && z + r > e.z1 && z - r < e.z2);
 }
@@ -456,8 +459,8 @@ const coloresEd = [0x8a8fa3, 0xa38a7a, 0x7a8fa3, 0x9a9a9a, 0xb0a080, 0x6f7f8f];
     borde.push([-mitad + s1 / 2, 1.2, mitad + .3, 0, s1 / (CIUDAD.tam + 1), 1, 1], [mitad - s2 / 2, 1.2, mitad + .3, 0, s2 / (CIUDAD.tam + 1), 1, 1]); }
   { const m1 = PUERTO.puerta1 + mitad, m2 = mitad - PUERTO.puerta2;   // lado oeste: dos tramos con el portón del puerto
     borde.push([-mitad - .3, 1.2, -mitad + m1 / 2, Math.PI / 2, m1 / (CIUDAD.tam + 1), 1, 1], [-mitad - .3, 1.2, mitad - m2 / 2, Math.PI / 2, m2 / (CIUDAD.tam + 1), 1, 1]); }
-  const T = CIUDAD.tam + 1, l1 = AER.puerta1 + mitad, l2 = mitad - AER.puerta2;   // lado este: dos tramos con el portón en el medio
-  borde.push([mitad + .3, 1.2, -mitad + l1 / 2, Math.PI / 2, l1 / T, 1, 1], [mitad + .3, 1.2, mitad - l2 / 2, Math.PI / 2, l2 / T, 1, 1]);
+  { const T = CIUDAD.tam + 1, cortes = [[-mitad, AUTOPISTA.z1], [AUTOPISTA.z2, AER.puerta1], [AER.puerta2, mitad]];   // lado este: autopista y portón del aeropuerto
+    for (const [a, b] of cortes) borde.push([mitad + .3, 1.2, (a + b) / 2, Math.PI / 2, (b - a) / T, 1, 1]); }
   instancias(new THREE.BoxGeometry(CIUDAD.tam + 1, 2.4, .6), new THREE.MeshLambertMaterial({ color: 0x4a4d55 }), borde);
   const lejos = [];
   for (let i = 0; i < 70; i++) { const a = i / 70 * Math.PI * 2 + az() * .05, r = mitad + 14 + az() * 30, h = 15 + az() * 45, w = 6 + az() * 8;
@@ -482,6 +485,50 @@ zona(ZONAS.banco, 0x2e9e4f, "🏦 BANCO");
 zona(ZONAS.guarida, 0x9b30ff, "🏚️ GUARIDA");
 zona(ZONAS.carcel, 0x1e4fd8, "🚔 CÁRCEL");
 zona(ZONAS.muelle, 0x0aa0b0, "🚤 MUELLE");
+// ================== AUTOPISTA ==================
+// Dos manos de 3 carriles con separador de hormigón (se choca, con cortes en los cruces de calles), guardarrail, carteles verdes,
+// columnas de luz en el medio y salidas al puerto (oeste) y al aeropuerto (este)
+{
+  const A = AUTOPISTA, x1 = -CIUDAD.tam / 2 - 8, x2 = CIUDAD.tam / 2 + 10, L = c => new THREE.MeshLambertMaterial({ color: c });
+  const asf = new THREE.Mesh(new THREE.PlaneGeometry(x2 - x1, A.z2 - A.z1), L(0x24262b)); asf.rotation.x = -Math.PI / 2; asf.position.set((x1 + x2) / 2, .028, (A.z1 + A.z2) / 2); escena.add(asf);
+  // Bajada al aeropuerto: de la autopista hasta el camino de acceso
+  const baj = new THREE.Mesh(new THREE.PlaneGeometry(8, AER.puerta2 - A.z1 + 4), L(0x24262b)); baj.rotation.x = -Math.PI / 2; baj.position.set(CIUDAD.tam / 2 + 6, .03, (A.z1 + AER.puerta2) / 2); escena.add(baj);
+  const blanco = new THREE.MeshBasicMaterial({ color: 0xeeeeee }), amarillo = new THREE.MeshBasicMaterial({ color: 0xf2c200 });
+  const cruces = []; for (let c = -CIUDAD.tam / 2 + CIUDAD.calle / 2; c < CIUDAD.tam / 2; c += CIUDAD.cuadra + CIUDAD.calle) cruces.push(c);
+  const enCruce = x => cruces.some(c => Math.abs(x - c) < 4.5);
+  const rayas = [], bordes = [];
+  for (let x = x1 + 1; x < x2 - 1; x += 6) { if (enCruce(x)) continue;
+    for (const z of [A.z1 + 2.4, A.z1 + 4.7, A.z2 - 2.4, A.z2 - 4.7]) rayas.push([x, z]); }
+  const geoR = new THREE.PlaneGeometry(3, .18).rotateX(-Math.PI / 2), mR = new THREE.InstancedMesh(geoR, blanco, rayas.length), o = new THREE.Object3D();
+  rayas.forEach(([x, z], i) => { o.position.set(x, .04, z); o.updateMatrix(); mR.setMatrixAt(i, o.matrix); }); escena.add(mR);
+  for (const z of [A.z1 + .3, A.z2 - .3, A.medio - 1.2, A.medio + 1.2]) { const l = new THREE.Mesh(new THREE.PlaneGeometry(x2 - x1, .15), z === A.medio - 1.2 || z === A.medio + 1.2 ? amarillo : blanco); l.rotation.x = -Math.PI / 2; l.position.set((x1 + x2) / 2, .041, z); escena.add(l); }
+  // Separador central de hormigón (tipo New Jersey), cortado en cada cruce para poder cruzar
+  const horm = L(0xb8b8b0), tramos = []; let ini = x1;
+  for (let x = x1; x <= x2; x += .5) { const corte = enCruce(x) || x >= x2; if (corte && x - ini > 2) tramos.push([ini, x]); if (corte) ini = x + .5; }
+  for (const [a, b] of tramos) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(b - a, .9, .7), horm); m.position.set((a + b) / 2, .45, A.medio); escena.add(m);
+    const tope = new THREE.Mesh(new THREE.BoxGeometry(b - a, .12, .35), L(0xd0d0c8)); tope.position.set((a + b) / 2, .96, A.medio); escena.add(tope);
+    edificios.push({ x1: a, x2: b, z1: A.medio - .35, z2: A.medio + .35, h: 1, arbol: true });
+    // Columnas de luz dobles sobre el separador
+    for (let x = a + 6; x < b - 3; x += 18) { const p = new THREE.Mesh(new THREE.CylinderGeometry(.1, .14, 8, 6), L(0x8a8f99)); p.position.set(x, 4.5, A.medio); escena.add(p);
+      const br = new THREE.Mesh(new THREE.BoxGeometry(.12, .12, 5), L(0x8a8f99)); br.position.set(x, 8.4, A.medio); escena.add(br);
+      for (const dz of [-2.4, 2.4]) { const f = new THREE.Mesh(new THREE.BoxGeometry(.6, .15, .3), new THREE.MeshBasicMaterial({ color: 0xffe2a0 })); f.position.set(x, 8.3, A.medio + dz); escena.add(f);
+        const ch = new THREE.Mesh(new THREE.PlaneGeometry(7, 7).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: textura((g, w, h) => { const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); gr.addColorStop(0, "rgba(255,226,160,.45)"); gr.addColorStop(1, "rgba(255,226,160,0)"); g.fillStyle = gr; g.fillRect(0, 0, w, h); }, 64, 64), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); ch.position.set(x, .045, A.medio + dz * 1.2); escena.add(ch); } }
+  }
+  // Guardarrail a los costados (bajito, se ve pero no tapa las calles de los cruces)
+  for (const z of [A.z1 - .1, A.z2 + .1]) for (const [a, b] of tramos) { const g = new THREE.Mesh(new THREE.BoxGeometry(b - a, .25, .08), L(0xc8ccd0)); g.position.set((a + b) / 2, .6, z); escena.add(g);
+    for (let x = a + 1; x < b; x += 4) { const p = new THREE.Mesh(new THREE.BoxGeometry(.1, .7, .1), L(0x8a8f99)); p.position.set(x, .35, z); escena.add(p); } }
+  // Pórticos con carteles verdes
+  const texCartel = (t1, t2) => textura((g, w, h) => { g.fillStyle = "#0b6b3a"; g.fillRect(0, 0, w, h); g.strokeStyle = "#ffffff"; g.lineWidth = 6; g.strokeRect(8, 8, w - 16, h - 16);
+    g.fillStyle = "#ffffff"; g.textAlign = "center"; g.textBaseline = "middle"; g.font = "bold 46px system-ui"; g.fillText(t1, w / 2, h * .38); g.font = "bold 34px system-ui"; g.fillText(t2, w / 2, h * .72); }, 512, 192);
+  for (const [x, dir] of [[-68, 1], [28, 1], [-20, -1], [52, -1]]) {
+    const z0 = dir > 0 ? A.medio + .5 : A.z1 - .5, z1b = dir > 0 ? A.z2 + .5 : A.medio - .5;
+    for (const z of [z0, z1b]) { const p = new THREE.Mesh(new THREE.BoxGeometry(.3, 6.5, .3), L(0x7a7f88)); p.position.set(x, 3.25, z); escena.add(p); edificios.push({ x1: x - .2, x2: x + .2, z1: z - .2, z2: z + .2, h: 6, arbol: true }); }
+    const viga = new THREE.Mesh(new THREE.BoxGeometry(.3, .4, Math.abs(z1b - z0)), L(0x7a7f88)); viga.position.set(x, 6.3, (z0 + z1b) / 2); escena.add(viga);
+    const c = new THREE.Mesh(new THREE.PlaneGeometry(6, 2.2), new THREE.MeshBasicMaterial({ map: dir > 0 ? texCartel("AEROPUERTO →", "AUTOPISTA ESTE") : texCartel("← PUERTO", "AUTOPISTA OESTE") }));
+    c.position.set(x - dir * .2, 5.6, (z0 + z1b) / 2); c.rotation.y = dir > 0 ? -Math.PI / 2 : Math.PI / 2; escena.add(c);
+  }
+}
 // ================== AEROPUERTO ==================
 // Pista, plataforma con aviones estacionados, terminal, torre de control y hangar. Un avión aterriza y despega cada tanto.
 function crearAvion(color = 0x1e4fd8, escala = 1) {
