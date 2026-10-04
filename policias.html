@@ -75,6 +75,10 @@
   @media (orientation: portrait) { body.tactil.jugando #girar:not(.cerrado) { display:flex; } }
   @media (max-height: 420px) { body.tactil #hud { font-size:12px; } body.tactil #reloj { font-size:20px; } }
   body.tactil #b-rec { display:none; } body.tactil.armado #b-rec, body.tactil.swat #b-rec, body.tactil.halcon #b-rec { display:block; }
+  #tiempos button { padding:6px 12px; border-radius:10px; border:2px solid #ffffff33; background:#ffffff14; color:#fff; font-weight:800; cursor:pointer; }
+  #tiempos button.on { border-color:#ffd400; background:#ffd40033; }
+  #b-salir { position:fixed; left:50%; top:44px; transform:translateX(-50%); z-index:6; display:none; padding:4px 12px; border:0; border-radius:10px; font-weight:800; background:#000a; color:#fff; font-size:12px; cursor:pointer; }
+  body.libre.jugando #b-salir { display:block; }
   #feed { position:fixed; left:12px; bottom:12px; font-size:14px; pointer-events:none; z-index:5; }
   #feed div { background:#0009; padding:4px 10px; border-radius:8px; margin-top:4px; animation:sale 5s forwards; }
   @keyframes sale { 85%{opacity:1} 100%{opacity:0} }
@@ -178,7 +182,7 @@
   </div>
 </div>
 <div id="megafono"></div>
-<div id="b-extra"><button id="b-luz">🔦</button><button id="b-rec">🔄</button></div><div id="girar">📱↻<div>Girá el celular para jugar mejor</div><button id="girar-ok" style="padding:10px 18px;border:0;border-radius:10px;font-weight:800;background:#ffd400">Jugar igual</button></div><div id="disturbio"></div><div id="caravana"></div><div id="poli-extras"></div><div id="b-poli"><button id="b-heli">🚁</button><button id="b-valla">🚧</button><button id="b-ref">📻</button></div><div id="radar"></div><div id="mira"></div><div id="pista"></div><div id="grande"></div><div id="feed"></div>
+<div id="b-extra"><button id="b-luz">🔦</button><button id="b-rec">🔄</button></div><div id="girar">📱↻<div>Girá el celular para jugar mejor</div><button id="girar-ok" style="padding:10px 18px;border:0;border-radius:10px;font-weight:800;background:#ffd400">Jugar igual</button></div><button id="b-salir">🚪 Terminar</button><div id="disturbio"></div><div id="caravana"></div><div id="poli-extras"></div><div id="b-poli"><button id="b-heli">🚁</button><button id="b-valla">🚧</button><button id="b-ref">📻</button></div><div id="radar"></div><div id="mira"></div><div id="pista"></div><div id="grande"></div><div id="feed"></div>
 <div id="sirena"></div><div id="rejas"></div>
 <div class="stick" id="stick"><b></b></div><button id="b-accion">🚔</button><button id="b-auto">🚓</button><button id="b-cam">🎥</button>
 <div id="velocimetro"></div>
@@ -208,6 +212,8 @@
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
       <button class="g" id="practica">🤖 Práctica con bots</button><button class="g" id="crear">🌐 Crear sala</button>
     </div>
+    <div id="tiempos" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:10px;font-size:14px;align-items:center">⏱️ Práctica:
+      <button data-t="240">4 min</button><button data-t="600">10 min</button><button data-t="0" class="on">♾️ Sin límite</button></div>
     <div style="display:flex;gap:8px;justify-content:center;margin-top:10px"><input id="cod" maxlength="4" placeholder="CÓDIGO"><button class="g" id="unirse">🚪 Unirse</button></div>
     <p id="msg" style="color:#ff8a8a;margin:8px 0 0"></p>
     <p style="opacity:.7;font-size:13px;margin:10px 0 0">Compu: WASD para moverte, mouse para mirar (hacé click para capturar el mouse), Shift para correr, click o E para atrapar o liberar. Los polis suben y bajan del patrullero con F. Adentro tenés el panel de sirenas: H luces, J sonido, T tono, P patrón de luces, B bocina, M megáfono. L prende la linterna. Grupo Halcón: G granada aturdidora, N visión nocturna. C cambia la cámara (primera persona, tercera persona o aérea). En el 🚔 Departamento de Policía: taquillas para elegir división y uniforme, y armería para recargar. SWAT: click sostenido para disparar, R para recargar. Celu: joystick para moverte, arrastrá la pantalla para mirar, botón amarillo para la acción.</p>
@@ -273,11 +279,26 @@ function generarCiudad() {
 const RESERVADOS = [ { x1: -58, x2: -47, z1: -4, z2: 5.5 }, { x1: -76, x2: -60, z1: -4, z2: 12 }, { x1: 20, x2: 36, z1: -4, z2: 12 }, { x1: 39, x2: 49, z1: -48, z2: -40 } ];
 function poner(e) { if (!RESERVADOS.some(R => e.x1 < R.x2 + 2 && e.x2 > R.x1 - 2 && e.z1 < R.z2 + 2 && e.z2 > R.z1 - 2)) edificios.push(e); }
 generarCiudad();
+// Aeropuerto, afuera de la ciudad hacia el este (se entra por la calle z = 16)
+const AER = { x1: 84, x2: 172, z1: -44, z2: 44, puerta1: 12, puerta2: 20 };
 function choca(x, z, r = RADIO, eq = null) {
   const mitad = CIUDAD.tam / 2;
-  if (x < -mitad + r || x > mitad - r || z < -mitad + r || z > mitad - r) return true;
+  const enCiudad = x > -mitad + r && x < mitad + 1 && z > -mitad + r && z < mitad - r;
+  const enAer = x > mitad - 1 && x < AER.x2 - r && z > AER.z1 + r && z < AER.z2 - r;
+  if (!enCiudad && !enAer) return true;
+  if (Math.abs(x - mitad) < r + .3 && !(z > AER.puerta1 + r && z < AER.puerta2 - r)) return true;   // paredón con portón hacia el aeropuerto
   if (puerta.cerrada && eq !== "ladron" && x + r > CASA.x1 - .3 && x - r < CASA.x1 + .3 && z + r > CASA.puertaZ1 && z - r < CASA.puertaZ2) return true;
-  return edificios.some(e => x + r > e.x1 && x - r < e.x2 && z + r > e.z1 && z - r < e.z2);
+  return cercanos(x, z).some(e => x + r > e.x1 && x - r < e.x2 && z + r > e.z1 && z - r < e.z2);
+}
+// Grilla de edificios por zonas: en vez de revisar los ~400 obstáculos en cada paso, se revisan solo los de la celda
+const GRILLA = { celda: 8, mapa: new Map(), n: -1, sucia: true };
+function cercanos(x, z) {
+  if (GRILLA.sucia || GRILLA.n !== edificios.length) {
+    GRILLA.mapa.clear(); GRILLA.n = edificios.length; GRILLA.sucia = false; const C = GRILLA.celda;
+    for (const e of edificios) for (let i = Math.floor((e.x1 - 2) / C); i <= Math.floor((e.x2 + 2) / C); i++) for (let j = Math.floor((e.z1 - 2) / C); j <= Math.floor((e.z2 + 2) / C); j++) {
+      const k = i * 4096 + j; let l = GRILLA.mapa.get(k); if (!l) GRILLA.mapa.set(k, l = []); l.push(e); }
+  }
+  return GRILLA.mapa.get(Math.floor(x / GRILLA.celda) * 4096 + Math.floor(z / GRILLA.celda)) || [];
 }
 function lugarLibre(cerca, rad = 6) {
   for (let i = 0; i < 200; i++) {
@@ -293,13 +314,16 @@ const PAQUETES = Array.from({ length: 6 }, (_, i) => ({ i, x: 44 + (i % 3) * 1, 
 const BOLSAS = Array.from({ length: 10 }, (_, i) => { const a = i / 10 * Math.PI * 2; return { i, x: ZONAS.banco.x + Math.cos(a) * 4.5, z: ZONAS.banco.z + Math.sin(a) * 4.5, hasta: 0 }; });
 
 // ================== 3D ==================
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(2, devicePixelRatio)); renderer.setSize(innerWidth, innerHeight);
+// Rendimiento: en celulares se dibuja a menor resolución y sin antialias; además la calidad baja sola si los FPS caen
+const ES_TACTIL = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+const renderer = new THREE.WebGLRenderer({ antialias: !ES_TACTIL, powerPreference: "high-performance" });
+let calidad = Math.min(ES_TACTIL ? 1.25 : 1.5, devicePixelRatio);
+renderer.setPixelRatio(calidad); renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = false;
 document.body.prepend(renderer.domElement);
 const escena = new THREE.Scene();
-escena.background = new THREE.Color(0x0d1630); escena.fog = new THREE.Fog(0x0d1630, 22, 115);
-const camara = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 320);
+escena.background = new THREE.Color(0x0d1630); escena.fog = new THREE.Fog(0x0d1630, 22, ES_TACTIL ? 100 : 115);
+const camara = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, ES_TACTIL ? 130 : 170);
 addEventListener("resize", () => { renderer.setSize(innerWidth, innerHeight); camara.aspect = innerWidth / innerHeight; camara.updateProjectionMatrix(); });
 escena.add(new THREE.HemisphereLight(0x9fb8ff, 0x202030, 0.9));
 const sol = new THREE.DirectionalLight(0xffe2b0, 0.6); sol.position.set(30, 60, 20); escena.add(sol);
@@ -321,12 +345,22 @@ const texLuces = textura((g, w, h) => { g.fillStyle = "#000"; g.fillRect(0, 0, w
   for (const [x, y, on] of prendidas) if (on) { g.fillStyle = ["#ffd86b", "#ffe9b0", "#ffc46b", "#bfe3ff"][(x + y) % 4]; g.fillRect(x, y, 9, 10); } });
 texVentanas.wrapS = texVentanas.wrapT = texLuces.wrapS = texLuces.wrapT = THREE.RepeatWrapping;
 const coloresEd = [0x8a8fa3, 0xa38a7a, 0x7a8fa3, 0x9a9a9a, 0xb0a080, 0x6f7f8f];
-for (const e of edificios) {
-  const w = e.x2 - e.x1, d = e.z2 - e.z1, t = texVentanas.clone(), te = texLuces.clone(); t.needsUpdate = te.needsUpdate = true;
-  t.repeat.set(Math.max(1, w / 4), Math.max(1, e.h / 4)); te.repeat.copy(t.repeat);
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, e.h, d), new THREE.MeshLambertMaterial({ map: t, emissiveMap: te, emissive: 0xffffff, emissiveIntensity: 1,
-    color: coloresEd[(Math.abs(e.x1 * 7 + e.z1 * 3) | 0) % coloresEd.length] }));
-  m.position.set((e.x1 + e.x2) / 2, e.h / 2, (e.z1 + e.z2) / 2); escena.add(m);
+// Todos los edificios en UNA sola malla (antes era una por edificio: cientos de dibujos por cuadro)
+{
+  const pos = [], nor = [], uv = [], col = [], idx = [], c = new THREE.Color();
+  for (const e of edificios) {
+    const w = e.x2 - e.x1, d = e.z2 - e.z1, g = new THREE.BoxGeometry(w, e.h, d), rx = Math.max(1, w / 4), ry = Math.max(1, e.h / 4), base = pos.length / 3;
+    g.translate((e.x1 + e.x2) / 2, e.h / 2, (e.z1 + e.z2) / 2);
+    c.setHex(coloresEd[(Math.abs(e.x1 * 7 + e.z1 * 3) | 0) % coloresEd.length]);
+    const P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv;
+    for (let i = 0; i < P.count; i++) { pos.push(P.getX(i), P.getY(i), P.getZ(i)); nor.push(N.getX(i), N.getY(i), N.getZ(i)); uv.push(U.getX(i) * rx, U.getY(i) * ry); col.push(c.r, c.g, c.b); }
+    for (const k of g.index.array) idx.push(base + k);
+    g.dispose();
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); geo.setIndex(idx);
+  escena.add(new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: texVentanas, emissiveMap: texLuces, emissive: 0xffffff, emissiveIntensity: 1, vertexColors: true })));
 }
 // ================== MEJORAS DE LA CIUDAD ==================
 // Veredas, sendas peatonales, farolas, plazoletas con árboles, detalles en las terrazas y edificios lejanos en el horizonte.
@@ -395,10 +429,13 @@ for (const e of edificios) {
   instancias(new THREE.CylinderGeometry(.03, .05, 4, 4), new THREE.MeshBasicMaterial({ color: 0xff3030 }), antenas);
   // Paredón del borde y edificios lejanos (no se puede llegar)
   const borde = [];
-  for (const [x, z, ry] of [[0, -mitad - .3, 0], [0, mitad + .3, 0], [-mitad - .3, 0, Math.PI / 2], [mitad + .3, 0, Math.PI / 2]]) borde.push([x, 1.2, z, ry]);
+  for (const [x, z, ry] of [[0, -mitad - .3, 0], [0, mitad + .3, 0], [-mitad - .3, 0, Math.PI / 2]]) borde.push([x, 1.2, z, ry]);
+  const T = CIUDAD.tam + 1, l1 = AER.puerta1 + mitad, l2 = mitad - AER.puerta2;   // lado este: dos tramos con el portón en el medio
+  borde.push([mitad + .3, 1.2, -mitad + l1 / 2, Math.PI / 2, l1 / T, 1, 1], [mitad + .3, 1.2, mitad - l2 / 2, Math.PI / 2, l2 / T, 1, 1]);
   instancias(new THREE.BoxGeometry(CIUDAD.tam + 1, 2.4, .6), new THREE.MeshLambertMaterial({ color: 0x4a4d55 }), borde);
   const lejos = [];
   for (let i = 0; i < 70; i++) { const a = i / 70 * Math.PI * 2 + az() * .05, r = mitad + 14 + az() * 30, h = 15 + az() * 45, w = 6 + az() * 8;
+    if (Math.cos(a) > .35) continue;   // del lado del aeropuerto no hay edificios
     lejos.push([Math.cos(a) * r, h / 2, Math.sin(a) * r, -a, w, h, w]); }
   const tl = texVentanas.clone(), tle = texLuces.clone(); tl.needsUpdate = tle.needsUpdate = true; tl.repeat.set(2, 8); tle.repeat.set(2, 8);
   instancias(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0x5a6070, map: tl, emissiveMap: tle, emissive: 0xffffff, emissiveIntensity: .8 }), lejos);
@@ -417,6 +454,84 @@ zona(ZONAS.banco, 0x2e9e4f, "🏦 BANCO");
 zona(ZONAS.guarida, 0x9b30ff, "🏚️ GUARIDA");
 zona(ZONAS.carcel, 0x1e4fd8, "🚔 CÁRCEL");
 zona(ZONAS.muelle, 0x0aa0b0, "🚤 MUELLE");
+// ================== AEROPUERTO ==================
+// Pista, plataforma con aviones estacionados, terminal, torre de control y hangar. Un avión aterriza y despega cada tanto.
+function crearAvion(color = 0x1e4fd8, escala = 1) {
+  const g = new THREE.Group(), L = c => new THREE.MeshLambertMaterial({ color: c }), blanco = L(0xf2f4f7), gris = L(0x9aa0a8);
+  const fus = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 20, 16), blanco); fus.rotation.x = Math.PI / 2; fus.position.y = 2.6; g.add(fus);
+  const nariz = new THREE.Mesh(new THREE.SphereGeometry(1.3, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), blanco); nariz.rotation.x = Math.PI / 2; nariz.scale.set(1, 1.8, 1); nariz.position.set(0, 2.6, 10); g.add(nariz);
+  const cola = new THREE.Mesh(new THREE.ConeGeometry(1.3, 5, 16), blanco); cola.rotation.x = -Math.PI / 2; cola.position.set(0, 2.9, -12.4); g.add(cola);
+  const franja = new THREE.Mesh(new THREE.CylinderGeometry(1.32, 1.32, 20.1, 16, 1, true, -.5, 1), L(color)); franja.rotation.x = Math.PI / 2; franja.rotation.y = Math.PI / 2; franja.position.y = 2.6; g.add(franja);
+  const vent = new THREE.Mesh(new THREE.BoxGeometry(2.66, .22, 15), new THREE.MeshBasicMaterial({ color: 0x1a2a3a })); vent.position.set(0, 3.1, .5); g.add(vent);
+  const cab = new THREE.Mesh(new THREE.BoxGeometry(1.6, .35, .6), new THREE.MeshBasicMaterial({ color: 0x1a2a3a })); cab.position.set(0, 3.3, 10.9); g.add(cab);
+  const ala = new THREE.Mesh(new THREE.BoxGeometry(24, .3, 4), gris); ala.position.set(0, 2, 1); g.add(ala);
+  for (const x of [-1, 1]) { const punta = new THREE.Mesh(new THREE.BoxGeometry(.25, 1.2, 1.4), L(color)); punta.position.set(x * 12, 2.6, .3); g.add(punta);
+    const mot = new THREE.Mesh(new THREE.CylinderGeometry(.7, .6, 3, 12), gris); mot.rotation.x = Math.PI / 2; mot.position.set(x * 5, 1.3, 2.2); g.add(mot);
+    const luz = new THREE.Mesh(new THREE.SphereGeometry(.18, 6, 4), new THREE.MeshBasicMaterial({ color: x < 0 ? 0xff2020 : 0x20ff40 })); luz.position.set(x * 12.1, 2.1, 1); g.add(luz); }
+  const est = new THREE.Mesh(new THREE.BoxGeometry(9, .2, 2.4), gris); est.position.set(0, 3.2, -12.5); g.add(est);
+  const deriva = new THREE.Mesh(new THREE.BoxGeometry(.3, 4.5, 3.4), L(color)); deriva.position.set(0, 5.3, -12.8); deriva.rotation.x = -.35; g.add(deriva);
+  for (const [x, z] of [[0, 8], [-2.5, 0], [2.5, 0]]) { const r = new THREE.Mesh(new THREE.CylinderGeometry(.45, .45, .4, 10), L(0x111111)); r.rotation.z = Math.PI / 2; r.position.set(x, .45, z); g.add(r); }
+  const tren = new THREE.Mesh(new THREE.BoxGeometry(.15, 1.2, .15), gris); tren.position.set(0, 1.1, 8); g.add(tren);
+  const flash = new THREE.Mesh(new THREE.SphereGeometry(.22, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffffff })); flash.position.set(0, 4, 0); g.add(flash); g.userData.flash = flash;
+  g.scale.setScalar(escala); escena.add(g); return g;
+}
+const PISTA = { x1: 98, x2: 170, z: -26, ancho: 12 };
+{
+  const A = AER, cx = (A.x1 + A.x2) / 2, cz = (A.z1 + A.z2) / 2, L = c => new THREE.MeshLambertMaterial({ color: c });
+  const pasto = new THREE.Mesh(new THREE.PlaneGeometry(A.x2 - A.x1, A.z2 - A.z1), L(0x2b4a28)); pasto.rotation.x = -Math.PI / 2; pasto.position.set(cx, .005, cz); escena.add(pasto);
+  const plano = (x1, z1, x2, z2, c, y = .02) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(x2 - x1, z2 - z1), L(c)); m.rotation.x = -Math.PI / 2; m.position.set((x1 + x2) / 2, y, (z1 + z2) / 2); escena.add(m); return m; };
+  plano(A.x1, A.puerta1, 104, A.puerta2, 0x2b2d33);                                  // camino de acceso
+  plano(104, -2, 142, 36, 0x4a4d55, .025);                                              // plataforma
+  plano(110, -20, 118, -2, 0x3a3d44, .025);                                             // calle de rodaje
+  plano(PISTA.x1, PISTA.z - PISTA.ancho / 2, PISTA.x2, PISTA.z + PISTA.ancho / 2, 0x222428, .03);   // pista
+  const blanco = new THREE.MeshBasicMaterial({ color: 0xf0f0f0 });
+  for (let x = PISTA.x1 + 8; x < PISTA.x2 - 6; x += 7) { const m = new THREE.Mesh(new THREE.PlaneGeometry(4, .4), blanco); m.rotation.x = -Math.PI / 2; m.position.set(x, .04, PISTA.z); escena.add(m); }
+  for (const x0 of [PISTA.x1 + 1.5, PISTA.x2 - 1.5]) for (let k = -4; k <= 4; k += 1.2) { const m = new THREE.Mesh(new THREE.PlaneGeometry(2.4, .5), blanco); m.rotation.x = -Math.PI / 2; m.position.set(x0, .04, PISTA.z + k); escena.add(m); }
+  // Luces de borde de pista
+  const luces = []; for (let x = PISTA.x1; x <= PISTA.x2; x += 6) for (const dz of [-1, 1]) luces.push([x, .15, PISTA.z + dz * (PISTA.ancho / 2 + .3)]);
+  { const m = new THREE.InstancedMesh(new THREE.SphereGeometry(.18, 6, 4), new THREE.MeshBasicMaterial({ color: 0x9fd0ff }), luces.length), o = new THREE.Object3D();
+    luces.forEach((f, i) => { o.position.set(...f); o.updateMatrix(); m.setMatrixAt(i, o.matrix); }); escena.add(m); }
+  // Terminal
+  const texTerm = textura((c, w, h) => { c.fillStyle = "#b9c3cc"; c.fillRect(0, 0, w, h); for (let i = 0; i < 16; i++) { c.fillStyle = i % 2 ? "#9fd8ff" : "#7cc4f2"; c.fillRect(4 + i * 16, 14, 13, h - 28); } }, 256, 64);
+  const term = new THREE.Mesh(new THREE.BoxGeometry(22, 7, 14), [L(0xb9c3cc), new THREE.MeshLambertMaterial({ map: texTerm, emissive: 0x334455 }), L(0x8a929c), L(0x8a929c), L(0xb9c3cc), L(0xb9c3cc)]);
+  term.position.set(155, 3.5, 22); escena.add(term);
+  const techoT = new THREE.Mesh(new THREE.BoxGeometry(24, .5, 16), L(0xe8ecf0)); techoT.position.set(155, 7.25, 22); escena.add(techoT);
+  const cT = cartel("✈️ AEROPUERTO", "#0a6aa8"); cT.scale.set(9, 2.25, 1); cT.position.set(155, 10, 22); escena.add(cT);
+  edificios.push({ x1: 144, x2: 166, z1: 15, z2: 29, h: 7 });
+  // Torre de control
+  const fuste = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.6, 18, 12), L(0xd8dde2)); fuste.position.set(150, 9, 2); escena.add(fuste);
+  const cabina = new THREE.Mesh(new THREE.CylinderGeometry(3, 2.4, 2.6, 8), new THREE.MeshLambertMaterial({ color: 0x5fb0e0, emissive: 0x1a4060 })); cabina.position.set(150, 19.3, 2); escena.add(cabina);
+  const tapa = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, .4, 8), L(0xe8ecf0)); tapa.position.set(150, 20.8, 2); escena.add(tapa);
+  const faro = new THREE.Mesh(new THREE.SphereGeometry(.4, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff3030 })); faro.position.set(150, 21.6, 2); escena.add(faro); AER.faro = faro;
+  edificios.push({ x1: 148.4, x2: 151.6, z1: .4, z2: 3.6, h: 18 });
+  // Hangar
+  const hang = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 18, 20, 1, false, 0, Math.PI), L(0x7a8590)); hang.rotation.set(0, 0, Math.PI / 2); hang.rotation.order = "ZYX"; hang.position.set(122, 0, 41 - 9); escena.add(hang);
+  hang.rotation.set(Math.PI / 2, 0, Math.PI / 2);
+  edificios.push({ x1: 113, x2: 131, z1: 33, z2: 41, h: 9 });
+  // Cartel en el portón de la ciudad
+  const cP = cartel("✈️ AEROPUERTO →", "#0a6aa8"); cP.scale.set(6, 1.5, 1); cP.position.set(CIUDAD.tam / 2 - 2, 5, AER.puerta2 + 2); escena.add(cP);
+  // Aviones estacionados en la plataforma (se chocan)
+  [[112, 14, 0x1e4fd8], [126, 14, 0xd02030], [138, 24, 0x18a058]].forEach(([x, z, c], i) => { const a = crearAvion(c, .8); a.position.set(x, 0, z); a.rotation.y = i === 2 ? -Math.PI / 2 : Math.PI;
+    edificios.push(i === 2 ? { x1: x - 9, x2: x + 9, z1: z - 1.2, z2: z + 1.2, h: 3, arbol: true } : { x1: x - 1.2, x2: x + 1.2, z1: z - 9, z2: z + 9, h: 3, arbol: true }); });
+}
+// Avión que aterriza (llega volando sobre la ciudad) y después despega; todos lo ven igual porque depende de la hora
+const avionVuelo = crearAvion(0xf2a000, 1); avionVuelo.visible = false;
+const CICLO_AVION = 75000;
+function actualizarAviones(t) {
+  const k = Date.now() % CICLO_AVION / 1000, a = avionVuelo, z = PISTA.z;
+  let vis = true, x = 0, y = 0, cab = 0;
+  if (k < 20) { const f = k / 20; x = -220 + (PISTA.x1 + 6 + 220) * f; y = 60 * (1 - f) ** 1.3; cab = .06; }                 // aproximación sobre la ciudad
+  else if (k < 26) { const f = (k - 20) / 6; x = PISTA.x1 + 6 + (PISTA.x2 - 14 - PISTA.x1 - 6) * (1 - (1 - f) ** 2); y = 0; }  // carrera de aterrizaje
+  else if (k < 34) { x = PISTA.x2 - 14; y = 0; }                                                                         // frena y espera
+  else if (k < 36) vis = false;
+  else if (k < 54) { const f = (k - 36) / 18, d = 260 * f * f; x = PISTA.x1 + 6 + d; y = Math.max(0, d - 45) * .35; cab = y > 0 ? -.12 : 0; }   // despegue
+  else vis = false;
+  a.visible = vis; if (!vis) return;
+  a.position.set(x, y, z); a.rotation.set(cab, Math.PI / 2, 0);
+  a.userData.flash.visible = Math.floor(t / 600) % 2 === 0;
+  if (AER.faro) AER.faro.visible = Math.floor(t / 800) % 2 === 0;
+  if (yo && Math.hypot(x - yo.x, z - yo.z) < 70 && Math.floor(t / 120) !== Math.floor((t - 16) / 120)) beep(70 + y, .08, "sawtooth", .01 * (1 - Math.hypot(x - yo.x, z - yo.z) / 70));
+}
 // ---- Casa narco ----
 {
   const C = CASA, g = C.grosor, matPared = new THREE.MeshLambertMaterial({ color: 0xb8a58a }), matTecho = new THREE.MeshLambertMaterial({ color: 0x5a3a2a });
@@ -459,7 +574,7 @@ const TAQUILLAS = { x: DEPTO.x1 + 2.5, z: DEPTO.z1 + 1.6 }, ARMERIA = { x: DEPTO
   }
   const techo = new THREE.Mesh(new THREE.BoxGeometry(D.x2 - D.x1 + .6, .35, D.z2 - D.z1 + .6), matF); techo.position.set((D.x1 + D.x2) / 2, D.alto + .17, (D.z1 + D.z2) / 2); escena.add(techo);
   const pisoD = new THREE.Mesh(new THREE.PlaneGeometry(D.x2 - D.x1, D.z2 - D.z1), new THREE.MeshLambertMaterial({ color: 0x9aa3ad })); pisoD.rotation.x = -Math.PI / 2; pisoD.position.set((D.x1 + D.x2) / 2, .02, (D.z1 + D.z2) / 2); escena.add(pisoD);
-  for (const x of [D.cx - 2.5, D.cx + 2.5]) { const l = new THREE.PointLight(0xe8f4ff, 1.6, 10, 1.5); l.position.set(x, D.alto - .4, D.cz); escena.add(l);
+  for (const x of [D.cx - 2.5, D.cx + 2.5]) { const l = x < D.cx ? new THREE.PointLight(0xe8f4ff, 2.2, 13, 1.3) : new THREE.Object3D(); if (x < D.cx) l.position.x = D.cx; l.position.set(x, D.alto - .4, D.cz); escena.add(l);
     const tubo = new THREE.Mesh(new THREE.BoxGeometry(1.4, .08, .2), new THREE.MeshBasicMaterial({ color: 0xffffff })); tubo.position.copy(l.position); escena.add(tubo); }
   // Taquillas (cambiar de división) y armería (recargar)
   const taq = new THREE.Mesh(new THREE.BoxGeometry(3, 2.2, .6), new THREE.MeshLambertMaterial({ color: 0x3b5b7a })); taq.position.set(TAQUILLAS.x, 1.1, D.z1 + .7); escena.add(taq);
@@ -810,7 +925,7 @@ function crearDisturbio(x, z, hasta) {
   const fuegos = [];
   for (let i = 0; i < 6; i++) { const f = new THREE.Mesh(new THREE.ConeGeometry(.3 + Math.random() * .2, 1.2 + Math.random() * .8, 7), new THREE.MeshBasicMaterial({ color: i % 2 ? 0xff7a10 : 0xffc020, transparent: true, opacity: .85, blending: THREE.AdditiveBlending, depthWrite: false }));
     f.position.set((Math.random() - .5) * 2.6, .9, (Math.random() - .5) * .6); g.add(f); fuegos.push(f); }
-  const luz = new THREE.PointLight(0xff7a20, 3, 18, 1.4); luz.position.y = 1.6; g.add(luz);
+  const luz = luzDisturbio; luz.position.set(x, 1.6, z); luz.intensity = 3;
   const humos = [];
   for (let i = 0; i < 8; i++) { const h = new THREE.Mesh(new THREE.SphereGeometry(.5, 8, 6), new THREE.MeshLambertMaterial({ color: 0x2a2a2a, transparent: true, opacity: .5, depthWrite: false }));
     h.userData.f = i / 8; g.add(h); humos.push(h); }
@@ -834,7 +949,8 @@ function crearDisturbio(x, z, hasta) {
   grande(equipo === "poli" ? "🔥 ¡DISTURBIO! ¡VAYAN A DISPERSARLO!" : "🔥 ¡DISTURBIO! La policía está ocupada", "#ff8a20");
   beep(300, .3, "sawtooth", .05); setTimeout(() => beep(240, .3, "sawtooth", .05), 300);
 }
-function quitarDisturbio() { if (DIST.grupo) escena.remove(DIST.grupo); DIST.grupo = null; DIST.activo = false; }
+const luzDisturbio = new THREE.PointLight(0xff7a20, 0, 18, 1.4); escena.add(luzDisturbio);
+function quitarDisturbio() { luzDisturbio.intensity = 0; if (DIST.grupo) escena.remove(DIST.grupo); DIST.grupo = null; DIST.activo = false; }
 function finDisturbio(ok) {
   if (!DIST.activo) return;
   quitarDisturbio(); DIST.prox = Date.now() + 45000 + Math.random() * 25000;
@@ -1158,6 +1274,13 @@ function entregar(idQuien) {
 }
 function revisarFin() {
   if (!jugando) return;
+  if (libre && !online) {
+    // Práctica sin límite: en vez de terminar, se cuenta la ronda y se sigue jugando
+    if (botin >= META) { rondas.ladron++; botin = 0; grande(`🦹 ¡RONDA PARA LOS LADRONES! (${rondas.ladron})`, "#7dff8a"); feed("🔄 Nueva ronda: el botín vuelve a $0"); }
+    const L = Object.values(jug).filter(s => s.equipo === "ladron");
+    if (L.length && L.every(s => s.preso) && !rondaEspera) { rondas.poli++; rondaEspera = Date.now() + 4000; grande(`👮 ¡RONDA PARA LA POLICÍA! (${rondas.poli})`, "#5a8aff"); }
+    return;
+  }
   if (botin >= META) { enviar("fin", { gana: "ladron" }); terminar("ladron"); return; }
   const ladrones = Object.values(jug).filter(s => s.equipo === "ladron");
   if (ladrones.length && ladrones.every(s => s.preso)) { enviar("fin", { gana: "poli" }); terminar("poli"); }
@@ -1261,7 +1384,7 @@ function trazo(o, d, largo) {
 // ¿La línea del tiro choca con un edificio antes de distancia "hasta"?
 function paredEnMedio(o, d, hasta) {
   for (let k = .5; k < hasta; k += .5) { const x = o.x + d.x * k, z = o.z + d.z * k, y = o.y + d.y * k;
-    if (y < 0) return k; if (edificios.some(e => x > e.x1 && x < e.x2 && z > e.z1 && z < e.z2 && y < e.h)) return k;
+    if (y < 0) return k; if (cercanos(x, z).some(e => x > e.x1 && x < e.x2 && z > e.z1 && z < e.z2 && y < e.h)) return k;
     if (puerta.cerrada && y < CASA.alto && Math.abs(x - CASA.x1) < .3 && z > CASA.puertaZ1 && z < CASA.puertaZ2) return k; }
   return null;
 }
@@ -1349,9 +1472,10 @@ function lanzar(de, x, y, z, vx, vy, vz) {
   const m = new THREE.Mesh(new THREE.SphereGeometry(.13, 8, 6), matGranada); m.position.set(x, y, z); escena.add(m);
   granadasVolando.push({ de, m, vx, vy, vz, t: 1.3 });
 }
+const luzExplosion = new THREE.PointLight(0xffffff, 0, 25); escena.add(luzExplosion);   // fija: agregar luces nuevas traba el juego
 function explotar(g) {
   const p = g.m.position; escena.remove(g.m);
-  const luz = new THREE.PointLight(0xffffff, 12, 25); luz.position.copy(p); escena.add(luz); setTimeout(() => escena.remove(luz), 160);
+  luzExplosion.position.copy(p); luzExplosion.intensity = 12; setTimeout(() => luzExplosion.intensity = 0, 160);
   const dist = Math.hypot(p.x - yo.x, p.z - yo.z);
   if (dist < 30) { beep(50, .5, "sawtooth", .08); beep(2400, .9, "sine", .03); }
   // Ciega un poco a cualquiera que esté cerca (incluso a vos)
@@ -1380,15 +1504,17 @@ function actualizarGranadas(dt) {
 
 // ================== LUCES DE POLICÍA ==================
 // Cada patrullero tiene una luz real que ilumina la calle en rojo y azul cuando la sirena está prendida
-for (const a of autos) { const luz = new THREE.PointLight(0xff0000, 0, 18, 1.6); luz.position.set(0, 2.2, 0); a.mesh.add(luz); a.mesh.userData.luz = luz; }
+// Solo 2 luces reales para todos los vehículos: se asignan a los 2 más cercanos con balizas (antes eran 10 y pesaba mucho)
+const lucesAutos = [0, 1].map(() => { const l = new THREE.PointLight(0xff0000, 0, 18, 1.6); escena.add(l); return l; });
 // Balizas fijas en la comisaría
 const balizasCarcel = [0, 1].map(i => { const l = new THREE.PointLight(i ? 0x2050ff : 0xff2020, 1.2, 16, 1.5);
   l.position.set(ZONAS.carcel.x + (i ? 3 : -3), 4, ZONAS.carcel.z - ZONAS.carcel.r - 1); escena.add(l);
   const b = new THREE.Mesh(new THREE.SphereGeometry(.35, 10, 8), new THREE.MeshBasicMaterial({ color: i ? 0x2050ff : 0xff2020 })); b.position.copy(l.position); escena.add(b);
   return { l, b }; });
 function actualizarLuces(t) {
-  for (const a of autos) { const luz = a.mesh.userData.luz, fl = fasesLuces(a, t);
-    luz.intensity = fl.fuerza; luz.color.setHex(fl.rojo && fl.azul ? 0xb040ff : fl.rojo ? 0xff1a1a : 0x1a4dff); }
+  const conLuz = autos.filter(a => (a.conductor || a.balizas) && a.sirena).sort((p, q) => Math.hypot(p.x - yo.x, p.z - yo.z) - Math.hypot(q.x - yo.x, q.z - yo.z));
+  lucesAutos.forEach((luz, i) => { const a = conLuz[i]; if (!a) { luz.intensity = 0; return; } const fl = fasesLuces(a, t);
+    luz.position.set(a.x, 2.2, a.z); luz.intensity = fl.fuerza; luz.color.setHex(fl.rojo && fl.azul ? 0xb040ff : fl.rojo ? 0xff1a1a : 0x1a4dff); });
   balizasCarcel.forEach((z, i) => { const on = (Math.floor(t / 400) + i) % 2 === 0; z.l.intensity = on ? 1.6 : .1; z.b.visible = on; });
   // Si hay patrulleros con sirena cerca, la pantalla también titila un poco
   const cerca = autos.some(a => (a.conductor || a.balizas) && a.sirena && Math.hypot(a.x - yo.x, a.z - yo.z) < 14);
@@ -1540,11 +1666,11 @@ function ponerValla(x, z, eje, hasta, id, mio) {
   for (const px of [-1.4, 1.4]) { const pata = new THREE.Mesh(new THREE.BoxGeometry(.08, 1, .5), matValla); pata.position.set(px, .5, 0); g.add(pata); }
   const luz = new THREE.Mesh(new THREE.SphereGeometry(.07, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffa020 })); luz.position.set(1.4, 1.05, 0); g.add(luz); g.userData.luz = luz;
   const col = eje ? { x1: x - .25, x2: x + .25, z1: z - 1.5, z2: z + 1.5 } : { x1: x - 1.5, x2: x + 1.5, z1: z - .25, z2: z + .25 };
-  const e = Object.assign(col, { h: 1.1, valla: true }); edificios.push(e);
+  const e = Object.assign(col, { h: 1.1, valla: true }); edificios.push(e); GRILLA.sucia = true;
   const v = { id, mesh: g, col: e, hasta }; vallas.push(v);
   if (mio) { misVallas.push(v); enviar("valla", { x: +x.toFixed(2), z: +z.toFixed(2), eje, hasta, id }); }
 }
-function quitarValla(v) { escena.remove(v.mesh); const i = edificios.indexOf(v.col); if (i >= 0) edificios.splice(i, 1); vallas.splice(vallas.indexOf(v), 1); const j = misVallas.indexOf(v); if (j >= 0) misVallas.splice(j, 1); }
+function quitarValla(v) { escena.remove(v.mesh); const i = edificios.indexOf(v.col); if (i >= 0) edificios.splice(i, 1); GRILLA.sucia = true; vallas.splice(vallas.indexOf(v), 1); const j = misVallas.indexOf(v); if (j >= 0) misVallas.splice(j, 1); }
 function tirarValla() {
   if (yo.equipo !== "poli" || yo.preso || miAuto) return;
   if (misVallas.length >= 2) quitarValla(misVallas[0]);   // máximo 2: la más vieja se levanta
@@ -1719,7 +1845,7 @@ function terminar(gana) {
   if (!jugando) return; jugando = false; document.body.classList.remove("jugando"); document.exitPointerLock?.(); nocturna(false); if (miAuto) { miAuto.conductor = null; miAuto = null; } pintarPanel(); sonidoSirena(0); quitarDisturbio(); $("disturbio").style.display = "none"; CAR.activa = false; limo.visible = false; $("caravana").style.display = "none"; $("radar").style.display = "none";
   const gane = gana === equipo;
   $("fin-tit").textContent = gana === "poli" ? "👮 ¡GANÓ LA POLICÍA!" : "🦹 ¡GANARON LOS LADRONES!";
-  $("fin-txt").innerHTML = `${gane ? "🏆 ¡Ganaste!" : "💀 Perdiste"}<br>Botín robado: $${botin.toLocaleString("es-AR")} de $${META.toLocaleString("es-AR")}<br><br>` +
+  $("fin-txt").innerHTML = `${gane ? "🏆 ¡Ganaste!" : "💀 Perdiste"}<br>Botín robado: $${botin.toLocaleString("es-AR")} de $${META.toLocaleString("es-AR")}${libre ? `<br>Rondas ganadas: 👮 ${rondas.poli} · 🦹 ${rondas.ladron}` : ""}<br><br>` +
     Object.values(jug).map(s => `${s.equipo === "poli" ? "👮" : "🦹"} ${esc(s.nombre)} — ${s.equipo === "poli" ? `🚔 ${s.atrapados} atrapados` : `💰 $${s.robado.toLocaleString("es-AR")}`}`).join("<br>");
   $("fin").classList.remove("oculto");
   AJUSTES.resultado("policias", gane);
@@ -1727,9 +1853,25 @@ function terminar(gana) {
 }
 
 let ult = performance.now(), ultPos = 0;
+// Textos de la pantalla: solo se tocan si cambian (escribir el DOM en cada cuadro traba en celulares)
+for (const id of ["pista", "reloj", "rol", "botin", "equipos", "velocimetro", "linterna-txt", "municion", "granadas", "disturbio", "caravana", "poli-extras", "radar", "b-accion"]) {
+  const el = $(id); if (!el) continue;
+  for (const [prop, proto] of [["innerHTML", Element.prototype], ["textContent", Node.prototype]]) { const d = Object.getOwnPropertyDescriptor(proto, prop); if (!d) continue;
+    Object.defineProperty(el, prop, { configurable: true, get() { return d.get.call(this); }, set(v) { if (this["_" + prop] !== v) { this["_" + prop] = v; d.set.call(this, v); } } }); }
+}
+// Calidad automática: si los FPS bajan, se dibuja a menos resolución; si sobran, sube de a poco
+const FPS = { acum: 0, n: 0, max: calidad };
+function ajustarCalidad(dt) {
+  FPS.acum += dt; FPS.n++; if (FPS.acum < 2) return;
+  const fps = FPS.n / FPS.acum; FPS.acum = 0; FPS.n = 0;
+  const antes = calidad;
+  if (fps < 40 && calidad > .6) calidad = Math.max(.6, calidad - .15);
+  else if (fps > 57 && calidad < FPS.max) calidad = Math.min(FPS.max, calidad + .05);
+  if (calidad !== antes) renderer.setPixelRatio(calidad);
+}
 function loop(t) {
   requestAnimationFrame(loop);
-  const dt = Math.min(.05, (t - ult) / 1000); ult = t;
+  const dt = Math.min(.05, (t - ult) / 1000); ult = t; ajustarCalidad(dt);
   if (jugando) {
     // Yo
     // Departamento: taquillas (división) y armería (recargar)
@@ -1792,7 +1934,7 @@ function loop(t) {
     if (yo.equipo === "poli" && yo.div === "comunicaciones") { const P = ["N","NE","E","SE","S","SO","O","NO"];
       const L = Object.values(jug).filter(s => s.equipo === "ladron" && !s.preso && (s.bolsa || s.paquete));
       $("radar").innerHTML = "📡 <b>Radio</b><br>" + (L.length ? L.map(s => { const a = Math.atan2(s.x - yo.x, -(s.z - yo.z)); return `🦹 ${esc(s.nombre)} ${s.paquete ? "📦" : "💰"} · ${Math.round(Math.hypot(s.x - yo.x, s.z - yo.z))} m ${P[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8]}`; }).join("<br>") : "Sin ladrones con botín"); }
-    actualizarDisturbio(dt, t); actualizarPoliExtras(dt, t); actualizarCaravana(dt, t);
+    actualizarAviones(t); nuevaRondaLibre(); actualizarDisturbio(dt, t); actualizarPoliExtras(dt, t); actualizarCaravana(dt, t);
     $("rejas").style.display = yo.preso ? "block" : "none";
     // Otros
     for (const s of Object.values(jug)) {
@@ -1801,7 +1943,7 @@ function loop(t) {
       else { s.x += (s.tx - s.x) * Math.min(1, dt * 10); s.z += (s.tz - s.z) * Math.min(1, dt * 10);
         if (online && Date.now() - s.visto > 8000) { feed(`🚪 Se fue ${s.nombre}`); escena.remove(s.mesh); delete jug[s.id]; continue; } }
       if (s.mesh) { const v = Math.hypot(s.x - (s._px ?? s.x), s.z - (s._pz ?? s.z)) / Math.max(dt, .001); s._px = s.x; s._pz = s.z; animarMuneco(s.mesh, s.preso ? 0 : v, t);
-        s.mesh.visible = !(s.auto !== null && s.auto !== undefined); s.mesh.position.set(s.x, 0, s.z); s.mesh.rotation.y = s.rot; s.mesh.userData.bolsa.visible = s.bolsa || !!s.paquete;
+        s.mesh.visible = !(s.auto !== null && s.auto !== undefined) && Math.abs(s.x - camara.position.x) + Math.abs(s.z - camara.position.z) < 110;   // lejos no se dibuja s.mesh.position.set(s.x, 0, s.z); s.mesh.rotation.y = s.rot; s.mesh.userData.bolsa.visible = s.bolsa || !!s.paquete;
         s.mesh.userData.marca.visible = yo.equipo === "poli" && s.equipo === "ladron" && !s.preso && ((yo.div === "investigaciones" && (s.bolsa || !!s.paquete)) || (capturas[s.id] || 0) > Date.now());
         s.mesh.position.y = 0; }
     }
@@ -1823,7 +1965,8 @@ function loop(t) {
         a.x += (a.tx - a.x) * Math.min(1, dt * 10); a.z += (a.tz - a.z) * Math.min(1, dt * 10);
         a.h += Math.atan2(Math.sin(a.th - a.h), Math.cos(a.th - a.h)) * Math.min(1, dt * 10);
       }
-      pintarAuto(a, t);
+      a.mesh.visible = a === miAuto || Math.abs(a.x - camara.position.x) + Math.abs(a.z - camara.position.z) < 120;
+      if (a.mesh.visible) pintarAuto(a, t);
     }
     sonidoSirena(t);
     $("velocimetro").style.display = miAuto ? "block" : "none";
@@ -1832,7 +1975,7 @@ function loop(t) {
     for (const b of BOLSAS) { const ok = b.hasta < Date.now(); b.mesh.visible = ok; if (ok) { b.mesh.rotation.y += dt * 2; b.mesh.position.y = .5 + Math.sin(t / 300 + b.i) * .1; } }
     // HUD
     const quedan = Math.max(0, Math.ceil((fin - Date.now()) / 1000));
-    $("reloj").textContent = `⏱️ ${Math.floor(quedan / 60)}:${String(quedan % 60).padStart(2, "0")}`;
+    $("reloj").textContent = isFinite(fin) ? `⏱️ ${Math.floor(quedan / 60)}:${String(quedan % 60).padStart(2, "0")}` : `♾️ 👮${rondas.poli} · 🦹${rondas.ladron}`;
     $("rol").textContent = yo.equipo === "poli" ? `${ICONO(yo.clase)} ${yo.nombre} · 🚔 ${yo.atrapados}` : `🦹 ${yo.nombre}${yo.bolsa ? " · 💰" : ""}`;
     $("botin").textContent = `💰 Botín: $${botin.toLocaleString("es-AR")} / $${META.toLocaleString("es-AR")}`;
     const L = Object.values(jug).filter(s => s.equipo === "ladron");
@@ -1872,14 +2015,46 @@ function loop(t) {
   camara.rotation.order = "YXZ"; camara.rotation.y = yaw; camara.rotation.x = yo ? pitch : -.35;
   renderer.render(escena, camara);
 }
+// Junta en una sola malla todos los objetos fijos que comparten material (veredas, rayas, carteles pintados, aeropuerto...)
+function fusionarEstaticos() {
+  const dyn = new Set([AER.faro, puerta.mesh, conoLuz, ...PAQUETES.map(p => p.mesh), ...balizasCarcel.map(b => b.b)]);
+  const grupos = new Map();
+  for (const m of [...escena.children]) {
+    if (!m.isMesh || m.isInstancedMesh || m.children.length || dyn.has(m) || Array.isArray(m.material) || !m.visible) continue;
+    const k = m.material.uuid + "|" + Object.keys(m.geometry.attributes).sort().join(",");
+    (grupos.get(k) || grupos.set(k, []).get(k)).push(m);
+  }
+  let antes = 0, despues = 0;
+  for (const lista of grupos.values()) {
+    if (lista.length < 2) continue;
+    const nombres = Object.keys(lista[0].geometry.attributes), datos = {}; for (const n of nombres) datos[n] = [];
+    for (const m of lista) { m.updateMatrixWorld(true); let g = m.geometry.clone().applyMatrix4(m.matrixWorld); if (g.index) g = g.toNonIndexed();
+      for (const n of nombres) datos[n].push(...g.attributes[n].array); g.dispose(); escena.remove(m); }
+    const geo = new THREE.BufferGeometry(); for (const n of nombres) geo.setAttribute(n, new THREE.Float32BufferAttribute(datos[n], lista[0].geometry.attributes[n].itemSize));
+    const u = new THREE.Mesh(geo, lista[0].material); u.renderOrder = lista[0].renderOrder; escena.add(u); antes += lista.length; despues++;
+  }
+  return antes - despues;
+}
+fusionarEstaticos();
 requestAnimationFrame(loop);
 
 // ================== MENÚ ==================
 document.querySelectorAll("[data-e]").forEach(b => b.onclick = () => { clase = b.dataset.e; equipo = ARMADO(clase) ? "poli" : clase; document.querySelectorAll("[data-e]").forEach(x => x.classList.toggle("on", x === b)); });
 const nuevoCodigo = () => Array.from({ length: 4 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join("");
-$("practica").onclick = () => { online = false; empezar(); };
+function nuevaRondaLibre() {
+  if (!rondaEspera || Date.now() < rondaEspera) return; rondaEspera = 0;
+  for (const s of Object.values(jug)) if (s.equipo === "ladron") { s.preso = false; s.res = 100; const l = lugarLibre(ZONAS.guarida, 8); s.x = s.tx = l.x; s.z = s.tz = l.z; }
+  feed("🔄 Nueva ronda: los ladrones se escaparon de la cárcel");
+}
+let rondaEspera = 0, tiempoPractica = 0, libre = false, rondas = { poli: 0, ladron: 0 };   // 0 = práctica sin límite
+document.querySelectorAll("#tiempos [data-t]").forEach(b => b.onclick = () => { tiempoPractica = +b.dataset.t; document.querySelectorAll("#tiempos [data-t]").forEach(x => x.classList.toggle("on", x === b)); });
+$("practica").onclick = () => { online = false; libre = !tiempoPractica; rondas = { poli: 0, ladron: 0 }; rondaEspera = 0; document.body.classList.toggle("libre", libre);
+  empezar(libre ? Infinity : Date.now() + tiempoPractica * 1000); };
+$("b-salir").onclick = () => { if (!jugando) return; terminar(rondas.ladron > rondas.poli ? "ladron" : rondas.poli > rondas.ladron ? "poli" : equipo); };
 $("crear").onclick = () => conectar(nuevoCodigo(), true);
 $("unirse").onclick = () => { const c = $("cod").value.trim().toUpperCase(); if (c.length !== 4) { $("msg").textContent = "El código tiene 4 letras."; return; } conectar(c, false); };
+$("crear").addEventListener("click", () => { libre = false; document.body.classList.remove("libre"); });
+$("unirse").addEventListener("click", () => { libre = false; document.body.classList.remove("libre"); });
 $("arrancar").onclick = () => { const f = Date.now() + DURACION * 1000; enviar("empieza", { fin: f }); empezar(f); };
 $("compartir").onclick = async () => { const url = location.href.split("?")[0] + "?sala=" + codigo;
   try { if (navigator.share) await navigator.share({ title: "Polis y Ladrones", text: "¡Vení a jugar! Código: " + codigo, url }); else { await navigator.clipboard.writeText(url); $("compartir").textContent = "✅ Link copiado"; } } catch (e) {} };
