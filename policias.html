@@ -21,6 +21,11 @@
   #grande { position:fixed; left:0; right:0; top:32%; text-align:center; font-size:clamp(28px,8vw,58px); font-weight:900; text-shadow:0 0 18px #000, 0 4px 0 #000; pointer-events:none; opacity:0; z-index:6; }
   #grande.ver { animation:grande 1.8s; }
   @keyframes grande { 0%{opacity:0;transform:scale(2.5)} 12%{opacity:1;transform:scale(1)} 80%{opacity:1} 100%{opacity:0} }
+  #disturbio { position:fixed; left:50%; top:52px; transform:translateX(-50%); z-index:6; display:none; pointer-events:none; text-align:center; font-weight:900; color:#ffb060;
+               background:#000b; border:1px solid #ff8a20; border-radius:12px; padding:6px 14px; text-shadow:0 1px 3px #000; max-width:calc(100vw - 32px); }
+  #disturbio small { display:block; font-weight:700; color:#fff; opacity:.85; font-size:12px; }
+  #disturbio .barra { height:6px; background:#ffffff22; border-radius:4px; margin:4px 0 2px; overflow:hidden; } #disturbio .barra div { height:100%; background:linear-gradient(90deg,#5ec8f2,#3ddc5a); }
+  #radar { position:fixed; right:12px; top:120px; z-index:5; display:none; pointer-events:none; background:#001a33cc; border:1px solid #5ec8f2; border-radius:10px; padding:6px 10px; font-size:13px; max-width:240px; }
   #feed { position:fixed; left:12px; bottom:12px; font-size:14px; pointer-events:none; z-index:5; }
   #feed div { background:#0009; padding:4px 10px; border-radius:8px; margin-top:4px; animation:sale 5s forwards; }
   @keyframes sale { 85%{opacity:1} 100%{opacity:0} }
@@ -106,7 +111,7 @@
   </div>
 </div>
 <div id="megafono"></div>
-<div id="mira"></div><div id="pista"></div><div id="grande"></div><div id="feed"></div>
+<div id="disturbio"></div><div id="radar"></div><div id="mira"></div><div id="pista"></div><div id="grande"></div><div id="feed"></div>
 <div id="sirena"></div><div id="rejas"></div>
 <div class="stick" id="stick"><b></b></div><button id="b-accion">🚔</button><button id="b-auto">🚓</button><button id="b-cam">🎥</button>
 <div id="velocimetro"></div>
@@ -533,8 +538,8 @@ function manejar(a, dt) {
   const freno = teclas.Space;
   a.vel += acel * (acel * a.vel < 0 ? 30 : 16) * dt;
   a.vel *= Math.pow(freno ? .1 : .55, dt);                 // rozamiento
-  a.vel = Math.max(-8, Math.min((a.max || 26) * (a.tipo === "moto" && yo.div === "motorizada" ? 1.15 : 1), a.vel));
-  const bonusMoto = a.tipo === "moto" && yo.div === "motorizada" ? 1.15 : 1;
+  a.vel = Math.max(-8, Math.min((a.max || 26) * 1.15, a.vel));
+  const bonusMoto = a.tipo === "moto" && yo.div === "motorizada" ? 1.15 : a.tipo !== "moto" && yo.div === "transito" ? 1.12 : 1;
   a.vel = Math.min(a.vel, (a.max || 26) * bonusMoto);
   a.h += giro * dt * Math.min(1, Math.abs(a.vel) / 6) * (a.tipo === "moto" ? 2.9 : 2.2) * Math.sign(a.vel || 1);
   a.giro = giro;
@@ -579,10 +584,92 @@ function bocina(x, z, mia) {
   if (mia) enviar("bocina", { x: +x.toFixed(1), z: +z.toFixed(1) });
 }
 function megafono(x, z, msg, mio) {
+  if (DIST.activo && Math.hypot(x - DIST.x, z - DIST.z) < 16) DIST.prog += 1.5;   // "¡Dispérsense!" ayuda a calmar
   const d = Math.hypot(x - yo.x, z - yo.z); if (d > 40) return;
   const e = $("megafono"); e.textContent = msg; e.style.opacity = 1; clearTimeout(megafono.t); megafono.t = setTimeout(() => e.style.opacity = 0, 2200);
   [520, 0, 520].forEach((f, i) => f && setTimeout(() => beep(f, .12, "square", .04 * (1 - d / 40)), i * 140));
   if (mio) enviar("megafono", { x: +x.toFixed(1), z: +z.toFixed(1), msg });
+}
+// ================== DISTURBIOS ==================
+// Cada tanto se arma un disturbio en una esquina: barricada de gomas prendidas fuego y una multitud.
+// La policía lo dispersa parándose cerca (antidisturbios x2, megáfono y sirena ayudan).
+// Mientras dura, la policía está ocupada: cada bolsa vale +$500. Si no lo dispersan a tiempo, saquean: ladrones +$1.500.
+const DIST = { activo: false, x: 0, z: 0, hasta: 0, prog: 0, prox: 0, grupo: null, env: 0 }, DIST_META = 15, DIST_DUR = 60000;
+const CARTELES = ["¡BASTA!", "¡TRABAJO!", "¡JUSTICIA!", "¡LUZ Y AGUA!", "¡FUERA!", "¡SALARIO!"];
+function crearDisturbio(x, z, hasta) {
+  quitarDisturbio(); Object.assign(DIST, { activo: true, x, z, hasta, prog: 0 });
+  const g = new THREE.Group(); g.position.set(x, 0, z); escena.add(g); DIST.grupo = g;
+  const L = c => new THREE.MeshLambertMaterial({ color: c });
+  // Barricada: gomas apiladas y fuego
+  const goma = new THREE.TorusGeometry(.38, .16, 8, 14), negro = L(0x141414);
+  for (let i = 0; i < 7; i++) { const m = new THREE.Mesh(goma, negro); m.rotation.x = Math.PI / 2; m.position.set((i % 4 - 1.5) * .8, .16 + Math.floor(i / 4) * .3, Math.floor(i / 4) * .2); g.add(m); }
+  const fuegos = [];
+  for (let i = 0; i < 6; i++) { const f = new THREE.Mesh(new THREE.ConeGeometry(.3 + Math.random() * .2, 1.2 + Math.random() * .8, 7), new THREE.MeshBasicMaterial({ color: i % 2 ? 0xff7a10 : 0xffc020, transparent: true, opacity: .85, blending: THREE.AdditiveBlending, depthWrite: false }));
+    f.position.set((Math.random() - .5) * 2.6, .9, (Math.random() - .5) * .6); g.add(f); fuegos.push(f); }
+  const luz = new THREE.PointLight(0xff7a20, 3, 18, 1.4); luz.position.y = 1.6; g.add(luz);
+  const humos = [];
+  for (let i = 0; i < 8; i++) { const h = new THREE.Mesh(new THREE.SphereGeometry(.5, 8, 6), new THREE.MeshLambertMaterial({ color: 0x2a2a2a, transparent: true, opacity: .5, depthWrite: false }));
+    h.userData.f = i / 8; g.add(h); humos.push(h); }
+  // Manifestantes con carteles
+  const gente = [];
+  for (let i = 0; i < 12; i++) {
+    const a = i / 12 * Math.PI * 2, r = 3 + Math.random() * 2.2, p = new THREE.Group();
+    p.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); p.rotation.y = Math.atan2(-p.position.x, -p.position.z) + (Math.random() - .5);
+    const ropa = L([0xc0392b, 0x2e86c1, 0x27ae60, 0x8e44ad, 0xf39c12, 0x555555, 0xeeeeee][i % 7]);
+    const cuerpo = new THREE.Mesh(new THREE.BoxGeometry(.5, .7, .28), ropa); cuerpo.position.y = 1.25; p.add(cuerpo);
+    const pier = new THREE.Mesh(new THREE.BoxGeometry(.42, .9, .24), L(0x23324a)); pier.position.y = .45; p.add(pier);
+    const cab = new THREE.Mesh(new THREE.SphereGeometry(.19, 10, 8), L([0xe0ac7e, 0xc68642, 0x8d5524, 0xf1c27d][i % 4])); cab.position.y = 1.82; p.add(cab);
+    const palo = new THREE.Mesh(new THREE.BoxGeometry(.04, 1.1, .04), L(0x8a6a3a)); palo.position.set(.3, 1.9, .1); p.add(palo);
+    const cartelM = new THREE.Group(), mc = new THREE.MeshBasicMaterial({ map: texTexto(CARTELES[i % CARTELES.length], "#f4f0e0", "#b01010") });
+    for (const ry of [0, Math.PI]) { const c = new THREE.Mesh(new THREE.PlaneGeometry(1, .42), mc); c.rotation.y = ry; c.position.z = ry ? -.01 : .01; cartelM.add(c); }   // se lee de los dos lados
+    cartelM.position.set(.3, 2.55, .12); p.add(cartelM);
+    p.userData.fase = Math.random() * 6; g.add(p); gente.push(p);
+  }
+  g.userData = { fuegos, humos, gente, luz };
+  feed("🔥 ¡Se armó un disturbio! Mirá arriba dónde es");
+  grande(equipo === "poli" ? "🔥 ¡DISTURBIO! ¡VAYAN A DISPERSARLO!" : "🔥 ¡DISTURBIO! La policía está ocupada", "#ff8a20");
+  beep(300, .3, "sawtooth", .05); setTimeout(() => beep(240, .3, "sawtooth", .05), 300);
+}
+function quitarDisturbio() { if (DIST.grupo) escena.remove(DIST.grupo); DIST.grupo = null; DIST.activo = false; }
+function finDisturbio(ok) {
+  if (!DIST.activo) return;
+  quitarDisturbio(); DIST.prox = Date.now() + 45000 + Math.random() * 25000;
+  if (ok) { feed("🛡️ La policía dispersó el disturbio"); grande("🛡️ ¡DISTURBIO DISPERSADO!", "#5ec8f2"); beep(700, .15, "triangle"); setTimeout(() => beep(1000, .2, "triangle"), 150); }
+  else { botin += 1500; feed(`🔥 Saquearon durante el disturbio: ladrones +$1.500 (total $${botin.toLocaleString("es-AR")})`); grande("🔥 ¡SAQUEO! +$1.500 para los ladrones", "#ff8a20"); revisarFin(); }
+}
+// Esquinas de la ciudad (cruces de calles), lejos de las zonas importantes
+function esquinaDisturbio() {
+  const xs = [-56, -32, -8, 16, 40], op = [];
+  for (const x of xs) for (const z of xs) if (!Object.values(ZONAS).some(Z => Math.hypot(Z.x - x, Z.z - z) < 14) && Math.hypot(x - DEPTO.cx, z - DEPTO.cz) > 16) op.push({ x, z });
+  return op[Math.floor(Math.random() * op.length)];
+}
+function actualizarDisturbio(dt, t) {
+  const manda = soyHost || !online, ahora = Date.now();
+  if (manda && !DIST.activo && ahora > DIST.prox) { const e = esquinaDisturbio(), hasta = ahora + DIST_DUR; crearDisturbio(e.x, e.z, hasta); enviar("disturbio", { x: e.x, z: e.z, hasta }); }
+  const hud = $("disturbio");
+  if (!DIST.activo) { hud.style.display = "none"; return; }
+  if (manda) {
+    for (const s of Object.values(jug)) if (s.equipo === "poli" && !s.preso) {
+      const d = Math.hypot(s.x - DIST.x, s.z - DIST.z), enAuto = s === yo ? !!miAuto : s.auto !== null && s.auto !== undefined;
+      if (!enAuto && d < 8) DIST.prog += dt * (s.div === "antidisturbios" ? 2 : 1) * (ARMADO(s.clase) ? 1.3 : 1);
+      else if (enAuto && d < 12) { const a = s === yo ? miAuto : autos[s.auto]; if (a && a.sirena) DIST.prog += dt * .6; }
+    }
+    if (t - DIST.env > 400) { DIST.env = t; enviar("dprog", { p: +DIST.prog.toFixed(1) }); }
+    if (DIST.prog >= DIST_META) { enviar("dfin", { ok: true }); finDisturbio(true); hud.style.display = "none"; return; }
+    if (ahora > DIST.hasta) { enviar("dfin", { ok: false }); finDisturbio(false); hud.style.display = "none"; return; }
+  }
+  // Animación: gente saltando, fuego y humo
+  const U = DIST.grupo.userData;
+  for (const p of U.gente) { p.position.y = Math.max(0, Math.sin(t / 160 + p.userData.fase)) * .25; p.children[4].rotation.z = Math.sin(t / 300 + p.userData.fase) * .25; }
+  for (const f of U.fuegos) { f.scale.y = .8 + Math.random() * .5; f.scale.x = f.scale.z = .85 + Math.random() * .3; }
+  U.luz.intensity = 2.4 + Math.random() * 1.4;
+  for (const h of U.humos) { const k = (h.userData.f + t / 6000) % 1; h.position.set(Math.sin(k * 9 + h.userData.f * 20) * .6, 1.5 + k * 7, Math.cos(k * 7) * .4); h.scale.setScalar(.6 + k * 2.2); h.material.opacity = .55 * (1 - k); }
+  // HUD
+  const P = ["N","NE","E","SE","S","SO","O","NO"], a = Math.atan2(DIST.x - yo.x, -(DIST.z - yo.z));
+  const quedan = Math.max(0, Math.ceil((DIST.hasta - ahora) / 1000)), pct = Math.min(100, Math.round(DIST.prog / DIST_META * 100));
+  hud.style.display = "block";
+  hud.innerHTML = `🔥 DISTURBIO · ${Math.round(Math.hypot(DIST.x - yo.x, DIST.z - yo.z))} m ${P[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8]} · ⏱️ ${quedan}s<div class="barra"><div style="width:${pct}%"></div></div>` +
+    (yo.equipo === "poli" ? `<small>Parate cerca para dispersarlo (${pct}%)${yo.div === "antidisturbios" ? " · 🛡️ x2" : ""}</small>` : `<small>💰 Bolsas +$500 mientras dure · si no lo dispersan: +$1.500</small>`);
 }
 function accionSirena(que) {
   const a = miAuto; if (!a) return;
@@ -698,6 +785,13 @@ function crearMuneco(equipo, nombre, clase, div, uni) {
   // Marca para Investigaciones (se ve a través de las paredes)
   const marca = new THREE.Sprite(new THREE.SpriteMaterial({ map: textura((c, w, h) => { c.fillStyle = "#ff2a2a"; c.beginPath(); c.moveTo(w / 2, h); c.lineTo(0, 0); c.lineTo(w, 0); c.fill(); }, 64, 64), depthTest: false }));
   marca.scale.set(.8, .8, 1); marca.position.y = 3.3; marca.visible = false; marca.renderOrder = 10; g.add(marca); g.userData.marca = marca;
+  if (div === "antidisturbios" && U) {
+    const esd = new THREE.Mesh(new THREE.BoxGeometry(.62, 1.05, .04), new THREE.MeshLambertMaterial({ color: 0x9fc4e8, transparent: true, opacity: .55 }));
+    esd.position.set(-.05, -.5, .22); brazos[0].add(esd); g.userData.escudo = esd;
+    const le = new THREE.Mesh(new THREE.PlaneGeometry(.5, .13), new THREE.MeshBasicMaterial({ map: texTexto("POLICÍA", "#00000000", "#ffffff"), transparent: true }));
+    le.position.z = .025; esd.add(le);
+    const ca = new THREE.Mesh(new THREE.SphereGeometry(.26, 16, 10, 0, Math.PI * 2, 0, Math.PI / 1.8), L(0x1a2a4a)); ca.position.y = 1.9; g.add(ca);
+    caja(.42, .2, .03, new THREE.MeshLambertMaterial({ color: 0xaaccff, transparent: true, opacity: .45 }), 0, 1.86, .24); }
   if (div === "canes" && equipo === "poli") { const perro = new THREE.Group(), mp = L(0x5a3a1a);
     caja(.26, .26, .62, mp, 0, .42, 0, perro); caja(.22, .22, .28, mp, 0, .62, .38, perro); caja(.12, .1, .12, L(0x2a1a0a), 0, .58, .55, perro);
     for (const [x, z] of [[-.09, .22], [.09, .22], [-.09, -.22], [.09, -.22]]) caja(.06, .3, .06, mp, x, .15, z, perro);
@@ -739,6 +833,10 @@ const DIVISIONES = {
   motorizada:      { nom: "Motorizada",      ico: "🏍️", d: "Más rápido a pie y las motos van 15% más rápido." },
   investigaciones: { nom: "Investigaciones", ico: "🕵️", d: "Ve una marca roja sobre los ladrones que llevan botín, aunque estén detrás de una pared." },
   canes:           { nom: "Canes",           ico: "🐕", d: "Atrapa desde más lejos (el perro ayuda)." },
+  antidisturbios:  { nom: "Antidisturbios",  ico: "🛡️", d: "Escudo y casco. Dispersa los disturbios el doble de rápido." },
+  transito:        { nom: "Tránsito",        ico: "🚦", d: "Los patrulleros y camionetas van 12% más rápido." },
+  explosivos:      { nom: "Explosivos",      ico: "💣", d: "Puede volar la puerta de la casa narco aunque no sea SWAT." },
+  comunicaciones:  { nom: "Comunicaciones",  ico: "📡", d: "Ve en el HUD dónde está cada ladrón con botín y a qué distancia." },
 };   // tienen ametralladora y pueden reventar puertas
 function nuevoJug(id, nombre, eq, bot, cl) {
   const l = lugarLibre(eq === "poli" ? { x: DEPTO.cx, z: DEPTO.cz } : ZONAS.guarida, eq === "poli" ? 3.5 : 8);
@@ -771,6 +869,9 @@ function conectar(cod, host) {
     .on("broadcast", { event: "bocina" }, ({ payload: p }) => bocina(p.x, p.z, false))
     .on("broadcast", { event: "megafono" }, ({ payload: p }) => megafono(p.x, p.z, String(p.msg).slice(0, 60), false))
     .on("broadcast", { event: "granada" }, ({ payload: p }) => lanzar(p.de, ...p.o, ...p.v))
+    .on("broadcast", { event: "disturbio" }, ({ payload: p }) => crearDisturbio(+p.x, +p.z, +p.hasta))
+    .on("broadcast", { event: "dprog" }, ({ payload: p }) => { DIST.prog = +p.p || 0; })
+    .on("broadcast", { event: "dfin" }, ({ payload: p }) => finDisturbio(!!p.ok))
     .on("broadcast", { event: "fin" }, ({ payload: p }) => terminar(p.gana))
     .on("broadcast", { event: "auto" }, ({ payload: p }) => { const a = autos[p.i]; if (!a) return;
       if (p.sube) { if (a === miAuto && a.conductor === yo.id && p.quien < yo.id) { bajarAuto(); feed("🚓 Otro poli agarró ese patrullero"); } if (a !== miAuto) a.conductor = p.quien; }
@@ -838,9 +939,10 @@ function irrupcion(idQuien) {
 }
 function entregar(idQuien) {
   const q = jug[idQuien]; if (!q || !q.bolsa) return;
-  q.bolsa = false; q.robado += 1000; botin += 1000;
-  feed(`💰 ${q.nombre} entregó $1.000 (total $${botin.toLocaleString("es-AR")})`);
-  if (q === yo) { grande("💸 +$1.000", "#7dff8a"); beep(1300, .25, "triangle"); }
+  const v = DIST.activo ? 1500 : 1000;
+  q.bolsa = false; q.robado += v; botin += v;
+  feed(`💰 ${q.nombre} entregó $${v.toLocaleString("es-AR")}${DIST.activo ? " (🔥 disturbio)" : ""} (total $${botin.toLocaleString("es-AR")})`);
+  if (q === yo) { grande(`💸 +$${v.toLocaleString("es-AR")}`, "#7dff8a"); beep(1300, .25, "triangle"); }
   revisarFin();
 }
 function revisarFin() {
@@ -1085,7 +1187,9 @@ function pensarBot(b, dt) {
   if (b.equipo === "poli") {
     let obj = null, d = 1e9;
     for (const o of Object.values(jug)) if (o.equipo === "ladron" && !o.preso) { const dd = Math.hypot(o.x - b.x, o.z - b.z) - (o.bolsa ? 10 : 0); if (dd < d) { d = dd; obj = o; } }
-    if (!obj) { b.objetivo = ZONAS.carcel; }
+    if (!DIST.activo) b.vaDist = undefined;
+    if (DIST.activo && (!obj || d > 18) && (b.vaDist ??= Math.random() < .7)) b.objetivo = { x: DIST.x + (b.id.charCodeAt(3) % 5 - 2), z: DIST.z + 2.5 };
+    else if (!obj) { b.objetivo = ZONAS.carcel; }
     else { b.objetivo = obj; if (Math.hypot(obj.x - b.x, obj.z - b.z) < ATRAPA * .8) { atrapado(obj.id, b.id); } }
   } else {
     if (b.preso) return;
@@ -1127,6 +1231,7 @@ function empezar(finTs) {
   modoCam = 0;
   jug = {}; botin = 0; BOLSAS.forEach(b => { b.hasta = 0; b.mesh.visible = true; });
   PAQUETES.forEach(p => p.hasta = 0); puerta.cerrada = true; puerta.hasta = 0;
+  quitarDisturbio(); DIST.prog = 0; DIST.prox = Date.now() + 35000;
   resetAutos(); miAuto = null; document.body.classList.toggle("poli", equipo === "poli");
   yo = jug[miId] = nuevoJug(miId, miNombre(), equipo, false, clase);
   balas = ARMADO(clase) ? CARGADOR : 0; recargando = 0; granadas = clase === "halcon" ? 3 : 0; nocturna(false);
@@ -1142,7 +1247,7 @@ function empezar(finTs) {
   if (!document.body.classList.contains("tactil")) renderer.domElement.requestPointerLock?.();
 }
 function terminar(gana) {
-  if (!jugando) return; jugando = false; document.exitPointerLock?.(); nocturna(false); if (miAuto) { miAuto.conductor = null; miAuto = null; } pintarPanel(); sonidoSirena(0);
+  if (!jugando) return; jugando = false; document.exitPointerLock?.(); nocturna(false); if (miAuto) { miAuto.conductor = null; miAuto = null; } pintarPanel(); sonidoSirena(0); quitarDisturbio(); $("disturbio").style.display = "none"; $("radar").style.display = "none";
   const gane = gana === equipo;
   $("fin-tit").textContent = gana === "poli" ? "👮 ¡GANÓ LA POLICÍA!" : "🦹 ¡GANARON LOS LADRONES!";
   $("fin-txt").innerHTML = `${gane ? "🏆 ¡Ganaste!" : "💀 Perdiste"}<br>Botín robado: $${botin.toLocaleString("es-AR")} de $${META.toLocaleString("es-AR")}<br><br>` +
@@ -1190,8 +1295,9 @@ function loop(t) {
         if (objetivo && Math.abs(miAuto.vel) > 3) accionPedida = true; }
       const enPuerta = puerta.cerrada && !miAuto && Math.abs(yo.x - (CASA.x1 - .8)) < 1.6 && yo.z > CASA.puertaZ1 - .8 && yo.z < CASA.puertaZ2 + .8;
       if (enPuerta && !objetivo) {
-        pista = ARMADO(yo.clase) ? "💥 Tocá E para reventar la puerta" : "🔒 Puerta blindada: solo el 🪖 SWAT o el 🦅 Grupo Halcón la pueden abrir";
-        if (ARMADO(yo.clase) && accionPedida) { enviar("irrupcion", { quien: yo.id }); irrupcion(yo.id); }
+        const vuela = ARMADO(yo.clase) || yo.div === "explosivos";
+        pista = vuela ? "💥 Tocá E para reventar la puerta" : "🔒 Puerta blindada: solo el 🪖 SWAT, el 🦅 Grupo Halcón o 💣 Explosivos la pueden abrir";
+        if (vuela && accionPedida) { enviar("irrupcion", { quien: yo.id }); irrupcion(yo.id); }
       }
       else if (objetivo) pista = miAuto ? `🚓 ¡Atropellalo o tocá E para atrapar a ${objetivo.nombre}!` : `🚔 ¡Click para atrapar a ${objetivo.nombre}!`;
       else if (miAuto) pista = "🚓 F para bajarte · H sirena · Espacio freno";
@@ -1210,6 +1316,11 @@ function loop(t) {
     } else pista = "⛓️ Estás preso. Esperá que un compañero te libere.";
     accionPedida = false;
     $("pista").textContent = pistaDepto || pista; $("mira").classList.toggle("cerca", !!objetivo);
+    $("radar").style.display = yo.equipo === "poli" && yo.div === "comunicaciones" ? "block" : "none";
+    if (yo.equipo === "poli" && yo.div === "comunicaciones") { const P = ["N","NE","E","SE","S","SO","O","NO"];
+      const L = Object.values(jug).filter(s => s.equipo === "ladron" && !s.preso && (s.bolsa || s.paquete));
+      $("radar").innerHTML = "📡 <b>Radio</b><br>" + (L.length ? L.map(s => { const a = Math.atan2(s.x - yo.x, -(s.z - yo.z)); return `🦹 ${esc(s.nombre)} ${s.paquete ? "📦" : "💰"} · ${Math.round(Math.hypot(s.x - yo.x, s.z - yo.z))} m ${P[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8]}`; }).join("<br>") : "Sin ladrones con botín"); }
+    actualizarDisturbio(dt, t);
     $("rejas").style.display = yo.preso ? "block" : "none";
     // Otros
     for (const s of Object.values(jug)) {
