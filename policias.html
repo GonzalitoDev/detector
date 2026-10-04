@@ -25,6 +25,10 @@
                background:#000b; border:1px solid #ff8a20; border-radius:12px; padding:6px 14px; text-shadow:0 1px 3px #000; max-width:calc(100vw - 32px); }
   #disturbio small { display:block; font-weight:700; color:#fff; opacity:.85; font-size:12px; }
   #disturbio .barra { height:6px; background:#ffffff22; border-radius:4px; margin:4px 0 2px; overflow:hidden; } #disturbio .barra div { height:100%; background:linear-gradient(90deg,#5ec8f2,#3ddc5a); }
+  #caravana { position:fixed; left:50%; top:118px; transform:translateX(-50%); z-index:6; display:none; pointer-events:none; text-align:center; font-weight:900; color:#ffc0cc;
+               background:#000b; border:1px solid #e9a3a8; border-radius:12px; padding:6px 14px; text-shadow:0 1px 3px #000; max-width:calc(100vw - 32px); }
+  #caravana small { display:block; font-weight:700; color:#fff; opacity:.85; font-size:12px; }
+  #caravana .barra { height:6px; background:#ffffff22; border-radius:4px; margin:4px 0 2px; overflow:hidden; } #caravana .barra div { height:100%; background:linear-gradient(90deg,#e9a3a8,#5ec8f2); }
   #radar { position:fixed; right:12px; top:120px; z-index:5; display:none; pointer-events:none; background:#001a33cc; border:1px solid #5ec8f2; border-radius:10px; padding:6px 10px; font-size:13px; max-width:240px; }
   #compu .ficha { display:flex; gap:12px; background:#021526; border:1px solid #5ec8f244; border-radius:10px; padding:10px; margin-bottom:8px; font-size:13px; line-height:1.5; }
   #compu .foto { width:64px; height:76px; flex:none; border-radius:6px; background:#0d3a5e; display:flex; align-items:center; justify-content:center; font-size:38px; }
@@ -139,7 +143,7 @@
   </div>
 </div>
 <div id="megafono"></div>
-<div id="disturbio"></div><div id="poli-extras"></div><div id="b-poli"><button id="b-heli">🚁</button><button id="b-valla">🚧</button><button id="b-ref">📻</button></div><div id="radar"></div><div id="mira"></div><div id="pista"></div><div id="grande"></div><div id="feed"></div>
+<div id="disturbio"></div><div id="caravana"></div><div id="poli-extras"></div><div id="b-poli"><button id="b-heli">🚁</button><button id="b-valla">🚧</button><button id="b-ref">📻</button></div><div id="radar"></div><div id="mira"></div><div id="pista"></div><div id="grande"></div><div id="feed"></div>
 <div id="sirena"></div><div id="rejas"></div>
 <div class="stick" id="stick"><b></b></div><button id="b-accion">🚔</button><button id="b-auto">🚓</button><button id="b-cam">🎥</button>
 <div id="velocimetro"></div>
@@ -231,7 +235,7 @@ function generarCiudad() {
     }
 }
 // Terrenos reservados: ahí no se construye nada de la ciudad (departamento de policía y casa narco), con 2 m de vereda alrededor
-const RESERVADOS = [ { x1: -58, x2: -47, z1: -4, z2: 5.5 }, { x1: -76, x2: -60, z1: -4, z2: 12 }, { x1: 39, x2: 49, z1: -48, z2: -40 } ];
+const RESERVADOS = [ { x1: -58, x2: -47, z1: -4, z2: 5.5 }, { x1: -76, x2: -60, z1: -4, z2: 12 }, { x1: 20, x2: 36, z1: -4, z2: 12 }, { x1: 39, x2: 49, z1: -48, z2: -40 } ];
 function poner(e) { if (!RESERVADOS.some(R => e.x1 < R.x2 + 2 && e.x2 > R.x1 - 2 && e.z1 < R.z2 + 2 && e.z2 > R.z1 - 2)) edificios.push(e); }
 generarCiudad();
 function choca(x, z, r = RADIO, eq = null) {
@@ -592,7 +596,7 @@ function crearMoto() {
   escena.add(g); return g;
 }
 // Camioneta negra del Grupo Especial Táctico (para SWAT y Grupo Halcón)
-function crearCamioneta() {
+function crearCamioneta(texto = "GRUPO ESPECIAL TÁCTICO") {
   const g = new THREE.Group();
   const negro = new THREE.MeshLambertMaterial({ color: 0x17191c }), goma = new THREE.MeshLambertMaterial({ color: 0x0c0c0c });
   const vidrio = new THREE.MeshLambertMaterial({ color: 0x0b1118, polygonOffset: true, polygonOffsetFactor: -1 });
@@ -602,7 +606,7 @@ function crearCamioneta() {
   const vid = extruir([[-2.3, 1.42], [-2.2, 2.12], [.85, 2.14], [1.47, 1.48]], 2.22, vidrio, .02); g.add(vid);
   for (const z of [-1.0, .25]) { const p = new THREE.Mesh(new THREE.BoxGeometry(2.26, .74, .12), negro); p.position.set(0, 1.78, z); g.add(p); }
   // Letras a los costados y atrás: "GRUPO ESPECIAL TÁCTICO"
-  const matLetras = textoPlano("GRUPO ESPECIAL TÁCTICO", "#17191c", "#ffffff", 4.2, .5, 1024);
+  const matLetras = textoPlano(texto, "#17191c", "#ffffff", 4.2, .5, 1024);
   for (const s of [-1, 1]) {
     const p = new THREE.Mesh(new THREE.PlaneGeometry(4.2, .5), matLetras); p.position.set(s * 1.13, 1.0, -.05); p.rotation.y = s * Math.PI / 2; g.add(p);
     const fr = new THREE.Mesh(new THREE.PlaneGeometry(4.6, .08), new THREE.MeshBasicMaterial({ color: 0xf2c200 })); fr.position.set(s * 1.131, .7, 0); fr.rotation.y = s * Math.PI / 2; g.add(fr);
@@ -1037,6 +1041,8 @@ function conectar(cod, host) {
     .on("broadcast", { event: "disturbio" }, ({ payload: p }) => crearDisturbio(+p.x, +p.z, +p.hasta))
     .on("broadcast", { event: "dprog" }, ({ payload: p }) => { DIST.prog = +p.p || 0; })
     .on("broadcast", { event: "dfin" }, ({ payload: p }) => finDisturbio(!!p.ok))
+    .on("broadcast", { event: "caravana" }, ({ payload: p }) => salirCaravana(+p.inicio))
+    .on("broadcast", { event: "cfin" }, ({ payload: p }) => finCaravana(!!p.ok))
     .on("broadcast", { event: "heli" }, ({ payload: p }) => llamarHeli(p.de, p.obj, Math.min(+p.hasta, Date.now() + 30000), false))
     .on("broadcast", { event: "valla" }, ({ payload: p }) => { if (vallas.filter(v => String(v.id).startsWith(String(p.id).split(":")[0])).length < 3) ponerValla(+p.x, +p.z, p.eje ? 1 : 0, Math.min(+p.hasta, Date.now() + 50000), p.id, false); })
     .on("broadcast", { event: "refuerzos" }, ({ payload: p }) => refuerzos(p.de, +p.x, +p.z, false))
@@ -1365,6 +1371,84 @@ function abrirArmeria() {
   };
   pintar();
 }
+// ================== CASA DE GOBIERNO Y ESCOLTA PRESIDENCIAL ==================
+// Edificio rosado con columnas. Cada tanto sale la caravana presidencial a recorrer la ciudad:
+// la policía la escolta; si un ladrón llega al auto sin policías cerca, la asaltan (+$2.000 para los ladrones).
+// Si llega bien, el Presidente agradece: todos los ladrones quedan marcados 20 s para la policía.
+const GOB = { x1: 22, x2: 34, z1: -2, z2: 6, alto: 8, cx: 28, cz: 2 };
+{
+  const G = GOB, rosa = new THREE.MeshLambertMaterial({ color: 0xe9a3a8 }), blanco = new THREE.MeshLambertMaterial({ color: 0xf4efe6 });
+  const texFrente = textura((c, w, h) => { c.fillStyle = "#e9a3a8"; c.fillRect(0, 0, w, h);
+    for (let piso = 0; piso < 2; piso++) for (let i = 0; i < 9; i++) { const x = 14 + i * 27, y = 20 + piso * 60;
+      c.fillStyle = "#f4efe6"; c.fillRect(x - 3, y - 3, 18, 40); c.fillStyle = "#ffd88a"; c.fillRect(x, y, 12, 34); c.fillStyle = "#f4efe6"; c.fillRect(x + 5, y, 2, 34); } }, 256, 128);
+  const cuerpo = new THREE.Mesh(new THREE.BoxGeometry(G.x2 - G.x1, G.alto, G.z2 - G.z1), [rosa, rosa, rosa, rosa, new THREE.MeshLambertMaterial({ map: texFrente, emissive: 0x332222 }), rosa]);
+  cuerpo.position.set(G.cx, G.alto / 2, G.cz); escena.add(cuerpo);
+  const cornisa = new THREE.Mesh(new THREE.BoxGeometry(G.x2 - G.x1 + .6, .5, G.z2 - G.z1 + .6), blanco); cornisa.position.set(G.cx, G.alto + .25, G.cz); escena.add(cornisa);
+  // Pórtico con columnas y frontón
+  for (let i = 0; i < 6; i++) { const col = new THREE.Mesh(new THREE.CylinderGeometry(.22, .25, 6, 12), blanco); col.position.set(G.cx - 2.5 + i, 3, G.z2 + 1.3); escena.add(col); }
+  const dintel = new THREE.Mesh(new THREE.BoxGeometry(6.4, .5, 1.8), blanco); dintel.position.set(G.cx, 6.25, G.z2 + .9); escena.add(dintel);
+  const fronton = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.4, 1.6, 3, 1, false, 0, Math.PI * 2), rosa); fronton.rotation.set(Math.PI / 2, 0, Math.PI / 2); fronton.scale.set(.5, 1, 1); fronton.position.set(G.cx, 7.3, G.z2 + .9); escena.add(fronton);
+  const escal = new THREE.Mesh(new THREE.BoxGeometry(7, .3, 2.6), blanco); escal.position.set(G.cx, .15, G.z2 + 1.3); escena.add(escal);
+  // Mástil con bandera arriba
+  const mas = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 4, 8), blanco); mas.position.set(G.cx, G.alto + 2.5, G.cz); escena.add(mas);
+  const texB = textura((c, w, h) => { c.fillStyle = "#74acdf"; c.fillRect(0, 0, w, h); c.fillStyle = "#fff"; c.fillRect(0, h / 3, w, h / 3); c.fillStyle = "#f6b40e"; c.beginPath(); c.arc(w / 2, h / 2, h / 9, 0, 7); c.fill(); }, 192, 128);
+  const band = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.2), new THREE.MeshBasicMaterial({ map: texB, side: THREE.DoubleSide })); band.position.set(G.cx + .95, G.alto + 3.8, G.cz); escena.add(band);
+  // Luces de la fachada
+  const luzG = new THREE.PointLight(0xffd8b0, 2, 16, 1.4); luzG.position.set(G.cx, 4, G.z2 + 5); escena.add(luzG);
+  // Rejas bajas del frente y plaza
+  const plaza = new THREE.Mesh(new THREE.PlaneGeometry(16, 6), new THREE.MeshLambertMaterial({ color: 0xbdb5a6 })); plaza.rotation.x = -Math.PI / 2; plaza.position.set(G.cx, .03, G.z2 + 3); escena.add(plaza);
+  const c = cartel("🏛️ CASA DE GOBIERNO", "#b0506a"); c.position.set(G.cx, G.alto + 6.5, G.cz); escena.add(c);
+  edificios.push({ x1: G.x1, x2: G.x2, z1: G.z1, z2: G.z2, h: G.alto }, { x1: G.cx - 3.5, x2: G.cx + 3.5, z1: G.z2, z2: G.z2 + 2.4, h: .3, arbol: true });
+}
+// Recorrido de la caravana por las calles (ida y vuelta a la Casa de Gobierno)
+const RUTA = [[28, 16], [16, 16], [16, -32], [-32, -32], [-32, 16], [16, 16], [28, 16]];
+const RUTA_LARGOS = RUTA.slice(1).map((p, i) => Math.hypot(p[0] - RUTA[i][0], p[1] - RUTA[i][1])), RUTA_TOTAL = RUTA_LARGOS.reduce((a, b) => a + b, 0), CAR_VEL = 6.5;
+const CAR = { activa: false, inicio: 0, prox: 0, x: 28, z: 16, h: 0, escolta: 0, avisado: 0 };
+const limo = crearCamioneta("PRESIDENCIA DE LA NACIÓN"); limo.visible = false;
+{ const pres = cartel("🇦🇷 PRESIDENCIA", "#0f1d36"); pres.scale.set(3.6, .9, 1); pres.position.y = 3.6; limo.add(pres);
+  for (const x of [-.85, .85]) { const b = new THREE.Mesh(new THREE.PlaneGeometry(.4, .26), new THREE.MeshBasicMaterial({ map: textura((c, w, h) => { c.fillStyle = "#74acdf"; c.fillRect(0, 0, w, h); c.fillStyle = "#fff"; c.fillRect(0, h / 3, w, h / 3); }, 48, 32), side: THREE.DoubleSide }));
+    b.position.set(x, 1.65, 2.4); b.rotation.y = Math.PI / 2; limo.add(b); } }
+function posCaravana(ms) {
+  let d = Math.max(0, ms) / 1000 * CAR_VEL;
+  for (let i = 0; i < RUTA_LARGOS.length; i++) { if (d <= RUTA_LARGOS[i]) { const a = RUTA[i], b = RUTA[i + 1], f = d / RUTA_LARGOS[i];
+      return { x: a[0] + (b[0] - a[0]) * f, z: a[1] + (b[1] - a[1]) * f, h: Math.atan2(b[0] - a[0], b[1] - a[1]), fin: false }; } d -= RUTA_LARGOS[i]; }
+  return { x: RUTA[RUTA.length - 1][0], z: RUTA[RUTA.length - 1][1], h: 0, fin: true };
+}
+function salirCaravana(inicio) {
+  Object.assign(CAR, { activa: true, inicio }); limo.visible = true;
+  feed("🏛️ En 20 s sale la caravana presidencial de la Casa de Gobierno");
+  grande(equipo === "poli" ? "🏛️ ¡ANDÁ A ESCOLTAR AL PRESIDENTE!" : "🏛️ ¡VA A SALIR LA CARAVANA PRESIDENCIAL!", "#f2a0b0");
+  beep(660, .15, "triangle"); setTimeout(() => beep(880, .2, "triangle"), 180);
+}
+function finCaravana(ok) {
+  if (!CAR.activa) return; CAR.activa = false; limo.visible = false; CAR.prox = Date.now() + 70000 + Math.random() * 30000;
+  if (ok) { feed("🏛️ La caravana llegó bien. ¡El Presidente felicita a la policía!"); grande("🎖️ ¡ESCOLTA CUMPLIDA!", "#5ec8f2");
+    for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso) capturas[s.id] = Date.now() + 20000; }
+  else { botin += 2000; feed(`🦹 ¡Asaltaron la caravana presidencial! Ladrones +$2.000 (total $${botin.toLocaleString("es-AR")})`); grande("💥 ¡ASALTARON LA CARAVANA! +$2.000", "#ff4d4d"); revisarFin(); }
+}
+function actualizarCaravana(dt, t) {
+  const manda = soyHost || !online, ahora = Date.now(), hud = $("caravana");
+  if (manda && !CAR.activa && CAR.prox && ahora > CAR.prox) { const inicio = ahora + 20000; salirCaravana(inicio); enviar("caravana", { inicio }); }
+  if (!CAR.activa) { hud.style.display = "none"; return; }
+  const p = posCaravana(ahora - CAR.inicio);
+  CAR.x = p.x; CAR.z = p.z; CAR.h += Math.atan2(Math.sin(p.h - CAR.h), Math.cos(p.h - CAR.h)) * Math.min(1, dt * 5);
+  limo.position.set(CAR.x, 0, CAR.z); limo.rotation.y = CAR.h;
+  if (limo.userData.rojo) { const on = Math.floor(t / 150) % 2; limo.userData.rojo.visible = on; if (limo.userData.azul) limo.userData.azul.visible = !on; }
+  const polis = Object.values(jug).filter(s => s.equipo === "poli" && !s.preso && Math.hypot(s.x - CAR.x, s.z - CAR.z) < 15).length;
+  CAR.escolta = polis;
+  if (manda) {
+    const cerca = Object.values(jug).filter(s => s.equipo === "poli" && !s.preso && Math.hypot(s.x - CAR.x, s.z - CAR.z) < 10).length;
+    const asaltante = Object.values(jug).find(s => s.equipo === "ladron" && !s.preso && Math.hypot(s.x - CAR.x, s.z - CAR.z) < 3.5);
+    if (asaltante && !cerca && ahora > CAR.inicio) { enviar("cfin", { ok: false }); finCaravana(false); return; }
+    if (p.fin) { enviar("cfin", { ok: true }); finCaravana(true); return; }
+  }
+  const P = ["N","NE","E","SE","S","SO","O","NO"], a = Math.atan2(CAR.x - yo.x, -(CAR.z - yo.z)), pct = Math.min(100, Math.round((ahora - CAR.inicio) / 1000 * CAR_VEL / RUTA_TOTAL * 100));
+  hud.style.display = "block";
+  const espera = Math.ceil((CAR.inicio - ahora) / 1000);
+  hud.innerHTML = `🏛️ CARAVANA PRESIDENCIAL${espera > 0 ? ` · sale en ${espera}s` : ""} · ${Math.round(Math.hypot(CAR.x - yo.x, CAR.z - yo.z))} m ${P[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8]} · 👮 ${polis} escoltando<div class="barra"><div style="width:${Math.max(0, pct)}%"></div></div>` +
+    (yo.equipo === "poli" ? `<small>Quedate cerca del auto: si un ladrón llega sin policías a menos de 10 m, la asaltan</small>` : `<small>Llegá al auto cuando no haya policías cerca: +$2.000</small>`);
+}
+function resetCaravana() { CAR.activa = false; limo.visible = false; CAR.prox = Date.now() + 60000; }
 // ================== EQUIPO EXTRA DE LA POLICÍA ==================
 // 🚁 X: helicóptero de apoyo (sigue a un ladrón con el reflector y lo marca) · 🚧 V: valla para cortar la calle · 📻 Z: pedir refuerzos
 const HELI = { hasta: 0, listo: 0, obj: null, x: 0, z: 0, h: 0 };
@@ -1524,17 +1608,20 @@ function pensarBot(b, dt) {
   if (b.equipo === "poli") {
     let obj = null, d = 1e9;
     for (const o of Object.values(jug)) if (o.equipo === "ladron" && !o.preso) { const dd = Math.hypot(o.x - b.x, o.z - b.z) - (o.bolsa ? 10 : 0); if (dd < d) { d = dd; obj = o; } }
-    if (!DIST.activo) b.vaDist = undefined;
-    if (DIST.activo && (!obj || d > 18) && (b.vaDist ??= Math.random() < .7)) b.objetivo = { x: DIST.x + (b.id.charCodeAt(3) % 5 - 2), z: DIST.z + 2.5 };
+    if (!DIST.activo) b.vaDist = undefined; if (!CAR.activa) b.escolta = undefined;
+    if (CAR.activa && (!obj || d > 15) && (b.escolta ??= Math.random() < .6)) b.objetivo = { x: CAR.x + Math.sin(CAR.h + 1.6) * 4, z: CAR.z + Math.cos(CAR.h + 1.6) * 4 };
+    else if (DIST.activo && (!obj || d > 18) && (b.vaDist ??= Math.random() < .7)) b.objetivo = { x: DIST.x + (b.id.charCodeAt(3) % 5 - 2), z: DIST.z + 2.5 };
     else if (!obj) { b.objetivo = ZONAS.carcel; }
     else { b.objetivo = obj; if (Math.hypot(obj.x - b.x, obj.z - b.z) < ATRAPA * .8) { atrapado(obj.id, b.id); } }
   } else {
     if (b.preso) return;
+    if (!CAR.activa) b.asalta = undefined;
     const presos = Object.values(jug).some(s => s.equipo === "ladron" && s.preso);
     const poliCerca = Object.values(jug).find(o => o.equipo === "poli" && Math.hypot(o.x - b.x, o.z - b.z) < 7);
     if (poliCerca) b.objetivo = { x: b.x + (b.x - poliCerca.x) * 3, z: b.z + (b.z - poliCerca.z) * 3 };
     else if (b.paquete) b.objetivo = ZONAS.muelle;
     else if (b.bolsa) b.objetivo = ZONAS.guarida;
+    else if (CAR.activa && (b.asalta ??= Math.random() < .35)) b.objetivo = { x: CAR.x, z: CAR.z };
     else if (b.narco === undefined ? (b.narco = Math.random() < .5) : b.narco) b.objetivo = { x: 45, z: -45.5 };
     else if (presos && Math.random() < .5) b.objetivo = ZONAS.carcel;
     else b.objetivo = ZONAS.banco;
@@ -1568,7 +1655,7 @@ function empezar(finTs) {
   modoCam = 0;
   jug = {}; botin = 0; BOLSAS.forEach(b => { b.hasta = 0; b.mesh.visible = true; });
   PAQUETES.forEach(p => p.hasta = 0); puerta.cerrada = true; puerta.hasta = 0;
-  for (const k in capturas) delete capturas[k]; capturaListo = 0; resetPoliExtras();
+  for (const k in capturas) delete capturas[k]; capturaListo = 0; resetPoliExtras(); resetCaravana();
   quitarDisturbio(); DIST.prog = 0; DIST.prox = Date.now() + 35000;
   resetAutos(); miAuto = null; document.body.classList.toggle("poli", equipo === "poli");
   yo = jug[miId] = nuevoJug(miId, miNombre(), equipo, false, clase);
@@ -1585,7 +1672,7 @@ function empezar(finTs) {
   if (!document.body.classList.contains("tactil")) renderer.domElement.requestPointerLock?.();
 }
 function terminar(gana) {
-  if (!jugando) return; jugando = false; document.exitPointerLock?.(); nocturna(false); if (miAuto) { miAuto.conductor = null; miAuto = null; } pintarPanel(); sonidoSirena(0); quitarDisturbio(); $("disturbio").style.display = "none"; $("radar").style.display = "none";
+  if (!jugando) return; jugando = false; document.exitPointerLock?.(); nocturna(false); if (miAuto) { miAuto.conductor = null; miAuto = null; } pintarPanel(); sonidoSirena(0); quitarDisturbio(); $("disturbio").style.display = "none"; CAR.activa = false; limo.visible = false; $("caravana").style.display = "none"; $("radar").style.display = "none";
   const gane = gana === equipo;
   $("fin-tit").textContent = gana === "poli" ? "👮 ¡GANÓ LA POLICÍA!" : "🦹 ¡GANARON LOS LADRONES!";
   $("fin-txt").innerHTML = `${gane ? "🏆 ¡Ganaste!" : "💀 Perdiste"}<br>Botín robado: $${botin.toLocaleString("es-AR")} de $${META.toLocaleString("es-AR")}<br><br>` +
@@ -1661,7 +1748,7 @@ function loop(t) {
     if (yo.equipo === "poli" && yo.div === "comunicaciones") { const P = ["N","NE","E","SE","S","SO","O","NO"];
       const L = Object.values(jug).filter(s => s.equipo === "ladron" && !s.preso && (s.bolsa || s.paquete));
       $("radar").innerHTML = "📡 <b>Radio</b><br>" + (L.length ? L.map(s => { const a = Math.atan2(s.x - yo.x, -(s.z - yo.z)); return `🦹 ${esc(s.nombre)} ${s.paquete ? "📦" : "💰"} · ${Math.round(Math.hypot(s.x - yo.x, s.z - yo.z))} m ${P[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8]}`; }).join("<br>") : "Sin ladrones con botín"); }
-    actualizarDisturbio(dt, t); actualizarPoliExtras(dt, t);
+    actualizarDisturbio(dt, t); actualizarPoliExtras(dt, t); actualizarCaravana(dt, t);
     $("rejas").style.display = yo.preso ? "block" : "none";
     // Otros
     for (const s of Object.values(jug)) {
