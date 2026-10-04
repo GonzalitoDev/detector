@@ -1362,7 +1362,7 @@ function abrirArmeria() {
 const capturas = {}; let capturaListo = 0;
 const CALLES = ["Av. Rivadavia", "Av. Corrientes", "Calle Falsa", "Av. de Mayo", "Pasaje Los Aromos", "Calle Ombú", "Av. del Puerto", "Calle Jacarandá"];
 function fichaDe(s) {
-  let h = 0; for (const ch of String(s.id)) { h = Math.imul(h ^ ch.charCodeAt(0), 2654435761) >>> 0; h ^= h >>> 15; }
+  let h = 0; for (const ch of String(s.id)) { h = Math.imul(h ^ ch.charCodeAt(0), 2654435761) >>> 0; h = (h ^ (h >>> 15)) >>> 0; }
   const dni = 30000000 + h % 16000000;
   return { dni: dni.toLocaleString("es-AR"), nac: 1975 + h % 30, dom: `${CALLES[h % CALLES.length]} ${100 + h % 4800}`, sexo: h % 2 ? "M" : "F" };
 }
