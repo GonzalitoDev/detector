@@ -26,6 +26,11 @@
   #disturbio small { display:block; font-weight:700; color:#fff; opacity:.85; font-size:12px; }
   #disturbio .barra { height:6px; background:#ffffff22; border-radius:4px; margin:4px 0 2px; overflow:hidden; } #disturbio .barra div { height:100%; background:linear-gradient(90deg,#5ec8f2,#3ddc5a); }
   #radar { position:fixed; right:12px; top:120px; z-index:5; display:none; pointer-events:none; background:#001a33cc; border:1px solid #5ec8f2; border-radius:10px; padding:6px 10px; font-size:13px; max-width:240px; }
+  #compu .ficha { display:flex; gap:12px; background:#021526; border:1px solid #5ec8f244; border-radius:10px; padding:10px; margin-bottom:8px; font-size:13px; line-height:1.5; }
+  #compu .foto { width:64px; height:76px; flex:none; border-radius:6px; background:#0d3a5e; display:flex; align-items:center; justify-content:center; font-size:38px; }
+  #compu .nom { font-weight:900; font-size:15px; color:#fff; }
+  #compu button[data-cap] { margin-top:6px; padding:6px 10px; border:0; border-radius:8px; background:#ff4d4d; color:#fff; font-weight:800; cursor:pointer; font:inherit; }
+  #compu button:disabled { opacity:.45; cursor:not-allowed; }
   #feed { position:fixed; left:12px; bottom:12px; font-size:14px; pointer-events:none; z-index:5; }
   #feed div { background:#0009; padding:4px 10px; border-radius:8px; margin-top:4px; animation:sale 5s forwards; }
   @keyframes sale { 85%{opacity:1} 100%{opacity:0} }
@@ -101,6 +106,16 @@
   <div class="izq"><span id="rol"></span><span id="botin"></span><span id="estado"></span></div>
   <div id="reloj"></div>
   <div id="equipos"></div>
+</div>
+<div id="compu" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
+  <div style="max-width:680px;margin:0 auto;background:#06243f;border:2px solid #5ec8f2;border-radius:12px;padding:0;font-family:ui-monospace,monospace;color:#d8f4ff;overflow:hidden">
+    <div style="background:#5ec8f2;color:#06243f;padding:8px 14px;font-weight:900;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span>💻 RENAPER · CONSULTA POLICIAL</span><span style="font-size:12px">Sistema del juego · datos ficticios</span></div>
+    <div style="padding:14px">
+      <input id="cp-buscar" placeholder="Buscar por nombre o DNI..." style="width:100%;padding:10px;border-radius:8px;border:1px solid #5ec8f2;background:#021526;color:#d8f4ff;font:inherit;margin-bottom:10px">
+      <div id="cp-lista"></div>
+      <button class="g" id="cp-ok" style="width:100%;margin-top:12px">✅ Cerrar sesión</button>
+    </div>
+  </div>
 </div>
 <div id="armeria" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
   <div style="max-width:640px;margin:0 auto;background:#1d1a10;border:2px solid #ffd400;border-radius:16px;padding:16px">
@@ -388,7 +403,7 @@ zona(ZONAS.muelle, 0x0aa0b0, "🚤 MUELLE");
 // Lado oeste de la ciudad, lejos de los lugares de los ladrones (guarida, banco, casa narco y muelle)
 const DEPTO = { x1: -58, x2: -47, z1: -4, z2: 5.5, alto: 4.2, puertaX1: -53.7, puertaX2: -51.3 };
 DEPTO.cx = (DEPTO.x1 + DEPTO.x2) / 2; DEPTO.cz = (DEPTO.z1 + DEPTO.z2) / 2; DEPTO.px = (DEPTO.puertaX1 + DEPTO.puertaX2) / 2;
-const TAQUILLAS = { x: DEPTO.x1 + 2.5, z: DEPTO.z1 + 1.6 }, ARMERIA = { x: DEPTO.x2 - 2.5, z: DEPTO.z1 + 1.6 };
+const TAQUILLAS = { x: DEPTO.x1 + 2.5, z: DEPTO.z1 + 1.6 }, ARMERIA = { x: DEPTO.x2 - 2.5, z: DEPTO.z1 + 1.6 }, COMPU = { x: DEPTO.x1 + 1.9, z: DEPTO.cz };
 {
   const D = DEPTO, g = .4, matP = new THREE.MeshLambertMaterial({ color: 0xdfe6ee }), matF = new THREE.MeshLambertMaterial({ color: 0x0f1d36 });
   const paredes = [[D.x1, D.z1, D.x2, D.z1 + g], [D.x1, D.z1, D.x1 + g, D.z2], [D.x2 - g, D.z1, D.x2, D.z2],
@@ -407,6 +422,21 @@ const TAQUILLAS = { x: DEPTO.x1 + 2.5, z: DEPTO.z1 + 1.6 }, ARMERIA = { x: DEPTO
   for (let i = 0; i < 5; i++) { const l = new THREE.Mesh(new THREE.BoxGeometry(.04, 2, .02), new THREE.MeshBasicMaterial({ color: 0x1b2a3a })); l.position.set(TAQUILLAS.x - 1.2 + i * .6, 1.1, D.z1 + 1.01); escena.add(l); }
   const arm = new THREE.Mesh(new THREE.BoxGeometry(3, 1, 1), new THREE.MeshLambertMaterial({ color: 0x2d2d2d })); arm.position.set(ARMERIA.x, .5, D.z1 + .9); escena.add(arm);
   edificios.push({ x1: TAQUILLAS.x - 1.5, z1: D.z1, x2: TAQUILLAS.x + 1.5, z2: D.z1 + 1, h: 2.2 }, { x1: ARMERIA.x - 1.5, z1: D.z1, x2: ARMERIA.x + 1.5, z2: D.z1 + 1.4, h: 1 });
+  // Escritorio con la computadora del registro de personas (contra la pared oeste, la pantalla mira hacia adentro)
+  { const ex = D.x1 + 1, ez = D.cz, madera = new THREE.MeshLambertMaterial({ color: 0x6a4a2a }), negro = new THREE.MeshLambertMaterial({ color: 0x151515 });
+    const tabla = new THREE.Mesh(new THREE.BoxGeometry(1.1, .06, 2), madera); tabla.position.set(ex, .78, ez); escena.add(tabla);
+    for (const dz of [-.9, .9]) { const pata = new THREE.Mesh(new THREE.BoxGeometry(1, .76, .06), madera); pata.position.set(ex, .38, ez + dz); escena.add(pata); }
+    const mon = new THREE.Mesh(new THREE.BoxGeometry(.08, .6, .95), negro); mon.position.set(ex - .25, 1.15, ez); escena.add(mon);
+    const pie = new THREE.Mesh(new THREE.BoxGeometry(.2, .12, .3), negro); pie.position.set(ex - .25, .86, ez); escena.add(pie);
+    const texPant = textura((c, w, h) => { c.fillStyle = "#06243f"; c.fillRect(0, 0, w, h); c.fillStyle = "#5ec8f2"; c.fillRect(0, 0, w, 26);
+      c.fillStyle = "#06243f"; c.font = "bold 20px monospace"; c.fillText("REGISTRO DE PERSONAS", 10, 19);
+      c.fillStyle = "#7dffb0"; c.font = "16px monospace"; ["> CONSULTA DNI", "> ANTECEDENTES", "> PEDIDO DE CAPTURA", "", "_"].forEach((t, i) => c.fillText(t, 12, 56 + i * 22)); }, 256, 160);
+    const pant = new THREE.Mesh(new THREE.PlaneGeometry(.88, .52), new THREE.MeshBasicMaterial({ map: texPant })); pant.rotation.y = Math.PI / 2; pant.position.set(ex - .2, 1.15, ez); escena.add(pant);
+    const tecl = new THREE.Mesh(new THREE.BoxGeometry(.25, .03, .6), new THREE.MeshLambertMaterial({ color: 0x2a2a2a })); tecl.position.set(ex + .2, .83, ez); escena.add(tecl);
+    const silla = new THREE.Mesh(new THREE.BoxGeometry(.5, .08, .5), negro); silla.position.set(ex + .95, .5, ez); escena.add(silla);
+    const resp = new THREE.Mesh(new THREE.BoxGeometry(.08, .6, .5), negro); resp.position.set(ex + 1.2, .8, ez); escena.add(resp);
+    edificios.push({ x1: D.x1, z1: ez - 1, x2: ex + .55, z2: ez + 1, h: .8 });
+    const c4 = cartel("💻 RENAPER", "#06243f"); c4.scale.set(2.6, .65, 1); c4.position.set(ex, 2.2, ez); escena.add(c4); }
   const c1 = cartel("👕 TAQUILLAS", "#3b5b7a"); c1.scale.set(3, .75, 1); c1.position.set(TAQUILLAS.x, 2.8, D.z1 + 1); escena.add(c1);
   const c2 = cartel("🔫 ARMERÍA", "#2d2d2d"); c2.scale.set(3, .75, 1); c2.position.set(ARMERIA.x, 2.1, D.z1 + 1); escena.add(c2);
   const c3 = cartel("🚔 DEPARTAMENTO DE POLICÍA", "#0f1d36"); c3.scale.set(10, 2.5, 1); c3.position.set((D.x1 + D.x2) / 2, D.alto + 2.4, (D.z1 + D.z2) / 2); escena.add(c3);
@@ -1002,6 +1032,7 @@ function conectar(cod, host) {
     .on("broadcast", { event: "disturbio" }, ({ payload: p }) => crearDisturbio(+p.x, +p.z, +p.hasta))
     .on("broadcast", { event: "dprog" }, ({ payload: p }) => { DIST.prog = +p.p || 0; })
     .on("broadcast", { event: "dfin" }, ({ payload: p }) => finDisturbio(!!p.ok))
+    .on("broadcast", { event: "captura" }, ({ payload: p }) => pedidoCaptura(p.id, p.de, false))
     .on("broadcast", { event: "fin" }, ({ payload: p }) => terminar(p.gana))
     .on("broadcast", { event: "auto" }, ({ payload: p }) => { const a = autos[p.i]; if (!a) return;
       if (p.sube) { if (a === miAuto && a.conductor === yo.id && p.quien < yo.id) { bajarAuto(); feed("🚓 Otro poli agarró ese patrullero"); } if (a !== miAuto) a.conductor = p.quien; }
@@ -1024,6 +1055,7 @@ function beep(f, d = .12, t = "square", v = .05) { if (!AJUSTES.sonido) return; 
 function sirena() { [700, 950, 700, 950].forEach((f, i) => setTimeout(() => beep(f, .2, "sawtooth", .04), i * 220)); $("sirena").classList.add("on"); setTimeout(() => $("sirena").classList.remove("on"), 1500); }
 
 function atrapado(idLadron, idPoli) {
+  { const l = jug[idLadron]; if (l && !l.preso) { l.detenciones = (l.detenciones || 0) + 1; delete capturas[idLadron]; } }
   const l = jug[idLadron], p = jug[idPoli]; if (!l || l.preso) return;
   l.preso = true; l.res = 100; if (l.bolsa) { l.bolsa = false; } l.paquete = false;
   if (p) p.atrapados++;
@@ -1325,6 +1357,41 @@ function abrirArmeria() {
   };
   pintar();
 }
+// ================== COMPUTADORA: RENAPER (registro de personas ficticio del juego) ==================
+// Datos inventados a partir del id de cada jugador. Pedido de captura: marca al ladrón para toda la policía por 25 s.
+const capturas = {}; let capturaListo = 0;
+const CALLES = ["Av. Rivadavia", "Av. Corrientes", "Calle Falsa", "Av. de Mayo", "Pasaje Los Aromos", "Calle Ombú", "Av. del Puerto", "Calle Jacarandá"];
+function fichaDe(s) {
+  let h = 0; for (const ch of String(s.id)) { h = Math.imul(h ^ ch.charCodeAt(0), 2654435761) >>> 0; h ^= h >>> 15; }
+  const dni = 30000000 + h % 16000000;
+  return { dni: dni.toLocaleString("es-AR"), nac: 1975 + h % 30, dom: `${CALLES[h % CALLES.length]} ${100 + h % 4800}`, sexo: h % 2 ? "M" : "F" };
+}
+function pedidoCaptura(id, de, mio) {
+  const s = jug[id]; if (!s || s.preso) return;
+  capturas[id] = Date.now() + 25000;
+  feed(`🚨 Pedido de captura contra ${s.nombre}${de && jug[de] ? ` (lo pidió ${jug[de].nombre})` : ""}`);
+  if (s === yo) { grande("🚨 ¡TENÉS PEDIDO DE CAPTURA!", "#ff4d4d"); beep(500, .2, "sawtooth", .05); }
+  if (mio) enviar("captura", { id, de: yo.id });
+}
+function abrirCompu() {
+  document.exitPointerLock?.(); $("compu").style.display = "block"; $("cp-buscar").value = ""; pintarCompu();
+}
+function pintarCompu() {
+  const q = $("cp-buscar").value.trim().toLowerCase(), ahora = Date.now(), espera = Math.ceil((capturaListo - ahora) / 1000);
+  const lista = Object.values(jug).filter(s => !q || s.nombre.toLowerCase().includes(q) || fichaDe(s).dni.replace(/\./g, "").includes(q.replace(/\./g, "")));
+  $("cp-lista").innerHTML = lista.map(s => {
+    const f = fichaDe(s), ladron = s.equipo === "ladron", buscado = (capturas[s.id] || 0) > ahora;
+    const estado = !ladron ? `<b style="color:#5ec8f2">👮 AGENTE${s.div && DIVISIONES[s.div] && !ARMADO(s.clase) ? " · " + DIVISIONES[s.div].nom : ARMADO(s.clase) ? " · " + (s.clase === "halcon" ? "Grupo Halcón" : "SWAT") : ""}</b>`
+      : s.preso ? `<b style="color:#ffd400">⛓️ DETENIDO</b>` : buscado ? `<b style="color:#ff4d4d">🚨 CAPTURA ACTIVA</b>` : (s.bolsa || s.paquete) ? `<b style="color:#ff8a3b">⚠️ PRÓFUGO CON BOTÍN</b>` : `<b style="color:#7dffb0">✔ SIN ORDEN</b>`;
+    const ant = ladron ? `Antecedentes: ${s.detenciones || 0} ${(s.detenciones || 0) === 1 ? "detención" : "detenciones"} · robos por $${(s.robado || 0).toLocaleString("es-AR")}` : `Detenciones hechas: ${s.atrapados || 0}`;
+    const boton = ladron && !s.preso && yo.equipo === "poli" ? `<button data-cap="${esc(s.id)}" ${buscado || espera > 0 ? "disabled" : ""}>🚨 Pedido de captura${espera > 0 && !buscado ? ` (${espera}s)` : ""}</button>` : "";
+    return `<div class="ficha"><div class="foto">${ladron ? "🦹" : ICONO(s.clase || s.equipo)}</div><div><div class="nom">${esc(s.nombre.toUpperCase())}</div>
+      <div>DNI ${f.dni} · Sexo ${f.sexo} · Nac. ${f.nac}</div><div>Domicilio: ${f.dom}</div><div>${ant}</div><div>${estado}</div>${boton}</div></div>`;
+  }).join("") || `<div style="opacity:.7">Sin resultados.</div>`;
+  $("cp-lista").querySelectorAll("[data-cap]").forEach(b => b.onclick = () => { capturaListo = Date.now() + 40000; pedidoCaptura(b.dataset.cap, yo.id, true); beep(900, .1, "square"); pintarCompu(); });
+}
+$("cp-buscar").oninput = pintarCompu;
+$("cp-ok").onclick = () => { $("compu").style.display = "none"; if (!document.body.classList.contains("tactil")) renderer.domElement.requestPointerLock?.(); };
 $("ar-ok").onclick = () => { $("armeria").style.display = "none"; const A = ARMA(); grande(TENGO_ARMA() ? `${A.ico} ${A.nom.toUpperCase()} EQUIPADA` : "✋ SIN ARMA", "#ffd400");
   if (!document.body.classList.contains("tactil")) renderer.domElement.requestPointerLock?.(); };
 $("tq-ok").onclick = () => { $("taquillas").style.display = "none"; grande(`${DIVISIONES[yo.div].ico} ${DIVISIONES[yo.div].nom.toUpperCase()}`, "#5ec8f2");
@@ -1392,6 +1459,7 @@ function empezar(finTs) {
   modoCam = 0;
   jug = {}; botin = 0; BOLSAS.forEach(b => { b.hasta = 0; b.mesh.visible = true; });
   PAQUETES.forEach(p => p.hasta = 0); puerta.cerrada = true; puerta.hasta = 0;
+  for (const k in capturas) delete capturas[k]; capturaListo = 0;
   quitarDisturbio(); DIST.prog = 0; DIST.prox = Date.now() + 35000;
   resetAutos(); miAuto = null; document.body.classList.toggle("poli", equipo === "poli");
   yo = jug[miId] = nuevoJug(miId, miNombre(), equipo, false, clase);
@@ -1429,6 +1497,9 @@ function loop(t) {
       if (Math.hypot(yo.x - TAQUILLAS.x, yo.z - (DEPTO.z1 + 1.6)) < 1.8 && !ARMADO(yo.clase)) {
         pistaDepto = `👕 E: abrir las taquillas (división y uniforme)`;
         if (accionPedida) { accionPedida = false; abrirTaquillas(); }
+      } else if (Math.hypot(yo.x - COMPU.x, yo.z - COMPU.z) < 1.6) {
+        pistaDepto = "💻 E: usar la computadora (RENAPER: buscar personas)";
+        if (accionPedida) { accionPedida = false; abrirCompu(); }
       } else if (Math.hypot(yo.x - ARMERIA.x, yo.z - (DEPTO.z1 + 2)) < 1.9) {
         pistaDepto = "🔫 E: abrir la armería (elegir arma y recargar)";
         if (accionPedida) { abrirArmeria(); balas = ARMA().carg || 0; recargando = 0; if (yo.clase === "halcon") granadas = 3; accionPedida = false; beep(500, .1); setTimeout(() => beep(800, .1), 120); }
@@ -1491,7 +1562,7 @@ function loop(t) {
         if (online && Date.now() - s.visto > 8000) { feed(`🚪 Se fue ${s.nombre}`); escena.remove(s.mesh); delete jug[s.id]; continue; } }
       if (s.mesh) { const v = Math.hypot(s.x - (s._px ?? s.x), s.z - (s._pz ?? s.z)) / Math.max(dt, .001); s._px = s.x; s._pz = s.z; animarMuneco(s.mesh, s.preso ? 0 : v, t);
         s.mesh.visible = !(s.auto !== null && s.auto !== undefined); s.mesh.position.set(s.x, 0, s.z); s.mesh.rotation.y = s.rot; s.mesh.userData.bolsa.visible = s.bolsa || !!s.paquete;
-        s.mesh.userData.marca.visible = yo.div === "investigaciones" && yo.equipo === "poli" && s.equipo === "ladron" && !s.preso && (s.bolsa || !!s.paquete);
+        s.mesh.userData.marca.visible = yo.equipo === "poli" && s.equipo === "ladron" && !s.preso && ((yo.div === "investigaciones" && (s.bolsa || !!s.paquete)) || (capturas[s.id] || 0) > Date.now());
         s.mesh.position.y = 0; }
     }
     actualizarSwat(dt, t); actualizarLuces(t); actualizarGranadas(dt);
