@@ -360,22 +360,68 @@ for (const p of PAQUETES) { p.mesh = new THREE.Mesh(geoPaq, matPaq); p.mesh.posi
 
 // ================== PATRULLEROS ==================
 const AUTO_R = 1.3;
+// ---- Vehículos más realistas: carrocería con forma, vidrios, ruedas con llantas que giran, ópticas, espejos ----
+function perfil(pts) { const sh = new THREE.Shape(); pts.forEach(([x, y], i) => i ? sh.lineTo(x, y) : sh.moveTo(x, y)); sh.closePath(); return sh; }
+function extruir(pts, ancho, mat, bevel = .05) {
+  const geo = new THREE.ExtrudeGeometry(perfil(pts), { depth: ancho, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2, steps: 1 });
+  geo.translate(0, 0, -ancho / 2); geo.rotateY(-Math.PI / 2);          // el perfil queda a lo largo del auto (eje z)
+  return new THREE.Mesh(geo, mat);
+}
+function rueda(g, x, y, z, r, ancho, colorLlanta) {
+  const pos = new THREE.Group(); pos.position.set(x, y, z); g.add(pos);
+  const eje = new THREE.Group(); pos.add(eje);
+  const cub = new THREE.Mesh(new THREE.CylinderGeometry(r, r, ancho, 20), new THREE.MeshLambertMaterial({ color: 0x151515 })); cub.rotation.z = Math.PI / 2; eje.add(cub);
+  const llanta = new THREE.Mesh(new THREE.CylinderGeometry(r * .62, r * .62, ancho + .02, 16), new THREE.MeshLambertMaterial({ color: colorLlanta })); llanta.rotation.z = Math.PI / 2; eje.add(llanta);
+  for (let i = 0; i < 5; i++) { const rayo = new THREE.Mesh(new THREE.BoxGeometry(ancho + .04, r * .9, .05), new THREE.MeshLambertMaterial({ color: 0x555555 })); rayo.rotation.x = i * Math.PI / 5; eje.add(rayo); }
+  return eje;
+}
+function barraLuces(g, x, y, z, largo) {
+  const base = new THREE.Mesh(new THREE.BoxGeometry(largo, .1, .3), new THREE.MeshLambertMaterial({ color: 0x111111 })); base.position.set(x, y, z); g.add(base);
+  const rojo = new THREE.Mesh(new THREE.BoxGeometry(largo / 2 - .06, .14, .26), new THREE.MeshBasicMaterial({ color: 0x550000 })); rojo.position.set(x - largo / 4, y + .1, z); g.add(rojo);
+  const azul = new THREE.Mesh(new THREE.BoxGeometry(largo / 2 - .06, .14, .26), new THREE.MeshBasicMaterial({ color: 0x000055 })); azul.position.set(x + largo / 4, y + .1, z); g.add(azul);
+  return { rojo, azul };
+}
+function textoPlano(txt, fondo, letra, w, h, ancho = 512) { return new THREE.MeshBasicMaterial({ map: textura((c, W, H) => { if (fondo) { c.fillStyle = fondo; c.fillRect(0, 0, W, H); }
+  c.fillStyle = letra; c.font = `bold ${H * .62}px system-ui`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(txt, W / 2, H / 2 + 2); }, ancho, Math.round(ancho * h / w)), transparent: !fondo }); }
+function opticas(g, frenteZ, atrasZ, y, sep, ancho = .38) {
+  for (const x of [-sep, sep]) {
+    const f = new THREE.Mesh(new THREE.BoxGeometry(ancho, .14, .04), new THREE.MeshBasicMaterial({ color: 0xfff6d8 })); f.position.set(x, y, frenteZ); g.add(f);
+    const t = new THREE.Mesh(new THREE.BoxGeometry(ancho, .14, .04), new THREE.MeshBasicMaterial({ color: 0xc0101a })); t.position.set(x, y + .05, atrasZ); g.add(t);
+  }
+}
+function espejos(g, x, y, z, color) { for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.BoxGeometry(.18, .12, .1), new THREE.MeshLambertMaterial({ color })); e.position.set(s * x, y, z); g.add(e); } }
+
 function crearPatrullero() {
   const g = new THREE.Group();
-  const blanco = new THREE.MeshLambertMaterial({ color: 0xf2f2f2 }), azul = new THREE.MeshLambertMaterial({ color: 0x1e4fd8 }), negro = new THREE.MeshLambertMaterial({ color: 0x111111 });
-  const vidrio = new THREE.MeshLambertMaterial({ color: 0x223344, transparent: true, opacity: .55 });
-  const base = new THREE.Mesh(new THREE.BoxGeometry(2, .6, 4.2), blanco); base.position.y = .6; g.add(base);
-  const franja = new THREE.Mesh(new THREE.BoxGeometry(2.02, .16, 4.22), new THREE.MeshLambertMaterial({ color: 0x5ec8f2 })); franja.position.set(0, .66, 0); g.add(franja);
-  const franja2 = new THREE.Mesh(new THREE.BoxGeometry(2.03, .08, 4.23), new THREE.MeshLambertMaterial({ color: 0x0f1d36 })); franja2.position.set(0, .54, 0); g.add(franja2);
-  const techo = new THREE.Mesh(new THREE.BoxGeometry(1.8, .55, 2.1), vidrio); techo.position.set(0, 1.18, -.2); g.add(techo);
-  const tapa = new THREE.Mesh(new THREE.BoxGeometry(1.8, .06, 2.1), blanco); tapa.position.set(0, 1.47, -.2); g.add(tapa);
-  const rojo = new THREE.Mesh(new THREE.BoxGeometry(.5, .16, .3), new THREE.MeshBasicMaterial({ color: 0x550000 })); rojo.position.set(-.3, 1.58, -.2); g.add(rojo);
-  const azulL = new THREE.Mesh(new THREE.BoxGeometry(.5, .16, .3), new THREE.MeshBasicMaterial({ color: 0x000055 })); azulL.position.set(.3, 1.58, -.2); g.add(azulL);
-  for (const [x, z] of [[-1, 1.3], [1, 1.3], [-1, -1.3], [1, -1.3]]) { const r = new THREE.Mesh(new THREE.CylinderGeometry(.38, .38, .3, 14), negro); r.rotation.z = Math.PI / 2; r.position.set(x, .38, z); g.add(r); }
-  const faro = new THREE.MeshBasicMaterial({ color: 0xfff3c0 });
-  for (const x of [-.65, .65]) { const f = new THREE.Mesh(new THREE.BoxGeometry(.35, .18, .05), faro); f.position.set(x, .7, 2.11); g.add(f); }
-  const c = cartel("🚓 POLICÍA", "#1e4fd8"); c.scale.set(2.4, .6, 1); c.position.y = 2.3; c.visible = false; g.add(c);
-  g.userData = { rojo, azul: azulL, cartel: c };
+  const blanco = new THREE.MeshLambertMaterial({ color: 0xf4f4f4 }), negro = new THREE.MeshLambertMaterial({ color: 0x151515 });
+  const vidrio = new THREE.MeshLambertMaterial({ color: 0x1b2633, polygonOffset: true, polygonOffsetFactor: -1 });
+  // Carrocería tipo sedán (perfil de costado: baúl, luneta, techo, parabrisas, capó)
+  const cuerpo = extruir([[-2.2, .32], [-2.22, .85], [-1.95, .97], [-1.2, 1.0], [-.78, 1.44], [.42, 1.47], [1.05, 1.02], [2.05, .9], [2.25, .72], [2.25, .32]], 1.86, blanco);
+  g.add(cuerpo);
+  const vid = extruir([[-1.2, .99], [-.78, 1.43], [.42, 1.46], [1.07, 1.01]], 1.98, vidrio, .02); vid.position.y = .005; g.add(vid);
+  const parante = new THREE.Mesh(new THREE.BoxGeometry(2.04, .44, .12), blanco); parante.position.set(0, 1.22, -.15); g.add(parante);
+  // Franjas celeste y azul oscuro a los costados, y "POLICÍA" en las puertas
+  for (const s of [-1, 1]) {
+    const f1 = new THREE.Mesh(new THREE.PlaneGeometry(4.2, .16), new THREE.MeshBasicMaterial({ color: 0x5ec8f2 })); f1.position.set(s * 1.0, .66, 0); f1.rotation.y = s * Math.PI / 2; g.add(f1);
+    const f2 = new THREE.Mesh(new THREE.PlaneGeometry(4.2, .06), new THREE.MeshBasicMaterial({ color: 0x0f1d36 })); f2.position.set(s * 1.001, .55, 0); f2.rotation.y = s * Math.PI / 2; g.add(f2);
+    const txt = new THREE.Mesh(new THREE.PlaneGeometry(1.5, .26), textoPlano("POLICÍA", null, "#0f1d36", 1.5, .26)); txt.position.set(s * 1.002, .84, .1); txt.rotation.y = s * Math.PI / 2; g.add(txt);
+    for (const z of [-.75, .55]) { const junta = new THREE.Mesh(new THREE.PlaneGeometry(.025, .55), new THREE.MeshBasicMaterial({ color: 0x9a9a9a })); junta.position.set(s * 1.003, .72, z); junta.rotation.y = s * Math.PI / 2; g.add(junta); }
+    const manija = new THREE.Mesh(new THREE.BoxGeometry(.03, .04, .16), negro); manija.position.set(s * 1.0, .9, -.35); g.add(manija);
+    const pasa = new THREE.Mesh(new THREE.BoxGeometry(.06, .2, 4.3), negro); pasa.position.set(s * .97, .38, 0); g.add(pasa);   // zócalo
+  }
+  // Paragolpes, parrilla, ópticas, espejos, antena
+  const pd = new THREE.Mesh(new THREE.BoxGeometry(1.95, .22, .16), negro); pd.position.set(0, .42, 2.3); g.add(pd);
+  const pt = new THREE.Mesh(new THREE.BoxGeometry(1.95, .22, .16), negro); pt.position.set(0, .42, -2.26); g.add(pt);
+  const parrilla = new THREE.Mesh(new THREE.BoxGeometry(.8, .16, .04), negro); parrilla.position.set(0, .66, 2.27); g.add(parrilla);
+  opticas(g, 2.27, -2.24, .74, .68);
+  espejos(g, 1.06, 1.02, .95, 0xf4f4f4);
+  const antena = new THREE.Mesh(new THREE.CylinderGeometry(.01, .01, .6, 4), negro); antena.position.set(.5, 1.75, -.9); g.add(antena);
+  // Número en el techo (para el helicóptero)
+  const num = new THREE.Mesh(new THREE.PlaneGeometry(.9, .45), textoPlano("C-" + (10 + Math.floor(Math.random() * 89)), null, "#0f1d36", .9, .45, 256)); num.rotation.x = -Math.PI / 2; num.position.set(0, 1.49, -.55); g.add(num);
+  const { rojo, azul } = barraLuces(g, 0, 1.52, .05, 1.3);
+  const ruedas = [[-.92, 1.38], [.92, 1.38], [-.92, -1.38], [.92, -1.38]].map(([x, z]) => rueda(g, x, .37, z, .37, .26, 0xc8c8c8));
+  const c = cartel("🚓 POLICÍA", "#1e4fd8"); c.scale.set(2.4, .6, 1); c.position.y = 2.4; c.visible = false; g.add(c);
+  g.userData = { rojo, azul, cartel: c, ruedas, radio: .37 };
   escena.add(g); return g;
 }
 // Lugares fijos (iguales para todos) cerca de la comisaría
@@ -383,7 +429,9 @@ function crearPatrullero() {
 function crearMoto() {
   const g = new THREE.Group(), blanco = new THREE.MeshLambertMaterial({ color: 0xf2f2f2 }), negro = new THREE.MeshLambertMaterial({ color: 0x111111 }), cel = new THREE.MeshLambertMaterial({ color: 0x5ec8f2 });
   const cuadro = new THREE.Group(); g.add(cuadro);
-  for (const z of [.75, -.75]) { const r = new THREE.Mesh(new THREE.TorusGeometry(.32, .1, 8, 16), negro); r.rotation.y = Math.PI / 2; r.position.set(0, .42, z); cuadro.add(r); }
+  const ruedasM = [.75, -.75].map(z => rueda(cuadro, 0, .42, z, .4, .12, 0xb0b0b0));
+  const escape = new THREE.Mesh(new THREE.CylinderGeometry(.06, .07, .8, 8), new THREE.MeshLambertMaterial({ color: 0x9a9a9a })); escape.rotation.x = Math.PI / 2; escape.position.set(.2, .45, -.45); cuadro.add(escape);
+  for (const x of [-.07, .07]) { const h = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, .8, 6), new THREE.MeshLambertMaterial({ color: 0x777777 })); h.position.set(x, .78, .68); h.rotation.x = -.35; cuadro.add(h); }   // horquilla
   const tanque = new THREE.Mesh(new THREE.BoxGeometry(.4, .4, 1.1), blanco); tanque.position.set(0, .75, .1); cuadro.add(tanque);
   const franja = new THREE.Mesh(new THREE.BoxGeometry(.42, .1, 1.12), cel); franja.position.set(0, .72, .1); cuadro.add(franja);
   const asiento = new THREE.Mesh(new THREE.BoxGeometry(.35, .14, .6), negro); asiento.position.set(0, .98, -.35); cuadro.add(asiento);
@@ -393,32 +441,38 @@ function crearMoto() {
   const rojo = new THREE.Mesh(new THREE.BoxGeometry(.12, .12, .12), new THREE.MeshBasicMaterial({ color: 0x550000 })); rojo.position.set(-.18, 1.12, -.7); cuadro.add(rojo);
   const azulL = new THREE.Mesh(new THREE.BoxGeometry(.12, .12, .12), new THREE.MeshBasicMaterial({ color: 0x000055 })); azulL.position.set(.18, 1.12, -.7); cuadro.add(azulL);
   const c = cartel("🏍️ MOTORIZADA", "#0f1d36"); c.scale.set(2.4, .6, 1); c.position.y = 2.2; c.visible = false; g.add(c);
-  g.userData = { rojo, azul: azulL, cartel: c, cuadro };
+  g.userData = { rojo, azul: azulL, cartel: c, cuadro, ruedas: ruedasM, radio: .4 };
   escena.add(g); return g;
 }
 // Camioneta negra de la Policía Especial (para SWAT y Grupo Halcón)
 function crearCamioneta() {
   const g = new THREE.Group();
-  const negro = new THREE.MeshLambertMaterial({ color: 0x15171a }), goma = new THREE.MeshLambertMaterial({ color: 0x0a0a0a });
-  const vidrio = new THREE.MeshLambertMaterial({ color: 0x0d1520, transparent: true, opacity: .8 });
-  const base = new THREE.Mesh(new THREE.BoxGeometry(2.3, 1, 5), negro); base.position.y = .9; g.add(base);
-  const cabina = new THREE.Mesh(new THREE.BoxGeometry(2.2, .9, 3.4), vidrio); cabina.position.set(0, 1.85, -.5); g.add(cabina);
-  const techo = new THREE.Mesh(new THREE.BoxGeometry(2.25, .08, 3.45), negro); techo.position.set(0, 2.33, -.5); g.add(techo);
-  const paragolpes = new THREE.Mesh(new THREE.BoxGeometry(2.4, .35, .3), new THREE.MeshLambertMaterial({ color: 0x2a2a2a })); paragolpes.position.set(0, .55, 2.55); g.add(paragolpes);
-  for (const [x, z] of [[-1.1, 1.6], [1.1, 1.6], [-1.1, -1.6], [1.1, -1.6]]) { const r = new THREE.Mesh(new THREE.CylinderGeometry(.48, .48, .38, 14), goma); r.rotation.z = Math.PI / 2; r.position.set(x, .48, z); g.add(r); }
-  const faro = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  for (const x of [-.75, .75]) { const f = new THREE.Mesh(new THREE.BoxGeometry(.4, .16, .05), faro); f.position.set(x, 1.05, 2.51); g.add(f); }
+  const negro = new THREE.MeshLambertMaterial({ color: 0x17191c }), goma = new THREE.MeshLambertMaterial({ color: 0x0c0c0c });
+  const vidrio = new THREE.MeshLambertMaterial({ color: 0x0b1118, polygonOffset: true, polygonOffsetFactor: -1 });
+  // Carrocería tipo SUV: alta, cuadrada, con techo largo
+  const cuerpo = extruir([[-2.45, .42], [-2.48, 1.35], [-2.35, 2.2], [.9, 2.22], [1.55, 1.5], [2.45, 1.32], [2.52, 1.0], [2.52, .42]], 2.1, negro);
+  g.add(cuerpo);
+  const vid = extruir([[-2.3, 1.42], [-2.2, 2.12], [.85, 2.14], [1.47, 1.48]], 2.22, vidrio, .02); g.add(vid);
+  for (const z of [-1.0, .25]) { const p = new THREE.Mesh(new THREE.BoxGeometry(2.26, .74, .12), negro); p.position.set(0, 1.78, z); g.add(p); }
   // Letras a los costados y atrás: "POLICÍA ESPECIAL"
-  const tex = textura((c, w, h) => { c.fillStyle = "#15171a"; c.fillRect(0, 0, w, h); c.fillStyle = "#f2c200"; c.fillRect(0, h - 14, w, 6);
-    c.fillStyle = "#ffffff"; c.font = "bold 58px system-ui"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("POLICÍA ESPECIAL", w / 2, h / 2 - 6); }, 640, 128);
-  const matLetras = new THREE.MeshBasicMaterial({ map: tex });
-  for (const lado of [-1, 1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(4.2, .82), matLetras); p.position.set(lado * 1.16, .95, 0); p.rotation.y = lado * Math.PI / 2; g.add(p); }
-  const atras = new THREE.Mesh(new THREE.PlaneGeometry(2.1, .42), matLetras); atras.position.set(0, 1.1, -2.51); atras.rotation.y = Math.PI; g.add(atras);
-  // Barra de luces
-  const rojo = new THREE.Mesh(new THREE.BoxGeometry(.7, .16, .3), new THREE.MeshBasicMaterial({ color: 0x550000 })); rojo.position.set(-.4, 2.45, .5); g.add(rojo);
-  const azulL = new THREE.Mesh(new THREE.BoxGeometry(.7, .16, .3), new THREE.MeshBasicMaterial({ color: 0x000055 })); azulL.position.set(.4, 2.45, .5); g.add(azulL);
+  const matLetras = textoPlano("POLICÍA ESPECIAL", "#17191c", "#ffffff", 4.2, .5, 768);
+  for (const s of [-1, 1]) {
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(4.2, .5), matLetras); p.position.set(s * 1.13, 1.0, -.05); p.rotation.y = s * Math.PI / 2; g.add(p);
+    const fr = new THREE.Mesh(new THREE.PlaneGeometry(4.6, .08), new THREE.MeshBasicMaterial({ color: 0xf2c200 })); fr.position.set(s * 1.131, .7, 0); fr.rotation.y = s * Math.PI / 2; g.add(fr);
+    const estribo = new THREE.Mesh(new THREE.BoxGeometry(.22, .06, 3.0), new THREE.MeshLambertMaterial({ color: 0x333333 })); estribo.position.set(s * 1.2, .52, -.1); g.add(estribo);
+  }
+  const atras = new THREE.Mesh(new THREE.PlaneGeometry(1.9, .3), matLetras); atras.position.set(0, 1.0, -2.55); atras.rotation.y = Math.PI; g.add(atras);
+  // Defensa delantera (bull bar), paragolpes, ópticas, espejos y rueda de auxilio
+  const bull = new THREE.Mesh(new THREE.BoxGeometry(1.7, .5, .08), new THREE.MeshLambertMaterial({ color: 0x2a2a2a })); bull.position.set(0, .85, 2.68); g.add(bull);
+  for (const x of [-.7, 0, .7]) { const v = new THREE.Mesh(new THREE.BoxGeometry(.07, .7, .07), new THREE.MeshLambertMaterial({ color: 0x2a2a2a })); v.position.set(x, .8, 2.64); g.add(v); }
+  const pt = new THREE.Mesh(new THREE.BoxGeometry(2.1, .26, .18), new THREE.MeshLambertMaterial({ color: 0x222222 })); pt.position.set(0, .55, -2.5); g.add(pt);
+  opticas(g, 2.55, -2.52, 1.18, .78, .42);
+  espejos(g, 1.22, 1.62, 1.35, 0x17191c);
+  const aux = new THREE.Mesh(new THREE.CylinderGeometry(.42, .42, .25, 18), goma); aux.rotation.x = Math.PI / 2; aux.position.set(0, 1.25, -2.66); g.add(aux);
+  const { rojo, azul } = barraLuces(g, 0, 2.3, .6, 1.5);
+  const ruedas = [[-1.0, 1.55], [1.0, 1.55], [-1.0, -1.55], [1.0, -1.55]].map(([x, z]) => rueda(g, x, .46, z, .46, .34, 0x2a2a2a));
   const c = cartel("🚙 POLICÍA ESPECIAL", "#15171a"); c.scale.set(3.4, .7, 1); c.position.y = 3.2; c.visible = false; g.add(c);
-  g.userData = { rojo, azul: azulL, cartel: c };
+  g.userData = { rojo, azul, cartel: c, ruedas, radio: .46 };
   escena.add(g); return g;
 }
 const autos = (() => {
@@ -467,6 +521,9 @@ function manejar(a, dt) {
 }
 function pintarAuto(a, t) {
   const m = a.mesh; m.position.set(a.x, 0, a.z); m.rotation.y = a.h;
+  // Las ruedas giran según la velocidad
+  const dtR = Math.min(.05, (t - (a._tR ?? t)) / 1000); a._tR = t;
+  if (m.userData.ruedas) for (const r of m.userData.ruedas) r.rotation.x += (a.vel || 0) * dtR / m.userData.radio;
   if (m.userData.cuadro) m.userData.cuadro.rotation.z += ((a.conductor ? -(a.giro || 0) * Math.min(.45, Math.abs(a.vel) / 40) : .12) - m.userData.cuadro.rotation.z) * .15;   // la moto se inclina
   const prendida = a.conductor && a.sirena, fase = Math.floor(t / 180) % 2;
   m.userData.rojo.material.color.setHex(prendida && fase ? 0xff2020 : 0x550000);
