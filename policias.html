@@ -30,6 +30,10 @@
   #caravana small { display:block; font-weight:700; color:#fff; opacity:.85; font-size:12px; }
   #caravana .barra { height:6px; background:#ffffff22; border-radius:4px; margin:4px 0 2px; overflow:hidden; } #caravana .barra div { height:100%; background:linear-gradient(90deg,#e9a3a8,#5ec8f2); }
   #radar { position:fixed; right:12px; top:120px; z-index:5; display:none; pointer-events:none; background:#001a33cc; border:1px solid #5ec8f2; border-radius:10px; padding:6px 10px; font-size:13px; max-width:240px; }
+  #control .ficha { display:flex; gap:12px; background:#021526; border:1px solid #5ec8f244; border-radius:10px; padding:10px; font-size:14px; line-height:1.5; }
+  #control .foto { width:64px; height:76px; flex:none; border-radius:6px; background:#0d3a5e; display:flex; align-items:center; justify-content:center; font-size:38px; }
+  #control .nom { font-weight:900; font-size:16px; color:#fff; }
+  #ctl-botones button { flex:1; }
   #compu .ficha { display:flex; gap:12px; background:#021526; border:1px solid #5ec8f244; border-radius:10px; padding:10px; margin-bottom:8px; font-size:13px; line-height:1.5; }
   #compu .foto { width:64px; height:76px; flex:none; border-radius:6px; background:#0d3a5e; display:flex; align-items:center; justify-content:center; font-size:38px; }
   #compu .nom { font-weight:900; font-size:15px; color:#fff; }
@@ -76,6 +80,10 @@
   @media (max-height: 420px) { body.tactil #hud { font-size:12px; } body.tactil #reloj { font-size:20px; } }
   body.tactil #b-rec { display:none; } body.tactil.armado #b-rec, body.tactil.swat #b-rec, body.tactil.halcon #b-rec { display:block; }
   #tiempos button { padding:6px 12px; border-radius:10px; border:2px solid #ffffff33; background:#ffffff14; color:#fff; font-weight:800; cursor:pointer; }
+  #npc-sala button { padding:6px 12px; border-radius:10px; border:2px solid #ffffff33; background:#ffffff14; color:#fff; font-weight:800; cursor:pointer; }
+  #npc-sala button.on { border-color:#ffd400; background:#ffd40033; }
+  #modo-imagen button { padding:6px 12px; border-radius:10px; border:2px solid #ffffff33; background:#ffffff14; color:#fff; font-weight:800; cursor:pointer; }
+  #modo-imagen button.on { border-color:#ffd400; background:#ffd40033; }
   #cant-bots button { padding:6px 12px; border-radius:10px; border:2px solid #ffffff33; background:#ffffff14; color:#fff; font-weight:800; cursor:pointer; }
   #cant-bots button.on { border-color:#ffd400; background:#ffd40033; }
   #tiempos button.on { border-color:#ffd400; background:#ffd40033; }
@@ -157,6 +165,14 @@
   <div id="reloj"></div>
   <div id="equipos"></div>
 </div>
+<div id="control" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
+  <div style="max-width:520px;margin:0 auto;background:#0f1d36;border:2px solid #5ec8f2;border-radius:16px;padding:16px">
+    <h2 style="margin:0 0 8px;text-align:center">🪪 Control de identidad</h2>
+    <div id="ctl-txt"></div>
+    <div id="ctl-botones" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"></div>
+    <button id="control-x" style="margin-top:10px;width:100%;padding:8px;border:0;border-radius:10px;background:#ffffff22;color:#fff;font-weight:800">Cerrar</button>
+  </div>
+</div>
 <div id="super" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
   <div style="max-width:520px;margin:0 auto;background:#3a0a0c;border:2px solid #f2c200;border-radius:16px;padding:16px">
     <h2 style="margin:0 0 4px;text-align:center">🛒 Supermercado</h2>
@@ -233,6 +249,8 @@
     </div>
     <div id="tiempos" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:10px;font-size:14px;align-items:center">⏱️ Práctica:
       <button data-t="240">4 min</button><button data-t="600">10 min</button><button data-t="0" class="on">♾️ Sin límite</button></div>
+    <div id="modo-imagen" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:8px;font-size:14px;align-items:center">🖼️ Imagen:
+      <button data-img="nitida">✨ Nítida</button><button data-img="auto">⚖️ Automática</button><button data-img="rapida">⚡ Rápida</button></div>
     <div id="cant-bots" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:8px;font-size:14px;align-items:center">🤖 Bots:
       <button data-b="4">4</button><button data-b="6" class="on">6</button><button data-b="10">10</button></div>
     <div style="display:flex;gap:8px;justify-content:center;margin-top:10px"><input id="cod" maxlength="4" placeholder="CÓDIGO"><button class="g" id="unirse">🚪 Unirse</button></div>
@@ -248,6 +266,8 @@
     <div class="codigo" id="codigo"></div>
     <p><button class="g" id="compartir">📤 Compartir link</button></p>
     <div id="jugadores" style="font-size:18px;line-height:1.8;text-align:left;display:inline-block"></div>
+    <div id="npc-sala" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:8px 0;font-size:14px;align-items:center">🦹 Ladrones NPC:
+      <button data-n="0">0</button><button data-n="2">2</button><button data-n="4" class="on">4</button><button data-n="6">6</button></div>
     <p><button class="g" id="arrancar">▶️ Empezar</button></p>
     <p id="espera" style="opacity:.75"></p>
   </div>
@@ -354,7 +374,10 @@ const BOLSAS = Array.from({ length: 10 }, (_, i) => { const a = i / 10 * Math.PI
 // Rendimiento: en celulares se dibuja a menor resolución y sin antialias; además la calidad baja sola si los FPS caen
 const ES_TACTIL = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 const renderer = new THREE.WebGLRenderer({ antialias: !ES_TACTIL, powerPreference: "high-performance" });
-let calidad = Math.min(ES_TACTIL ? 1.25 : 1.5, devicePixelRatio);
+// Modo de imagen (se guarda en el teléfono): "nitida" = resolución completa, "auto" = baja solo si se traba mucho, "rapida" = prioriza fluidez
+let modoImagen = "auto"; try { modoImagen = localStorage.getItem("polis-imagen") || "auto"; } catch (e) {}
+const RES_MAX = Math.min(2, devicePixelRatio), RES_MIN = { nitida: RES_MAX, auto: Math.min(RES_MAX, ES_TACTIL ? 1.5 : 1), rapida: 1 };
+let calidad = modoImagen === "rapida" ? 1 : RES_MAX;
 renderer.setPixelRatio(calidad); renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = false;
 document.body.prepend(renderer.domElement);
@@ -2154,11 +2177,12 @@ function pensarBot(b, dt) {
     else if (b.narco === undefined ? (b.narco = Math.random() < .5) : b.narco) b.objetivo = { x: 45, z: -45.5 };
     else if (presos && (b.rescata ??= Math.random() < .5)) b.objetivo = ZONAS.carcel;   // decide una vez (antes cambiaba de idea en cada cuadro y temblaba en el lugar)
     else b.objetivo = ZONAS.banco;
-    if (b.bolsa && dentro(b, ZONAS.guarida)) entregar(b.id);
-    if (b.paquete && dentro(b, ZONAS.muelle)) { entregarPaquete(b.id); b.narco = Math.random() < .5; }
-    if (!b.bolsa && !b.paquete) for (const p of PAQUETES) if (p.hasta < Date.now() && Math.hypot(p.x - b.x, p.z - b.z) < 1.8) tomarPaquete(p.i, b.id);
-    if (!b.bolsa) for (const bo of BOLSAS) if (bo.hasta < Date.now() && Math.hypot(bo.x - b.x, bo.z - b.z) < 1.3) tomarBolsa(bo.i, b.id);
-    if (presos && dentro(b, ZONAS.carcel, 1)) liberar(b.id);
+    // En el online, lo que hace un ladrón NPC se avisa a todos (el anfitrión es el que los maneja)
+    if (b.bolsa && dentro(b, ZONAS.guarida)) { enviar("entrega", { quien: b.id }); entregar(b.id); }
+    if (b.paquete && dentro(b, ZONAS.muelle)) { enviar("entregaP", { quien: b.id }); entregarPaquete(b.id); b.narco = Math.random() < .5; }
+    if (!b.bolsa && !b.paquete) for (const p of PAQUETES) if (p.hasta < Date.now() && Math.hypot(p.x - b.x, p.z - b.z) < 1.8) { enviar("paquete", { i: p.i, quien: b.id }); tomarPaquete(p.i, b.id); }
+    if (!b.bolsa) for (const bo of BOLSAS) if (bo.hasta < Date.now() && Math.hypot(bo.x - b.x, bo.z - b.z) < 1.3) { enviar("bolsa", { i: bo.i, quien: b.id }); tomarBolsa(bo.i, b.id); }
+    if (presos && dentro(b, ZONAS.carcel, 1)) { enviar("libera", { quien: b.id }); liberar(b.id); }
   }
   let o = b.objetivo; if (!o || (b.aturdido && Date.now() < b.aturdido)) return;
   // Si no hay línea recta libre, sigue un camino calculado por las calles (A* sobre una grilla de 2 m)
@@ -2236,13 +2260,17 @@ function empezar(finTs) {
   modoCam = 0;
   jug = {}; botin = 0; BOLSAS.forEach(b => { b.hasta = 0; b.mesh.visible = true; });
   PAQUETES.forEach(p => p.hasta = 0); puerta.cerrada = true; puerta.hasta = 0;
-  for (const k in capturas) delete capturas[k]; capturaListo = 0; resetPoliExtras(); resetCaravana();
+  for (const k in capturas) delete capturas[k]; capturaListo = 0; resetPoliExtras(); resetCaravana(); crearCiviles(ES_TACTIL ? 10 : 16);
   quitarDisturbio(); DIST.prog = 0; DIST.prox = Date.now() + 35000;
   resetAutos(); miAuto = null; document.body.classList.toggle("poli", equipo === "poli");
   yo = jug[miId] = nuevoJug(miId, miNombre(), equipo, false, clase);
   equiparArma(ARMADO(clase) ? "fusil" : "ninguna"); recargando = 0; granadas = clase === "halcon" ? 3 : 0; nocturna(false);
   document.body.classList.toggle("swat", clase === "swat"); document.body.classList.toggle("halcon", clase === "halcon"); document.body.classList.toggle("ladron", equipo === "ladron");
   yaw = equipo === "poli" ? Math.PI * .75 : -Math.PI * .75; pitch = 0;
+  if (online && soyHost) {
+    // Ladrones NPC en el online: los crea y los maneja el anfitrión, y manda su posición como si fueran jugadores
+    for (let i = 0; i < ladronesNPC; i++) { const id = "npc" + i + "-" + miId, nom = `Ladrón NPC ${i + 1}`; jug[id] = nuevoJug(id, nom, "ladron", true, "ladron"); jug[id].mesh = crearMuneco("ladron", nom, "ladron"); }
+  }
   if (!online) {
     const n = equipo === "poli" ? [["ladron", "Ladrón Bot 1"], ["ladron", "Ladrón Bot 2"], ["ladron", "Ladrón Bot 3"], ["poli", "Poli Bot"]]
                                : [["poli", "Poli Bot"], ["swat", "SWAT Bot"], ["halcon", "Halcón Bot"], ["ladron", "Ladrón Bot"]];
@@ -2267,7 +2295,7 @@ function terminar(gana) {
   DB.guardarPartida("policias", gane, (Date.now() - inicioT) / 1000, equipo === "poli" ? yo.atrapados * 100 : yo.robado / 10);
 }
 
-let ult = performance.now(), ultPos = 0;
+let ult = performance.now(), ultPos = 0, ultPosNPC = 0;
 // Textos de la pantalla: solo se tocan si cambian (escribir el DOM en cada cuadro traba en celulares)
 for (const id of ["pista", "reloj", "rol", "botin", "equipos", "velocimetro", "linterna-txt", "municion", "granadas", "disturbio", "caravana", "poli-extras", "radar", "b-accion"]) {
   const el = $(id); if (!el) continue;
@@ -2275,13 +2303,15 @@ for (const id of ["pista", "reloj", "rol", "botin", "equipos", "velocimetro", "l
     Object.defineProperty(el, prop, { configurable: true, get() { return d.get.call(this); }, set(v) { if (this["_" + prop] !== v) { this["_" + prop] = v; d.set.call(this, v); } } }); }
 }
 // Calidad automática: si los FPS bajan, se dibuja a menos resolución; si sobran, sube de a poco
-const FPS = { acum: 0, n: 0, max: calidad };
+// (antes bajaba hasta 0,6 de resolución y en los teléfonos se veía pixelado; ahora nunca baja del mínimo del modo elegido)
+const FPS = { acum: 0, n: 0 };
 function ajustarCalidad(dt) {
-  FPS.acum += dt; FPS.n++; if (FPS.acum < 2) return;
+  FPS.acum += dt; FPS.n++; if (FPS.acum < 3) return;
   const fps = FPS.n / FPS.acum; FPS.acum = 0; FPS.n = 0;
-  const antes = calidad;
-  if (fps < 40 && calidad > .6) calidad = Math.max(.6, calidad - .15);
-  else if (fps > 57 && calidad < FPS.max) calidad = Math.min(FPS.max, calidad + .05);
+  const antes = calidad, min = RES_MIN[modoImagen] || 1, max = modoImagen === "rapida" ? 1 : RES_MAX;
+  if (fps < 28 && calidad > min) calidad = Math.max(min, calidad - .25);
+  else if (fps > 50 && calidad < max) calidad = Math.min(max, calidad + .25);
+  else if (calidad < min) calidad = min;
   if (calidad !== antes) renderer.setPixelRatio(calidad);
 }
 function loop(t) {
@@ -2305,6 +2335,11 @@ function loop(t) {
         if (accionPedida) { abrirArmeria(); balas = ARMA().carg || 0; recargando = 0; if (yo.clase === "halcon") granadas = 3; accionPedida = false; beep(500, .1); setTimeout(() => beep(800, .1), 120); }
       } else pistaDepto = "";
     } else pistaDepto = "";
+    // Vecinos: la policía puede pedirles documentos (si no hay un ladrón al lado para atrapar)
+    if (yo.equipo === "poli" && !miAuto && !yo.preso && !pistaDepto && !Object.values(jug).some(s => s.equipo === "ladron" && !s.preso && Math.hypot(s.x - yo.x, s.z - yo.z) < ATRAPA * 1.8)) {
+      let cc = null, dm = 2.2; for (const c of civiles) { const d = Math.hypot(c.x - yo.x, c.z - yo.z); if (d < dm) { dm = d; cc = c; } }
+      if (cc) { pistaDepto = `🪪 E: pedirle documentos a ${cc.nombre}`; if (accionPedida) { accionPedida = false; abrirControl(cc); } }
+    }
     // Supermercado: cualquiera puede comprarle al señor Li
     if (!miAuto && !yo.preso && Math.hypot(yo.x - senorLi.position.x, yo.z - (senorLi.position.z + 2.6)) < 1.8) {
       pistaDepto = "🛒 E: comprarle al señor Li";
@@ -2358,7 +2393,7 @@ function loop(t) {
     if (yo.equipo === "poli" && yo.div === "comunicaciones") { const P = ["N","NE","E","SE","S","SO","O","NO"];
       const L = Object.values(jug).filter(s => s.equipo === "ladron" && !s.preso && (s.bolsa || s.paquete));
       $("radar").innerHTML = "📡 <b>Radio</b><br>" + (L.length ? L.map(s => { const a = Math.atan2(s.x - yo.x, -(s.z - yo.z)); return `🦹 ${esc(s.nombre)} ${s.paquete ? "📦" : "💰"} · ${Math.round(Math.hypot(s.x - yo.x, s.z - yo.z))} m ${P[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8]}`; }).join("<br>") : "Sin ladrones con botín"); }
-    actualizarAviones(t); for (const f of AGU.fuegos) f.scale.y = .8 + Math.random() * .5; nuevaRondaLibre(); actualizarDisturbio(dt, t); actualizarPoliExtras(dt, t); actualizarCaravana(dt, t);
+    actualizarAviones(t); actualizarCiviles(dt, t); for (const f of AGU.fuegos) f.scale.y = .8 + Math.random() * .5; nuevaRondaLibre(); actualizarDisturbio(dt, t); actualizarPoliExtras(dt, t); actualizarCaravana(dt, t);
     $("rejas").style.display = yo.preso ? "block" : "none";
     // Otros
     for (const s of Object.values(jug)) {
@@ -2406,6 +2441,8 @@ function loop(t) {
     $("equipos").innerHTML = `👮 ${Object.values(jug).filter(s => s.equipo === "poli").length} polis<br>🦹 ${L.filter(s => !s.preso).length} libres · ⛓️ ${L.filter(s => s.preso).length} presos`;
     $("b-accion").textContent = yo.equipo === "poli" ? "🚔" : "🔓";
     if (quedan <= 0 && (soyHost || !online)) { const g = botin >= META ? "ladron" : "poli"; enviar("fin", { gana: g }); terminar(g); }
+    if (online && soyHost && t - ultPosNPC > 110) { ultPosNPC = t;
+      for (const b of Object.values(jug)) if (b.bot) enviar("pos", { id: b.id, nombre: b.nombre, equipo: "ladron", clase: "ladron", res: Math.round(b.res), x: +b.x.toFixed(2), z: +b.z.toFixed(2), rot: +((b.rot || 0) - Math.PI).toFixed(2), preso: b.preso, bolsa: b.bolsa, paq: !!b.paquete, auto: null }); }
     if (online && t - ultPos > 80) { ultPos = t; enviar("pos", { id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, uni: yo.uni, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, bolsa: yo.bolsa, paq: !!yo.paquete,
       auto: miAuto ? miAuto.i : null, ah: miAuto ? +miAuto.h.toFixed(2) : 0, av: miAuto ? +miAuto.vel.toFixed(1) : 0, sir: miAuto ? miAuto.sirena : false, sp: miAuto ? (miAuto.patron || "alterno") : "" }); }
   } else { yaw += dt * .1; }
@@ -2463,6 +2500,70 @@ function fusionarEstaticos() {
   }
   return antes - despues;
 }
+// ================== VECINOS (NPC) ==================
+// Gente caminando por la ciudad. La policía los puede parar y pedirles documentos (E):
+// la mayoría está en regla, algunos tienen un pedido de captura (se los puede detener) y otros vieron a un ladrón (dan una pista).
+// Son locales de cada jugador (en el online cada uno ve sus propios vecinos).
+const civiles = [];
+const NOMBRES_CIV = ["Marta Gómez", "Jorge Fernández", "Lucía Pereyra", "Carlos Sosa", "Ana Romero", "Diego Álvarez", "Sofía Benítez", "Ramón Acosta", "Valeria Ruiz", "Pablo Medina", "Carla Ríos", "Héctor Molina", "Julieta Castro", "Nicolás Herrera", "Rosa Domínguez", "Matías Vega"];
+function crearCivil(i) {
+  const g = new THREE.Group(), L = c => new THREE.MeshLambertMaterial({ color: c });
+  const ropa = [0xc0392b, 0x2e86c1, 0x27ae60, 0x8e44ad, 0xf39c12, 0x555555, 0xeeeeee, 0x16a085][i % 8], pant = [0x23324a, 0x3a3a3a, 0x6a5a40, 0x1a1a2a][i % 4];
+  const piernas = [-.11, .11].map(x => { const p = new THREE.Group(); p.position.set(x, .9, 0); g.add(p); const m = new THREE.Mesh(new THREE.BoxGeometry(.18, .85, .2), L(pant)); m.position.y = -.43; p.add(m); return p; });
+  const cuerpo = new THREE.Mesh(new THREE.BoxGeometry(.5, .64, .28), L(ropa)); cuerpo.position.y = 1.24; g.add(cuerpo);
+  const brazos = [-.33, .33].map(x => { const a = new THREE.Group(); a.position.set(x, 1.52, 0); g.add(a); const m = new THREE.Mesh(new THREE.BoxGeometry(.13, .55, .15), L(ropa)); m.position.y = -.28; a.add(m); return a; });
+  const cab = new THREE.Mesh(new THREE.SphereGeometry(.18, 12, 8), L([0xe0ac7e, 0xc68642, 0x8d5524, 0xf1c27d][i % 4])); cab.position.y = 1.78; cab.scale.y = 1.1; g.add(cab);
+  const pelo = new THREE.Mesh(new THREE.SphereGeometry(.19, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2.3), L([0x1a1a1a, 0x5a3a1a, 0xb08a50, 0x888888][i % 4])); pelo.position.y = 1.82; g.add(pelo);
+  if (i % 3 === 0) { const bolso = new THREE.Mesh(new THREE.BoxGeometry(.3, .25, .12), L(0x6a4a2a)); bolso.position.set(.3, 1.0, .05); g.add(bolso); }
+  escena.add(g);
+  const tipo = Math.random() < .12 ? "buscado" : Math.random() < .25 ? "testigo" : "normal";
+  const nom = NOMBRES_CIV[i % NOMBRES_CIV.length];
+  const p = lugarLibre(null); g.position.set(p.x, 0, p.z);
+  return { id: "civ" + i + "-" + Math.floor(Math.random() * 1e6), nombre: nom, tipo, mesh: g, piernas, brazos, x: p.x, z: p.z, rot: 0, ruta: null, paradoHasta: 0, controlado: false, vel: 1.6 + Math.random() * .8 };
+}
+function destinoCivil() { for (let k = 0; k < 40; k++) { const x = (Math.random() - .5) * (CIUDAD.tam - 10), z = (Math.random() - .5) * (CIUDAD.tam - 10); if (!choca(x, z, .7)) return { x, z }; } return { x: 0, z: -20 }; }
+function crearCiviles(n) { for (const c of civiles) escena.remove(c.mesh); civiles.length = 0; for (let i = 0; i < n; i++) civiles.push(crearCivil(i)); }
+function actualizarCiviles(dt, t) {
+  const ahora = Date.now();
+  for (const c of civiles) {
+    const lejos = Math.abs(c.x - camara.position.x) + Math.abs(c.z - camara.position.z) > 110;
+    c.mesh.visible = !lejos;
+    if (c.controlado || ahora < c.paradoHasta) { c.piernas.forEach(p => p.rotation.x *= .8); c.brazos.forEach(a => a.rotation.x *= .8); continue; }
+    if (!c.ruta || !c.ruta.length) { c.ruta = buscarCamino(c, destinoCivil()) || []; if (!c.ruta.length) { c.paradoHasta = ahora + 2000; continue; } }
+    const o = c.ruta[0], dx = o.x - c.x, dz = o.z - c.z, d = Math.hypot(dx, dz);
+    if (d < .6) { c.ruta.shift(); if (!c.ruta.length) c.paradoHasta = ahora + 1500 + Math.random() * 4000; continue; }
+    const v = Math.min(d, c.vel * dt), nx = c.x + dx / d * v, nz = c.z + dz / d * v;
+    if (!choca(nx, nz, .35, "ladron")) { c.x = nx; c.z = nz; } else c.ruta = null;
+    c.rot = Math.atan2(dx, dz);
+    if (!lejos) { c.mesh.position.set(c.x, 0, c.z); c.mesh.rotation.y = c.rot; const s = Math.sin(t / 170 + c.x) * .5;
+      c.piernas[0].rotation.x = s; c.piernas[1].rotation.x = -s; c.brazos[0].rotation.x = -s * .7; c.brazos[1].rotation.x = s * .7; }
+  }
+}
+let civilControl = null;
+function abrirControl(c) {
+  civilControl = c; c.controlado = true; c.rot = Math.atan2(yo.x - c.x, yo.z - c.z); c.mesh.rotation.y = c.rot;
+  document.exitPointerLock?.(); $("control").style.display = "block";
+  const f = fichaDe({ id: c.id }), edad = 18 + (parseInt(f.dni.replace(/\D/g, "")) % 60);
+  let res = "", botones = `<button class="g" data-ctl="sigue">✅ Puede seguir</button>`;
+  if (c.tipo === "buscado") { res = `<div style="color:#ff6a6a;font-weight:900">🚨 TIENE UN PEDIDO DE CAPTURA (por robo de autos)</div>`; botones = `<button class="g" data-ctl="detener" style="background:#ff4d4d;color:#fff">🚔 Detener</button>` + botones; }
+  else if (c.tipo === "testigo") { res = `<div style="color:#ffd400;font-weight:800">👀 "Oficial, recién vi pasar a uno corriendo con una bolsa…"</div>`; botones = `<button class="g" data-ctl="pista">📍 Anotar la pista</button>` + botones; }
+  else res = `<div style="color:#7dffb0;font-weight:800">✔ Sin antecedentes. Todo en regla.</div>`;
+  $("ctl-txt").innerHTML = `<div class="ficha"><div class="foto">🧑</div><div><div class="nom">${esc(c.nombre.toUpperCase())}</div>
+    <div>DNI ${f.dni} · ${edad} años</div><div>Domicilio: ${f.dom}</div><div style="margin-top:6px">${res}</div></div></div>`;
+  $("ctl-botones").innerHTML = botones;
+  $("ctl-botones").querySelectorAll("[data-ctl]").forEach(b => b.onclick = () => cerrarControl(b.dataset.ctl));
+}
+function cerrarControl(accion) {
+  const c = civilControl; $("control").style.display = "none"; if (!document.body.classList.contains("tactil")) renderer.domElement.requestPointerLock?.();
+  if (!c) return; civilControl = null; c.controlado = false; c.paradoHasta = Date.now() + 1500;
+  if (accion === "detener") { yo.atrapados++; feed(`🚔 ${yo.nombre} detuvo a ${c.nombre} (tenía pedido de captura)`); grande("🚔 ¡DETENIDO!", "#5a8aff"); beep(700, .15, "triangle");
+    escena.remove(c.mesh); civiles.splice(civiles.indexOf(c), 1); setTimeout(() => { if (jugando) civiles.push(crearCivil(Math.floor(Math.random() * 100))); }, 20000); }
+  else if (accion === "pista") { let obj = null, d = 1e9;
+    for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso) { const dd = Math.hypot(s.x - c.x, s.z - c.z); if (dd < d) { d = dd; obj = s; } }
+    if (obj) { capturas[obj.id] = Date.now() + 12000; grande(`📍 Pista: ${obj.nombre} (marcado 12 s)`, "#ffd400"); } c.tipo = "normal"; }
+  else grande("👋 \"Gracias, oficial\"", "#9fd0ff");
+}
+$("control-x").onclick = () => cerrarControl("sigue");
 // ================== COMISARIO ==================
 // Está en su oficina. Da el parte de la partida y una "orden del día": marca 15 s al ladrón más peligroso (cada 60 s).
 let comisario = null, ordenLista = 0;
@@ -2504,7 +2605,12 @@ function nuevaRondaLibre() {
   for (const s of Object.values(jug)) if (s.equipo === "ladron") { s.preso = false; s.res = 100; const l = lugarLibre(ZONAS.guarida, 8); s.x = s.tx = l.x; s.z = s.tz = l.z; }
   feed("🔄 Nueva ronda: los ladrones se escaparon de la cárcel");
 }
-let cantBots = 6;
+document.querySelectorAll("#modo-imagen [data-img]").forEach(b => { b.classList.toggle("on", b.dataset.img === modoImagen);
+  b.onclick = () => { modoImagen = b.dataset.img; try { localStorage.setItem("polis-imagen", modoImagen); } catch (e) {}
+    calidad = modoImagen === "rapida" ? 1 : RES_MAX; renderer.setPixelRatio(calidad);
+    document.querySelectorAll("#modo-imagen [data-img]").forEach(x => x.classList.toggle("on", x === b)); }; });
+let cantBots = 6, ladronesNPC = 4;
+document.querySelectorAll("#npc-sala [data-n]").forEach(b => b.onclick = () => { ladronesNPC = +b.dataset.n; document.querySelectorAll("#npc-sala [data-n]").forEach(x => x.classList.toggle("on", x === b)); });
 document.querySelectorAll("#cant-bots [data-b]").forEach(b => b.onclick = () => { cantBots = +b.dataset.b; document.querySelectorAll("#cant-bots [data-b]").forEach(x => x.classList.toggle("on", x === b)); });
 let rondaEspera = 0, tiempoPractica = 0, libre = false, rondas = { poli: 0, ladron: 0 };   // 0 = práctica sin límite
 document.querySelectorAll("#tiempos [data-t]").forEach(b => b.onclick = () => { tiempoPractica = +b.dataset.t; document.querySelectorAll("#tiempos [data-t]").forEach(x => x.classList.toggle("on", x === b)); });
