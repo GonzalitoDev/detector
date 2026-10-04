@@ -80,6 +80,8 @@
   @media (max-height: 420px) { body.tactil #hud { font-size:12px; } body.tactil #reloj { font-size:20px; } }
   body.tactil #b-rec { display:none; } body.tactil.armado #b-rec, body.tactil.swat #b-rec, body.tactil.halcon #b-rec { display:block; }
   #tiempos button { padding:6px 12px; border-radius:10px; border:2px solid #ffffff33; background:#ffffff14; color:#fff; font-weight:800; cursor:pointer; }
+  #npc-sala button { padding:6px 12px; border-radius:10px; border:2px solid #ffffff33; background:#ffffff14; color:#fff; font-weight:800; cursor:pointer; }
+  #npc-sala button.on { border-color:#ffd400; background:#ffd40033; }
   #modo-imagen button { padding:6px 12px; border-radius:10px; border:2px solid #ffffff33; background:#ffffff14; color:#fff; font-weight:800; cursor:pointer; }
   #modo-imagen button.on { border-color:#ffd400; background:#ffd40033; }
   #cant-bots button { padding:6px 12px; border-radius:10px; border:2px solid #ffffff33; background:#ffffff14; color:#fff; font-weight:800; cursor:pointer; }
@@ -264,6 +266,8 @@
     <div class="codigo" id="codigo"></div>
     <p><button class="g" id="compartir">📤 Compartir link</button></p>
     <div id="jugadores" style="font-size:18px;line-height:1.8;text-align:left;display:inline-block"></div>
+    <div id="npc-sala" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:8px 0;font-size:14px;align-items:center">🦹 Ladrones NPC:
+      <button data-n="0">0</button><button data-n="2">2</button><button data-n="4" class="on">4</button><button data-n="6">6</button></div>
     <p><button class="g" id="arrancar">▶️ Empezar</button></p>
     <p id="espera" style="opacity:.75"></p>
   </div>
@@ -2173,11 +2177,12 @@ function pensarBot(b, dt) {
     else if (b.narco === undefined ? (b.narco = Math.random() < .5) : b.narco) b.objetivo = { x: 45, z: -45.5 };
     else if (presos && (b.rescata ??= Math.random() < .5)) b.objetivo = ZONAS.carcel;   // decide una vez (antes cambiaba de idea en cada cuadro y temblaba en el lugar)
     else b.objetivo = ZONAS.banco;
-    if (b.bolsa && dentro(b, ZONAS.guarida)) entregar(b.id);
-    if (b.paquete && dentro(b, ZONAS.muelle)) { entregarPaquete(b.id); b.narco = Math.random() < .5; }
-    if (!b.bolsa && !b.paquete) for (const p of PAQUETES) if (p.hasta < Date.now() && Math.hypot(p.x - b.x, p.z - b.z) < 1.8) tomarPaquete(p.i, b.id);
-    if (!b.bolsa) for (const bo of BOLSAS) if (bo.hasta < Date.now() && Math.hypot(bo.x - b.x, bo.z - b.z) < 1.3) tomarBolsa(bo.i, b.id);
-    if (presos && dentro(b, ZONAS.carcel, 1)) liberar(b.id);
+    // En el online, lo que hace un ladrón NPC se avisa a todos (el anfitrión es el que los maneja)
+    if (b.bolsa && dentro(b, ZONAS.guarida)) { enviar("entrega", { quien: b.id }); entregar(b.id); }
+    if (b.paquete && dentro(b, ZONAS.muelle)) { enviar("entregaP", { quien: b.id }); entregarPaquete(b.id); b.narco = Math.random() < .5; }
+    if (!b.bolsa && !b.paquete) for (const p of PAQUETES) if (p.hasta < Date.now() && Math.hypot(p.x - b.x, p.z - b.z) < 1.8) { enviar("paquete", { i: p.i, quien: b.id }); tomarPaquete(p.i, b.id); }
+    if (!b.bolsa) for (const bo of BOLSAS) if (bo.hasta < Date.now() && Math.hypot(bo.x - b.x, bo.z - b.z) < 1.3) { enviar("bolsa", { i: bo.i, quien: b.id }); tomarBolsa(bo.i, b.id); }
+    if (presos && dentro(b, ZONAS.carcel, 1)) { enviar("libera", { quien: b.id }); liberar(b.id); }
   }
   let o = b.objetivo; if (!o || (b.aturdido && Date.now() < b.aturdido)) return;
   // Si no hay línea recta libre, sigue un camino calculado por las calles (A* sobre una grilla de 2 m)
@@ -2262,6 +2267,10 @@ function empezar(finTs) {
   equiparArma(ARMADO(clase) ? "fusil" : "ninguna"); recargando = 0; granadas = clase === "halcon" ? 3 : 0; nocturna(false);
   document.body.classList.toggle("swat", clase === "swat"); document.body.classList.toggle("halcon", clase === "halcon"); document.body.classList.toggle("ladron", equipo === "ladron");
   yaw = equipo === "poli" ? Math.PI * .75 : -Math.PI * .75; pitch = 0;
+  if (online && soyHost) {
+    // Ladrones NPC en el online: los crea y los maneja el anfitrión, y manda su posición como si fueran jugadores
+    for (let i = 0; i < ladronesNPC; i++) { const id = "npc" + i + "-" + miId, nom = `Ladrón NPC ${i + 1}`; jug[id] = nuevoJug(id, nom, "ladron", true, "ladron"); jug[id].mesh = crearMuneco("ladron", nom, "ladron"); }
+  }
   if (!online) {
     const n = equipo === "poli" ? [["ladron", "Ladrón Bot 1"], ["ladron", "Ladrón Bot 2"], ["ladron", "Ladrón Bot 3"], ["poli", "Poli Bot"]]
                                : [["poli", "Poli Bot"], ["swat", "SWAT Bot"], ["halcon", "Halcón Bot"], ["ladron", "Ladrón Bot"]];
@@ -2286,7 +2295,7 @@ function terminar(gana) {
   DB.guardarPartida("policias", gane, (Date.now() - inicioT) / 1000, equipo === "poli" ? yo.atrapados * 100 : yo.robado / 10);
 }
 
-let ult = performance.now(), ultPos = 0;
+let ult = performance.now(), ultPos = 0, ultPosNPC = 0;
 // Textos de la pantalla: solo se tocan si cambian (escribir el DOM en cada cuadro traba en celulares)
 for (const id of ["pista", "reloj", "rol", "botin", "equipos", "velocimetro", "linterna-txt", "municion", "granadas", "disturbio", "caravana", "poli-extras", "radar", "b-accion"]) {
   const el = $(id); if (!el) continue;
@@ -2432,6 +2441,8 @@ function loop(t) {
     $("equipos").innerHTML = `👮 ${Object.values(jug).filter(s => s.equipo === "poli").length} polis<br>🦹 ${L.filter(s => !s.preso).length} libres · ⛓️ ${L.filter(s => s.preso).length} presos`;
     $("b-accion").textContent = yo.equipo === "poli" ? "🚔" : "🔓";
     if (quedan <= 0 && (soyHost || !online)) { const g = botin >= META ? "ladron" : "poli"; enviar("fin", { gana: g }); terminar(g); }
+    if (online && soyHost && t - ultPosNPC > 110) { ultPosNPC = t;
+      for (const b of Object.values(jug)) if (b.bot) enviar("pos", { id: b.id, nombre: b.nombre, equipo: "ladron", clase: "ladron", res: Math.round(b.res), x: +b.x.toFixed(2), z: +b.z.toFixed(2), rot: +((b.rot || 0) - Math.PI).toFixed(2), preso: b.preso, bolsa: b.bolsa, paq: !!b.paquete, auto: null }); }
     if (online && t - ultPos > 80) { ultPos = t; enviar("pos", { id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, uni: yo.uni, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, bolsa: yo.bolsa, paq: !!yo.paquete,
       auto: miAuto ? miAuto.i : null, ah: miAuto ? +miAuto.h.toFixed(2) : 0, av: miAuto ? +miAuto.vel.toFixed(1) : 0, sir: miAuto ? miAuto.sirena : false, sp: miAuto ? (miAuto.patron || "alterno") : "" }); }
   } else { yaw += dt * .1; }
@@ -2598,7 +2609,8 @@ document.querySelectorAll("#modo-imagen [data-img]").forEach(b => { b.classList.
   b.onclick = () => { modoImagen = b.dataset.img; try { localStorage.setItem("polis-imagen", modoImagen); } catch (e) {}
     calidad = modoImagen === "rapida" ? 1 : RES_MAX; renderer.setPixelRatio(calidad);
     document.querySelectorAll("#modo-imagen [data-img]").forEach(x => x.classList.toggle("on", x === b)); }; });
-let cantBots = 6;
+let cantBots = 6, ladronesNPC = 4;
+document.querySelectorAll("#npc-sala [data-n]").forEach(b => b.onclick = () => { ladronesNPC = +b.dataset.n; document.querySelectorAll("#npc-sala [data-n]").forEach(x => x.classList.toggle("on", x === b)); });
 document.querySelectorAll("#cant-bots [data-b]").forEach(b => b.onclick = () => { cantBots = +b.dataset.b; document.querySelectorAll("#cant-bots [data-b]").forEach(x => x.classList.toggle("on", x === b)); });
 let rondaEspera = 0, tiempoPractica = 0, libre = false, rondas = { poli: 0, ladron: 0 };   // 0 = práctica sin límite
 document.querySelectorAll("#tiempos [data-t]").forEach(b => b.onclick = () => { tiempoPractica = +b.dataset.t; document.querySelectorAll("#tiempos [data-t]").forEach(x => x.classList.toggle("on", x === b)); });
