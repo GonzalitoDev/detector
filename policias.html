@@ -178,7 +178,7 @@ const META = 10000, DURACION = 240, ATRAPA = 2.2, RADIO = 0.45;
 
 // ================== CIUDAD ==================
 // Cuadrícula de manzanas: edificios en las celdas, calles entre medio
-const CIUDAD = { tam: 120, cuadra: 16, calle: 8 };
+const CIUDAD = { tam: 168, cuadra: 16, calle: 8 };
 const edificios = [];   // { x1, z1, x2, z2, h }
 const ZONAS = { banco: { x: 0, z: -40, r: 6 }, guarida: { x: 44, z: 44, r: 5 }, carcel: { x: -44, z: 44, r: 5 },
                 narco: { x: 44, z: -44, r: 6 }, muelle: { x: -46, z: -44, r: 5 } };
@@ -231,8 +231,8 @@ renderer.setPixelRatio(Math.min(2, devicePixelRatio)); renderer.setSize(innerWid
 renderer.shadowMap.enabled = false;
 document.body.prepend(renderer.domElement);
 const escena = new THREE.Scene();
-escena.background = new THREE.Color(0x0d1630); escena.fog = new THREE.Fog(0x0d1630, 20, 85);
-const camara = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 200);
+escena.background = new THREE.Color(0x0d1630); escena.fog = new THREE.Fog(0x0d1630, 22, 115);
+const camara = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 320);
 addEventListener("resize", () => { renderer.setSize(innerWidth, innerHeight); camara.aspect = innerWidth / innerHeight; camara.updateProjectionMatrix(); });
 escena.add(new THREE.HemisphereLight(0x9fb8ff, 0x202030, 0.9));
 const sol = new THREE.DirectionalLight(0xffe2b0, 0.6); sol.position.set(30, 60, 20); escena.add(sol);
@@ -242,7 +242,7 @@ function textura(dibujo, w = 128, h = 128) { const c = document.createElement("c
 // Piso: asfalto con líneas
 const piso = new THREE.Mesh(new THREE.PlaneGeometry(CIUDAD.tam, CIUDAD.tam),
   new THREE.MeshLambertMaterial({ map: (() => { const t = textura((g, w, h) => { g.fillStyle = "#2b2d33"; g.fillRect(0, 0, w, h); g.fillStyle = "#3a3d44";
-    for (let i = 0; i < 300; i++) g.fillRect(Math.random() * w, Math.random() * h, 2, 2); g.fillStyle = "#c9b45a"; g.fillRect(w/2 - 2, 0, 4, h * .4); }); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(30, 30); return t; })() }));
+    for (let i = 0; i < 300; i++) g.fillRect(Math.random() * w, Math.random() * h, 2, 2); g.fillStyle = "#c9b45a"; g.fillRect(w/2 - 2, 0, 4, h * .4); }); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(42, 42); return t; })() }));
 piso.rotation.x = -Math.PI / 2; escena.add(piso);
 // Edificios con ventanas
 // Ventanas: una textura para el color y otra para las que tienen la luz prendida (brillan en la noche)
@@ -260,6 +260,81 @@ for (const e of edificios) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, e.h, d), new THREE.MeshLambertMaterial({ map: t, emissiveMap: te, emissive: 0xffffff, emissiveIntensity: 1,
     color: coloresEd[(Math.abs(e.x1 * 7 + e.z1 * 3) | 0) % coloresEd.length] }));
   m.position.set((e.x1 + e.x2) / 2, e.h / 2, (e.z1 + e.z2) / 2); escena.add(m);
+}
+// ================== MEJORAS DE LA CIUDAD ==================
+// Veredas, sendas peatonales, farolas, plazoletas con árboles, detalles en las terrazas y edificios lejanos en el horizonte.
+// Todo con semilla fija para que en el online todos vean (y choquen con) lo mismo.
+{
+  let sem = 31; const az = () => (sem = (sem * 9301 + 49297) % 233280) / 233280;
+  const paso = CIUDAD.cuadra + CIUDAD.calle, mitad = CIUDAD.tam / 2, Q = CIUDAD.cuadra;
+  const libreDeZonas = (cx, cz, r) => !Object.values(ZONAS).some(Z => Math.hypot(Z.x - cx, Z.z - cz) < r);
+  const tocaReservado = (x1, z1, x2, z2) => RESERVADOS.some(R => x1 < R.x2 + 1 && x2 > R.x1 - 1 && z1 < R.z2 + 1 && z2 > R.z1 - 1);
+  const hayEdificio = (x1, z1, x2, z2) => edificios.some(e => e.x1 < x2 && e.x2 > x1 && e.z1 < z2 && e.z2 > z1);
+  const manzanas = [];
+  for (let x = -mitad + CIUDAD.calle; x + Q <= mitad; x += paso) for (let z = -mitad + CIUDAD.calle; z + Q <= mitad; z += paso) manzanas.push({ x, z });
+  const instancias = (geo, mat, lista) => { const m = new THREE.InstancedMesh(geo, mat, Math.max(1, lista.length)), o = new THREE.Object3D();
+    lista.forEach((f, i) => { o.position.set(f[0], f[1], f[2]); o.rotation.set(0, f[3] || 0, 0); o.scale.set(f[4] || 1, f[5] || 1, f[6] || 1); o.updateMatrix(); m.setMatrixAt(i, o.matrix); });
+    m.count = lista.length; escena.add(m); return m; };
+  // Veredas (cordón un poco más alto) y pasto en los lugares sin edificios
+  const veredas = [], pasto = [], troncos = [], copas = [], bancos = [];
+  for (const { x, z } of manzanas) {
+    const cx = x + Q / 2, cz = z + Q / 2;
+    if (!libreDeZonas(cx, cz, 13) || tocaReservado(x, z, x + Q, z + Q)) continue;
+    veredas.push([cx, .07, cz]);
+    for (const [dx, dz] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+      const x1 = x + dx * Q / 2 + 1, z1 = z + dz * Q / 2 + 1, x2 = x1 + Q / 2 - 2, z2 = z1 + Q / 2 - 2;
+      if (hayEdificio(x1, z1, x2, z2)) continue;
+      pasto.push([(x1 + x2) / 2, .15, (z1 + z2) / 2]);
+      const n = 1 + Math.floor(az() * 2);
+      for (let k = 0; k < n; k++) { const tx = x1 + 1 + az() * (x2 - x1 - 2), tz = z1 + 1 + az() * (z2 - z1 - 2), h = 2.2 + az() * 1.4;
+        troncos.push([tx, h / 2 + .14, tz, 0, 1, h, 1]); copas.push([tx, h + .9, tz, az() * 6, 1 + az() * .5, 1 + az() * .4, 1 + az() * .5]);
+        edificios.push({ x1: tx - .3, x2: tx + .3, z1: tz - .3, z2: tz + .3, h: 0, arbol: true }); }
+      if (az() < .6) bancos.push([(x1 + x2) / 2, .45, z2 - .4]);
+    }
+  }
+  instancias(new THREE.BoxGeometry(Q, .14, Q), new THREE.MeshLambertMaterial({ color: 0x6d6f78 }), veredas);
+  instancias(new THREE.BoxGeometry(Q / 2 - 2, .04, Q / 2 - 2), new THREE.MeshLambertMaterial({ color: 0x2f6a2a }), pasto);
+  instancias(new THREE.CylinderGeometry(.14, .2, 1, 7), new THREE.MeshLambertMaterial({ color: 0x5a3c22 }), troncos);
+  instancias(new THREE.IcosahedronGeometry(1.1, 0), new THREE.MeshLambertMaterial({ color: 0x2f7d32, flatShading: true }), copas);
+  instancias(new THREE.BoxGeometry(1.6, .12, .5), new THREE.MeshLambertMaterial({ color: 0x7a5230 }), bancos);
+  // Cruces de calles: sendas peatonales y farolas
+  const cruces = []; for (let c = -mitad + CIUDAD.calle / 2; c < mitad; c += paso) cruces.push(c);
+  const rayas = [], postes = [], brazos = [], focos = [], charcos = [];
+  for (const cx of cruces) for (const cz of cruces) {
+    if (tocaReservado(cx - 4, cz - 4, cx + 4, cz + 4)) continue;
+    for (let k = -3; k <= 3; k += 1.2) { rayas.push([cx + k, .025, cz - 5.2, 0, .5, 1, 1.6]); rayas.push([cx + k, .025, cz + 5.2, 0, .5, 1, 1.6]);
+      rayas.push([cx - 5.2, .025, cz + k, Math.PI / 2, .5, 1, 1.6]); rayas.push([cx + 5.2, .025, cz + k, Math.PI / 2, .5, 1, 1.6]); }
+    const fx = cx + 4.6, fz = cz + 4.6;
+    postes.push([fx, 2.6, fz]); brazos.push([fx - .6, 5.15, fz - .6, Math.PI / 4]); focos.push([fx - 1.2, 5.05, fz - 1.2]); charcos.push([fx - 1.2, .03, fz - 1.2]);
+  }
+  instancias(new THREE.BoxGeometry(1, .02, 1), new THREE.MeshBasicMaterial({ color: 0xd8d8d8 }), rayas);
+  instancias(new THREE.CylinderGeometry(.08, .12, 5.2, 6), new THREE.MeshLambertMaterial({ color: 0x2a2d33 }), postes);
+  instancias(new THREE.BoxGeometry(.08, .08, 1.8), new THREE.MeshLambertMaterial({ color: 0x2a2d33 }), brazos);
+  instancias(new THREE.BoxGeometry(.5, .14, .3), new THREE.MeshBasicMaterial({ color: 0xffe4a0 }), focos);
+  // Charco de luz debajo de cada farola (sin luces reales, para que ande liviano)
+  const texCharco = textura((g, w, h) => { const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); gr.addColorStop(0, "rgba(255,220,150,.55)"); gr.addColorStop(1, "rgba(255,220,150,0)"); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
+  const ch = instancias(new THREE.PlaneGeometry(9, 9).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: texCharco, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), charcos);
+  ch.renderOrder = 1;
+  for (const p of postes) edificios.push({ x1: p[0] - .15, x2: p[0] + .15, z1: p[2] - .15, z2: p[2] + .15, h: 0, arbol: true });
+  // Terrazas: tanques de agua, aires acondicionados y antenas
+  const tanques = [], aires = [], antenas = [];
+  for (const e of edificios) { if (e.arbol || e.h < 7) continue;
+    const cx = (e.x1 + e.x2) / 2, cz = (e.z1 + e.z2) / 2, w = e.x2 - e.x1, d = e.z2 - e.z1;
+    tanques.push([cx + (az() - .5) * w * .5, e.h + .6, cz + (az() - .5) * d * .5]);
+    for (let k = 0; k < 2; k++) aires.push([e.x1 + 1 + az() * (w - 2), e.h + .3, e.z1 + 1 + az() * (d - 2), az() * 3]);
+    if (az() < .35) antenas.push([cx, e.h + 2, cz]); }
+  instancias(new THREE.CylinderGeometry(.7, .7, 1.2, 10), new THREE.MeshLambertMaterial({ color: 0x9aa0a8 }), tanques);
+  instancias(new THREE.BoxGeometry(1, .6, .8), new THREE.MeshLambertMaterial({ color: 0xc8ccd0 }), aires);
+  instancias(new THREE.CylinderGeometry(.03, .05, 4, 4), new THREE.MeshBasicMaterial({ color: 0xff3030 }), antenas);
+  // Paredón del borde y edificios lejanos (no se puede llegar)
+  const borde = [];
+  for (const [x, z, ry] of [[0, -mitad - .3, 0], [0, mitad + .3, 0], [-mitad - .3, 0, Math.PI / 2], [mitad + .3, 0, Math.PI / 2]]) borde.push([x, 1.2, z, ry]);
+  instancias(new THREE.BoxGeometry(CIUDAD.tam + 1, 2.4, .6), new THREE.MeshLambertMaterial({ color: 0x4a4d55 }), borde);
+  const lejos = [];
+  for (let i = 0; i < 70; i++) { const a = i / 70 * Math.PI * 2 + az() * .05, r = mitad + 14 + az() * 30, h = 15 + az() * 45, w = 6 + az() * 8;
+    lejos.push([Math.cos(a) * r, h / 2, Math.sin(a) * r, -a, w, h, w]); }
+  const tl = texVentanas.clone(), tle = texLuces.clone(); tl.needsUpdate = tle.needsUpdate = true; tl.repeat.set(2, 8); tle.repeat.set(2, 8);
+  instancias(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0x5a6070, map: tl, emissiveMap: tle, emissive: 0xffffff, emissiveIntensity: .8 }), lejos);
 }
 // Zonas especiales: banco, guarida, cárcel
 function cartel(texto, color) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: textura((g, w, h) => { g.fillStyle = color; g.beginPath(); g.roundRect(4, 4, w - 8, h - 8, 20); g.fill();
@@ -639,7 +714,7 @@ function finDisturbio(ok) {
 }
 // Esquinas de la ciudad (cruces de calles), lejos de las zonas importantes
 function esquinaDisturbio() {
-  const xs = [-56, -32, -8, 16, 40], op = [];
+  const xs = [-80, -56, -32, -8, 16, 40, 64], op = [];
   for (const x of xs) for (const z of xs) if (!Object.values(ZONAS).some(Z => Math.hypot(Z.x - x, Z.z - z) < 14) && Math.hypot(x - DEPTO.cx, z - DEPTO.cz) > 16) op.push({ x, z });
   return op[Math.floor(Math.random() * op.length)];
 }
