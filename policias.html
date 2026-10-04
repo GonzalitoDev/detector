@@ -1018,6 +1018,34 @@ const autos = (() => {
 })();
 function resetAutos() { for (const a of autos) Object.assign(a, { x: a.x0, z: a.z0, tx: a.x0, tz: a.z0, h: a.h0, th: a.h0, vel: 0, conductor: null, sirena: true, balizas: false }); }
 let miAuto = null, sirenaT = 0, sirenaAlt = false, mirarAuto = 0;
+// ================== CABINA (primera persona): volante, tablero, velocímetro y espejo ==================
+const cabina = new THREE.Group(); cabina.visible = false;
+{ const negro = new THREE.MeshLambertMaterial({ color: 0x141414 }), gris = new THREE.MeshLambertMaterial({ color: 0x2a2d33 });
+  const volante = new THREE.Group(); cabina.add(volante); cabina.userData.volante = volante;
+  const aro = new THREE.Mesh(new THREE.TorusGeometry(.19, .022, 8, 28), negro); volante.add(aro);
+  const centro = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, .04, 14), gris); centro.rotation.x = Math.PI / 2; volante.add(centro);
+  const logo = new THREE.Mesh(new THREE.CircleGeometry(.03, 12), new THREE.MeshBasicMaterial({ color: 0x5ec8f2 })); logo.position.z = -.022; logo.rotation.y = Math.PI; volante.add(logo);
+  for (const a of [Math.PI / 2, Math.PI * 7 / 6, -Math.PI / 6]) { const ry = new THREE.Mesh(new THREE.BoxGeometry(.19, .025, .015), negro); ry.position.set(Math.cos(a) * .095, Math.sin(a) * .095, 0); ry.rotation.z = a; volante.add(ry); }
+  const columna = new THREE.Mesh(new THREE.CylinderGeometry(.03, .04, .3, 8), negro); columna.rotation.x = Math.PI / 2 - .35; columna.position.set(0, -.04, .16); volante.add(columna);
+  const tablero = new THREE.Mesh(new THREE.BoxGeometry(1.9, .28, .5), gris); cabina.add(tablero); cabina.userData.tablero = tablero;
+  const visera = new THREE.Mesh(new THREE.BoxGeometry(.5, .08, .22), negro); cabina.add(visera); cabina.userData.visera = visera;
+  // Velocímetro: dial que brilla y aguja que se mueve con la velocidad
+  const dial = new THREE.Mesh(new THREE.CircleGeometry(.08, 24), new THREE.MeshBasicMaterial({ color: 0x0a2438 })); dial.rotation.y = Math.PI; cabina.add(dial); cabina.userData.dial = dial;
+  const borde = new THREE.Mesh(new THREE.RingGeometry(.075, .085, 24), new THREE.MeshBasicMaterial({ color: 0x5ec8f2 })); borde.rotation.y = Math.PI; dial.add(borde); borde.position.z = .001;
+  const aguja = new THREE.Mesh(new THREE.BoxGeometry(.006, .065, .004), new THREE.MeshBasicMaterial({ color: 0xff4040 })); aguja.geometry.translate(0, .03, 0); aguja.position.z = -.003; dial.add(aguja); cabina.userData.aguja = aguja;
+  // Pantallita de la radio con luz celeste y botones de sirena
+  const radio = new THREE.Mesh(new THREE.PlaneGeometry(.22, .1), new THREE.MeshBasicMaterial({ color: 0x1d6a9a })); radio.rotation.y = Math.PI; cabina.add(radio); cabina.userData.radio = radio;
+  const sir = new THREE.Mesh(new THREE.PlaneGeometry(.16, .05), new THREE.MeshBasicMaterial({ color: 0xff3030 })); sir.rotation.y = Math.PI; cabina.add(sir); cabina.userData.sir = sir;
+  const espejo = new THREE.Mesh(new THREE.BoxGeometry(.32, .09, .03), negro); cabina.add(espejo); cabina.userData.espejo = espejo;
+  const vidrioE = new THREE.Mesh(new THREE.PlaneGeometry(.29, .07), new THREE.MeshBasicMaterial({ color: 0x3a4a5a })); vidrioE.rotation.y = Math.PI; vidrioE.position.z = -.016; espejo.add(vidrioE); }
+function ponerCabina(a) {
+  if (!a || a.tipo === "moto") { if (cabina.parent) cabina.parent.remove(cabina); cabina.visible = false; return; }
+  const y = a.tipo === "camioneta" ? 1.95 : 1.35, U = cabina.userData;
+  a.mesh.add(cabina); cabina.visible = true;
+  cabina.userData.volante.position.set(-.4, y - .4, .72); cabina.userData.volante.rotation.set(-.4, Math.PI, 0); cabina.userData.volante.scale.setScalar(.85);
+  U.tablero.position.set(0, y - .6, 1.0); U.visera.visible = false;
+  U.dial.position.set(-.12, y - .44, .74); U.radio.position.set(.15, y - .4, .66); U.sir.position.set(.15, y - .48, .66); U.espejo.position.set(0, y + .22, .95);
+}
 function subirAuto(a) { setTimeout(pintarPanel, 0);
   if (a.conductor || yo.equipo !== "poli" || yo.preso) return;
   if (a.tipo === "camioneta" && !ARMADO(yo.clase)) { grande("🚙 Solo para SWAT y Grupo Halcón", "#f2c200"); return; }
@@ -1353,9 +1381,15 @@ function conectar(cod, host) {
   canal = SB.channel("polis-" + cod, { config: { broadcast: { self: false }, presence: { key: miId } } });
   Voz.preparar(canal, miId); Voz.nombre = id => jug[id]?.nombre;
   canal.on("presence", { event: "sync" }, () => {
-      $("jugadores").innerHTML = Object.values(canal.presenceState()).map(v => v[0]).map(p => `${ICONO(p.clase || p.equipo)} ${esc(p.nombre)}${p.host ? " 👑" : ""}`).join("<br>");
+      const est = canal.presenceState();
+      $("jugadores").innerHTML = Object.values(est).map(v => v[0]).map(p => `${ICONO(p.clase || p.equipo)} ${esc(p.nombre)}${p.host ? " 👑" : ""}`).join("<br>");
+      // Si el creador se fue, el que tenga el id más chico pasa a ser el anfitrión (maneja reloj, disturbios y caravana)
+      const hayHost = Object.values(est).some(v => v[0]?.host) ;
+      if (!soyHost && !hayHost && Object.keys(est).sort()[0] === miId) { soyHost = true; feed("👑 El creador se fue: ahora vos manejás la partida");
+        if (!jugando) { $("arrancar").classList.remove("oculto"); $("espera").textContent = "Ahora sos el anfitrión: tocá Empezar."; } }
     })
-    .on("broadcast", { event: "empieza" }, ({ payload }) => { if (!soyHost) empezar(payload.fin); })
+    .on("presence", { event: "join" }, () => { if (soyHost && jugando) enviar("empieza", { fin, botin, tarde: true }); })   // el que entra tarde arranca en la partida en curso
+    .on("broadcast", { event: "empieza" }, ({ payload }) => { if (!soyHost && !jugando) { empezar(payload.fin); if (payload.botin) botin = +payload.botin || 0; } })
     .on("broadcast", { event: "pos" }, ({ payload: p }) => recibirPos(p))
     .on("broadcast", { event: "disparo" }, ({ payload: p }) => verDisparo(p))
     .on("broadcast", { event: "dano" }, ({ payload: p }) => recibirDano(p.ladron, p.de, p.dmg, Math.min(4000, +p.at || 0)))
@@ -1388,7 +1422,9 @@ function recibirPos(p) {
   let s = jug[p.id];
   if (!s) { if (!jugando) return; s = jug[p.id] = nuevoJug(p.id, p.nombre, p.equipo, false, p.clase); s.div = p.div || "patrulla"; s.uni = p.uni || "azul"; s.mesh = crearMuneco(p.equipo, p.nombre, p.clase, s.div, s.uni); feed(`👋 Entró ${p.nombre}`); }
   if ((p.div && p.div !== s.div) || (p.uni && p.uni !== s.uni)) { s.div = p.div || s.div; s.uni = p.uni || s.uni; escena.remove(s.mesh); s.mesh = crearMuneco(s.equipo, s.nombre, s.clase, s.div, s.uni); }
-  s.tx = p.x; s.tz = p.z; s.rot = p.rot + Math.PI;   // la cámara mira hacia -z y el muñeco hacia +z if (p.res !== undefined) s.res = p.res; s.preso = p.preso; s.bolsa = p.bolsa; s.paquete = !!p.paq; s.visto = Date.now(); s.auto = p.auto ?? null;
+  s.tx = p.x; s.tz = p.z; s.rot = p.rot + Math.PI;   // la cámara mira hacia -z y el muñeco hacia +z
+  // (antes esta parte había quedado adentro del comentario: no se actualizaba preso/bolsa/auto y los jugadores "se iban" a los 8 s)
+  if (p.res !== undefined) s.res = p.res; s.preso = !!p.preso; s.bolsa = !!p.bolsa; s.paquete = !!p.paq; s.visto = Date.now(); s.auto = p.auto ?? null;
   if (s.auto !== null && autos[s.auto] && autos[s.auto] !== miAuto) { const a = autos[s.auto]; a.conductor = p.id; a.tx = p.x; a.tz = p.z; a.th = p.ah; a.sirena = p.sir; a.patron = p.sp || "alterno"; a.vel = p.av; }
 }
 
@@ -2185,6 +2221,7 @@ function loop(t) {
     { const v = Math.hypot(yo.x - (yo._px ?? yo.x), yo.z - (yo._pz ?? yo.z)) * 60; yo._px = yo.x; yo._pz = yo.z; animarMuneco(yo.mesh, v, t); }
     yo.mesh.position.set(yo.x, 0, yo.z); yo.mesh.rotation.y = yaw + Math.PI; yo.mesh.userData.bolsa.visible = yo.bolsa || !!yo.paquete;
   }
+  if (cabina.visible && (!miAuto || modoCam !== 0)) ponerCabina(null);
   if (jugando && yo && modoCam !== 0) {
     // 3ª persona: detrás y arriba · Aérea: desde arriba
     const cx = miAuto ? miAuto.x : yo.x, cz = miAuto ? miAuto.z : yo.z;
@@ -2202,6 +2239,9 @@ function loop(t) {
     if (Math.abs(miAuto.vel) > 1) mirarAuto = mirarAuto * Math.pow(.05, dt);   // al andar, la vista vuelve al frente
     camara.position.set(miAuto.x + Math.sin(miAuto.h) * .2 - (miAuto.tipo === "moto" ? 0 : Math.cos(miAuto.h) * .4), miAuto.tipo === "camioneta" ? 1.95 : miAuto.tipo === "moto" ? 1.55 : 1.35, miAuto.z + Math.cos(miAuto.h) * .2 + (miAuto.tipo === "moto" ? 0 : Math.sin(miAuto.h) * .4));
     camara.rotation.order = "YXZ"; camara.rotation.y = miAuto.h + Math.PI + mirarAuto; camara.rotation.x = pitch * .5 - .04;
+    if (cabina.parent !== miAuto.mesh) ponerCabina(miAuto);
+    if (cabina.visible) { const U = cabina.userData; U.volante.rotation.z += (-(miAuto.giro || 0) * 1.6 - U.volante.rotation.z) * Math.min(1, dt * 8);
+      U.aguja.rotation.z = 2.2 - Math.min(1, Math.abs(miAuto.vel) / 30) * 4.4; U.sir.visible = !!miAuto.sirena && Math.floor(t / 300) % 2 === 0; }
     renderer.render(escena, camara); return;
   }
   camara.position.set(yo ? yo.x : 0, yo ? (yo.preso ? 1.4 : 1.65 + (jugando && (teclas.KeyW || joy.y) ? Math.sin(t / 110) * .04 : 0)) : 20, yo ? yo.z : 40);
