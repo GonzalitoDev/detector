@@ -2003,6 +2003,7 @@ function pensarBot(b, dt) {
     if (b.preso) return;
     if (!CAR.activa) b.asalta = undefined;
     const presos = Object.values(jug).some(s => s.equipo === "ladron" && s.preso);
+    if (!presos) b.rescata = undefined;
     const poliCerca = Object.values(jug).find(o => o.equipo === "poli" && Math.hypot(o.x - b.x, o.z - b.z) < 7);
     // Con botín, solo huye si el policía está encima; si no, sigue camino al aguantadero (que ahora está lejos)
     if (poliCerca && !((b.bolsa || b.paquete) && Math.hypot(poliCerca.x - b.x, poliCerca.z - b.z) > 3.5)) b.objetivo = { x: b.x + (b.x - poliCerca.x) * 3, z: b.z + (b.z - poliCerca.z) * 3 };
@@ -2010,7 +2011,7 @@ function pensarBot(b, dt) {
     else if (b.bolsa) b.objetivo = ZONAS.guarida;
     else if (CAR.activa && (b.asalta ??= Math.random() < .35)) b.objetivo = { x: CAR.x, z: CAR.z };
     else if (b.narco === undefined ? (b.narco = Math.random() < .5) : b.narco) b.objetivo = { x: 45, z: -45.5 };
-    else if (presos && Math.random() < .5) b.objetivo = ZONAS.carcel;
+    else if (presos && (b.rescata ??= Math.random() < .5)) b.objetivo = ZONAS.carcel;   // decide una vez (antes cambiaba de idea en cada cuadro y temblaba en el lugar)
     else b.objetivo = ZONAS.banco;
     if (b.bolsa && dentro(b, ZONAS.guarida)) entregar(b.id);
     if (b.paquete && dentro(b, ZONAS.muelle)) { entregarPaquete(b.id); b.narco = Math.random() < .5; }
@@ -2019,25 +2020,72 @@ function pensarBot(b, dt) {
     if (presos && dentro(b, ZONAS.carcel, 1)) liberar(b.id);
   }
   let o = b.objetivo; if (!o || (b.aturdido && Date.now() < b.aturdido)) return;
-  // Para entrar o salir de un edificio, primero pasa por la puerta
-  const adentro = (p, R) => p.x > R.x1 && p.x < R.x2 && p.z > R.z1 && p.z < R.z2;
-  const D = { x1: DEPTO.x1, x2: DEPTO.x2, z1: DEPTO.z1, z2: DEPTO.z2 }, N = { x1: CASA.x1, x2: CASA.x2, z1: CASA.z1, z2: CASA.z2 };
-  if (adentro(b, D) !== adentro(o, D)) o = adentro(b, D) ? (b.z > DEPTO.z2 - 1.2 ? { x: DEPTO.px, z: DEPTO.z2 + 2.5 } : { x: DEPTO.px, z: DEPTO.z2 - .4 })
-                                                      : (Math.abs(b.x - DEPTO.px) < 1 && b.z > DEPTO.z2 - .5 ? { x: DEPTO.px, z: DEPTO.cz } : { x: DEPTO.px, z: DEPTO.z2 + 2 });
-  else if (adentro(b, N) !== adentro(o, N)) o = adentro(b, N) ? (b.x < CASA.x1 + 1.2 ? { x: 36.5, z: -44 } : { x: CASA.x1 + .4, z: -44 }) : (Math.abs(b.z + 44) < 1 && b.x < CASA.x1 + .5 ? { x: 44, z: -44.5 } : { x: 37, z: -44 });
-  // Puerto: para entrar o salir hay que pasar por el portón del paredón oeste
-  { const enA = p => p.z > CIUDAD.tam / 2, gx = (AGU.puerta1 + AGU.puerta2) / 2, m = CIUDAD.tam / 2;   // aguantadero: por el portón sur
-    if (enA(b) !== enA(o)) { const w = { x: gx, z: enA(b) ? m + 3 : m - 3 }; if (Math.hypot(b.x - w.x, b.z - w.z) > 1.2 && !(Math.abs(b.x - gx) < 1.5 && Math.abs(b.z - m) < 3)) o = w; } }
-  { const enP = p => p.x < -CIUDAD.tam / 2, gz = (PUERTO.puerta1 + PUERTO.puerta2) / 2;
-    if (enP(b) !== enP(o)) { const w = { x: enP(b) ? -CIUDAD.tam / 2 - 3 : -CIUDAD.tam / 2 + 3, z: gz }; if (Math.hypot(b.x - w.x, b.z - w.z) > 1.2 && !(Math.abs(b.z - gz) < 1.5 && Math.abs(b.x + CIUDAD.tam / 2) < 3)) o = w; } }
+  // Si no hay línea recta libre, sigue un camino calculado por las calles (A* sobre una grilla de 2 m)
+  if (!lineaLibre(b, o, .5, b.equipo)) {
+    const ahora = Date.now();
+    if (!b.ruta || !b.rutaObj || Math.hypot(b.rutaObj.x - o.x, b.rutaObj.z - o.z) > 4 || ahora > b.rutaT) {
+      b.ruta = buscarCamino(b, o); b.rutaObj = { x: o.x, z: o.z }; b.rutaT = ahora + 2500 + Math.random() * 1000; }
+    while (b.ruta && b.ruta.length > 1 && Math.hypot(b.ruta[0].x - b.x, b.ruta[0].z - b.z) < .9) b.ruta.shift();
+    if (b.ruta && b.ruta.length) o = b.ruta[0];
+  } else b.ruta = null;
   // Camina hacia el objetivo esquivando edificios con un pequeño desvío
   b.desvio = (b.desvio || 0) - dt;
   let dx = o.x - b.x, dz = o.z - b.z;
   if (b.desvio > 0) { const t = dx; dx = -dz * b.lado; dz = t * b.lado; }
   const antes = { x: b.x, z: b.z };
   mover(b, dx, dz, (b.equipo === "poli" ? 6.2 : 6) * (b.equipo === "poli" ? AJUSTES.mult : 1 / AJUSTES.mult * .95 + .05), dt);
-  if (Math.hypot(b.x - antes.x, b.z - antes.z) < .01 && b.desvio <= 0) { b.desvio = .8; b.lado = Math.random() < .5 ? 1 : -1; }
+  if (Math.hypot(b.x - antes.x, b.z - antes.z) < .01) { if (b.ruta) b.rutaT = 0; else if (b.desvio <= 0) { b.desvio = .8; b.lado = Math.random() < .5 ? 1 : -1; } }   // trabado: recalcula el camino
   b.rot = Math.atan2(dx, dz);
+}
+
+// ================== NAVEGACIÓN DE LOS BOTS ==================
+// Grilla de 2 m de toda la zona jugable (ciudad, aeropuerto, puerto y aguantadero). Se marca qué celdas son caminables
+// y los bots buscan el camino con A*; así no se quedan trabados contra los edificios.
+const NAV = { c: 2, x0: -151, z0: -85, W: 164, H: 114, libre: null };   // centros de celda en coordenadas pares: coinciden con el medio de las puertas
+function prepararNav() {
+  const N = NAV; N.libre = new Uint8Array(N.W * N.H); N.paso = new Uint8Array(N.W * N.H * 8);   // paso: 0 sin calcular, 1 se puede, 2 hay pared fina en el medio
+  for (let j = 0; j < N.H; j++) for (let i = 0; i < N.W; i++) N.libre[j * N.W + i] = choca(N.x0 + (i + .5) * N.c, N.z0 + (j + .5) * N.c, .6, "ladron") ? 0 : 1;   // la puerta de la casa narco cuenta como paso
+}
+function lineaLibre(a, b, r = .5, eq = null) {
+  const d = Math.hypot(b.x - a.x, b.z - a.z), n = Math.ceil(d / .4);
+  for (let k = 1; k <= n; k++) { const f = k / n; if (choca(a.x + (b.x - a.x) * f, a.z + (b.z - a.z) * f, r, eq)) return false; }
+  return true;
+}
+function buscarCamino(desde, hasta) {
+  const N = NAV; if (!N.libre) prepararNav();
+  const celda = p => [Math.max(0, Math.min(N.W - 1, Math.floor((p.x - N.x0) / N.c))), Math.max(0, Math.min(N.H - 1, Math.floor((p.z - N.z0) / N.c)))];
+  // Celda libre más cercana a la que se pueda llegar en línea recta (para no "arrancar" del otro lado de una pared)
+  const libreMasCerca = ([i, j], p) => { let mejor = -1, dm = 1e9;
+    for (let r = 0; r < 6 && mejor < 0; r++) for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) { if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue;
+      const a = i + di, b = j + dj; if (a < 0 || b < 0 || a >= N.W || b >= N.H || !N.libre[b * N.W + a]) continue;
+      const c = { x: N.x0 + (a + .5) * N.c, z: N.z0 + (b + .5) * N.c }, d = Math.hypot(c.x - p.x, c.z - p.z);
+      if (d < dm && lineaLibre(p, c, .4, "ladron")) { dm = d; mejor = b * N.W + a; } }
+    return mejor; };
+  const ini = libreMasCerca(celda(desde), desde), fin = libreMasCerca(celda(hasta), hasta); if (ini < 0 || fin < 0) return null;
+  const fx = fin % N.W, fz = (fin / N.W) | 0, g = new Float32Array(N.W * N.H).fill(1e9), de = new Int32Array(N.W * N.H).fill(-1), cerrado = new Uint8Array(N.W * N.H);
+  const heap = []; const push = (k, f) => { heap.push([f, k]); let i = heap.length - 1; while (i) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+  const pop = () => { const top = heap[0], u = heap.pop(); if (heap.length) { heap[0] = u; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i;
+      if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
+  const h = k => { const dx = Math.abs(k % N.W - fx), dz = Math.abs(((k / N.W) | 0) - fz); return dx + dz - .59 * Math.min(dx, dz); };
+  g[ini] = 0; push(ini, h(ini)); let vueltas = 0;
+  while (heap.length && vueltas++ < 120000) {
+    const [, k] = pop(); if (cerrado[k]) continue; cerrado[k] = 1; if (k === fin) break;
+    const i = k % N.W, j = (k / N.W) | 0;
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { if (!di && !dj) continue;
+      const a = i + di, b = j + dj; if (a < 0 || b < 0 || a >= N.W || b >= N.H) continue; const n = b * N.W + a; if (!N.libre[n] || cerrado[n]) continue;
+      if (di && dj && (!N.libre[j * N.W + a] || !N.libre[b * N.W + i])) continue;   // no cortar esquinas
+      const dir = (dj + 1) * 3 + (di + 1) - ((dj + 1) * 3 + (di + 1) > 4 ? 1 : 0), pk = k * 8 + dir;
+      if (!N.paso[pk]) { const x = N.x0 + (i + .5 + di / 2) * N.c, z = N.z0 + (j + .5 + dj / 2) * N.c; N.paso[pk] = choca(x, z, .45, "ladron") ? 2 : 1; }   // paredes más finas que la celda
+      if (N.paso[pk] === 2) continue;
+      const ng = g[k] + (di && dj ? 1.414 : 1); if (ng < g[n]) { g[n] = ng; de[n] = k; push(n, ng + h(n)); } }
+  }
+  if (de[fin] < 0 && fin !== ini) return null;
+  const pts = []; for (let k = fin; k >= 0; k = de[k]) { pts.push({ x: N.x0 + (k % N.W + .5) * N.c, z: N.z0 + (((k / N.W) | 0) + .5) * N.c }); if (k === ini) break; }
+  pts.reverse(); pts.push({ x: hasta.x, z: hasta.z });
+  // Suaviza: desde cada punto salta al más lejano que se vea en línea recta (con margen), así camina derecho por las calles
+  const ruta = [pts[0]]; let i = 0;
+  while (i < pts.length - 1) { let j = pts.length - 1; while (j > i + 1 && !lineaLibre(pts[i], pts[j], .7, "ladron")) j--; ruta.push(pts[j]); i = j; }
+  return ruta;
 }
 
 // ================== PARTIDA ==================
