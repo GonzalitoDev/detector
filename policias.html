@@ -31,6 +31,11 @@
   #compu .nom { font-weight:900; font-size:15px; color:#fff; }
   #compu button[data-cap] { margin-top:6px; padding:6px 10px; border:0; border-radius:8px; background:#ff4d4d; color:#fff; font-weight:800; cursor:pointer; font:inherit; }
   #compu button:disabled { opacity:.45; cursor:not-allowed; }
+  #poli-extras { position:fixed; left:12px; top:64px; z-index:5; pointer-events:none; font-size:12px; font-weight:700; background:#0009; padding:4px 10px; border-radius:8px; display:none; }
+  body.poli #poli-extras { display:block; }
+  #b-poli { position:fixed; right:12px; bottom:190px; z-index:5; display:none; flex-direction:column; gap:8px; }
+  body.tactil.poli #b-poli { display:flex; }
+  #b-poli button { width:52px; height:52px; border-radius:50%; border:0; font-size:24px; background:#1e4fd8cc; }
   #feed { position:fixed; left:12px; bottom:12px; font-size:14px; pointer-events:none; z-index:5; }
   #feed div { background:#0009; padding:4px 10px; border-radius:8px; margin-top:4px; animation:sale 5s forwards; }
   @keyframes sale { 85%{opacity:1} 100%{opacity:0} }
@@ -134,7 +139,7 @@
   </div>
 </div>
 <div id="megafono"></div>
-<div id="disturbio"></div><div id="radar"></div><div id="mira"></div><div id="pista"></div><div id="grande"></div><div id="feed"></div>
+<div id="disturbio"></div><div id="poli-extras"></div><div id="b-poli"><button id="b-heli">🚁</button><button id="b-valla">🚧</button><button id="b-ref">📻</button></div><div id="radar"></div><div id="mira"></div><div id="pista"></div><div id="grande"></div><div id="feed"></div>
 <div id="sirena"></div><div id="rejas"></div>
 <div class="stick" id="stick"><b></b></div><button id="b-accion">🚔</button><button id="b-auto">🚓</button><button id="b-cam">🎥</button>
 <div id="velocimetro"></div>
@@ -1032,6 +1037,9 @@ function conectar(cod, host) {
     .on("broadcast", { event: "disturbio" }, ({ payload: p }) => crearDisturbio(+p.x, +p.z, +p.hasta))
     .on("broadcast", { event: "dprog" }, ({ payload: p }) => { DIST.prog = +p.p || 0; })
     .on("broadcast", { event: "dfin" }, ({ payload: p }) => finDisturbio(!!p.ok))
+    .on("broadcast", { event: "heli" }, ({ payload: p }) => llamarHeli(p.de, p.obj, Math.min(+p.hasta, Date.now() + 30000), false))
+    .on("broadcast", { event: "valla" }, ({ payload: p }) => { if (vallas.filter(v => String(v.id).startsWith(String(p.id).split(":")[0])).length < 3) ponerValla(+p.x, +p.z, p.eje ? 1 : 0, Math.min(+p.hasta, Date.now() + 50000), p.id, false); })
+    .on("broadcast", { event: "refuerzos" }, ({ payload: p }) => refuerzos(p.de, +p.x, +p.z, false))
     .on("broadcast", { event: "captura" }, ({ payload: p }) => pedidoCaptura(p.id, p.de, false))
     .on("broadcast", { event: "fin" }, ({ payload: p }) => terminar(p.gana))
     .on("broadcast", { event: "auto" }, ({ payload: p }) => { const a = autos[p.i]; if (!a) return;
@@ -1357,6 +1365,107 @@ function abrirArmeria() {
   };
   pintar();
 }
+// ================== EQUIPO EXTRA DE LA POLICÍA ==================
+// 🚁 X: helicóptero de apoyo (sigue a un ladrón con el reflector y lo marca) · 🚧 V: valla para cortar la calle · 📻 Z: pedir refuerzos
+const HELI = { hasta: 0, listo: 0, obj: null, x: 0, z: 0, h: 0 };
+const heli = new THREE.Group(); heli.visible = false; escena.add(heli);
+{ const L = c => new THREE.MeshLambertMaterial({ color: c });
+  const cuerpo = new THREE.Mesh(new THREE.SphereGeometry(1.3, 16, 12), L(0x1e4fd8)); cuerpo.scale.set(1, .8, 1.6); heli.add(cuerpo);
+  const franja = new THREE.Mesh(new THREE.SphereGeometry(1.31, 16, 12, 0, Math.PI * 2, 1.35, .35), L(0xffffff)); franja.scale.copy(cuerpo.scale); heli.add(franja);
+  const vid = new THREE.Mesh(new THREE.SphereGeometry(1.1, 12, 8, 0, Math.PI * 2, 0, 1.1), new THREE.MeshLambertMaterial({ color: 0x9fd0ff, transparent: true, opacity: .7 })); vid.rotation.x = Math.PI / 2.4; vid.position.set(0, .2, 1); heli.add(vid);
+  const cola = new THREE.Mesh(new THREE.BoxGeometry(.35, .35, 3.8), L(0x1e4fd8)); cola.position.set(0, .3, -3.2); heli.add(cola);
+  const aleta = new THREE.Mesh(new THREE.BoxGeometry(.1, 1, .6), L(0xffffff)); aleta.position.set(0, .8, -5); heli.add(aleta);
+  for (const x of [-.8, .8]) { const p = new THREE.Mesh(new THREE.BoxGeometry(.1, .1, 2.6), L(0x222222)); p.position.set(x, -1.2, 0); heli.add(p); }
+  const rotor = new THREE.Group(); rotor.position.y = 1.2; heli.add(rotor); heli.userData.rotor = rotor;
+  for (const ry of [0, Math.PI / 2]) { const pa = new THREE.Mesh(new THREE.BoxGeometry(7, .05, .25), L(0x111111)); pa.rotation.y = ry; rotor.add(pa); }
+  const rotorC = new THREE.Mesh(new THREE.BoxGeometry(.08, 1, .08), L(0x111111)); rotorC.position.set(.2, .8, -5); heli.add(rotorC); heli.userData.rotorC = rotorC;
+  const t = new THREE.Mesh(new THREE.PlaneGeometry(2, .45), new THREE.MeshBasicMaterial({ map: texTexto("POLICÍA", "#00000000", "#ffffff"), transparent: true, side: THREE.DoubleSide })); t.position.set(1.32, 0, -.2); t.rotation.y = Math.PI / 2; heli.add(t);
+  for (const [c, x] of [[0xff2020, -.6], [0x2050ff, .6]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(.25, .12, .25), new THREE.MeshBasicMaterial({ color: c })); b.position.set(x, -1, .2); heli.add(b); heli.userData[c === 0xff2020 ? "br" : "ba"] = b; } }
+const reflector = new THREE.SpotLight(0xf4f8ff, 0, 60, .2, .4, 1); escena.add(reflector); escena.add(reflector.target);
+const conoLuz = new THREE.Mesh(new THREE.ConeGeometry(3, 1, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xf4f8ff, transparent: true, opacity: .09, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+conoLuz.visible = false; escena.add(conoLuz);
+function llamarHeli(de, obj, hasta, mio) {
+  HELI.hasta = hasta; HELI.listo = hasta + 40000; HELI.obj = obj;
+  const q = jug[de], l = jug[obj];
+  if (!heli.visible) { const p = q || { x: 0, z: 0 }; HELI.x = p.x - 60; HELI.z = p.z - 60; }
+  heli.visible = true; if (l) capturas[obj] = hasta;
+  feed(`🚁 ${q ? q.nombre : "La policía"} pidió apoyo aéreo${l ? ` sobre ${l.nombre}` : ""}`);
+  if (l === yo) grande("🚁 ¡EL HELICÓPTERO TE ESTÁ SIGUIENDO!", "#ff4d4d"); else if (yo.equipo === "poli") grande("🚁 ¡APOYO AÉREO EN CAMINO!", "#5ec8f2");
+  if (mio) enviar("heli", { de, obj, hasta });
+}
+function pedirHeli() {
+  if (yo.equipo !== "poli" || yo.preso) return;
+  const ahora = Date.now(); if (ahora < HELI.listo) { grande(`🚁 El helicóptero vuelve a estar listo en ${Math.ceil((HELI.listo - ahora) / 1000)} s`, "#aaaaaa"); return; }
+  // Prioriza al ladrón con botín más cercano; si no hay, al más cercano
+  let obj = null, d = 1e9;
+  for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso) { const dd = Math.hypot(s.x - yo.x, s.z - yo.z) - (s.bolsa || s.paquete ? 200 : 0); if (dd < d) { d = dd; obj = s; } }
+  if (!obj) { grande("🚁 No hay ladrones sueltos", "#aaaaaa"); return; }
+  llamarHeli(yo.id, obj.id, ahora + 25000, true);
+}
+// Vallas
+const vallas = [], misVallas = [];
+const matValla = new THREE.MeshLambertMaterial({ color: 0xffffff }), matVallaR = new THREE.MeshLambertMaterial({ color: 0xe02020 });
+function ponerValla(x, z, eje, hasta, id, mio) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = eje ? Math.PI / 2 : 0; escena.add(g);
+  for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.BoxGeometry(.75, .25, .1), i % 2 ? matVallaR : matValla); f.position.set(-1.125 + i * .75, .85, 0); g.add(f);
+    const f2 = f.clone(); f2.material = i % 2 ? matValla : matVallaR; f2.position.y = .55; g.add(f2); }
+  for (const px of [-1.4, 1.4]) { const pata = new THREE.Mesh(new THREE.BoxGeometry(.08, 1, .5), matValla); pata.position.set(px, .5, 0); g.add(pata); }
+  const luz = new THREE.Mesh(new THREE.SphereGeometry(.07, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffa020 })); luz.position.set(1.4, 1.05, 0); g.add(luz); g.userData.luz = luz;
+  const col = eje ? { x1: x - .25, x2: x + .25, z1: z - 1.5, z2: z + 1.5 } : { x1: x - 1.5, x2: x + 1.5, z1: z - .25, z2: z + .25 };
+  const e = Object.assign(col, { h: 1.1, valla: true }); edificios.push(e);
+  const v = { id, mesh: g, col: e, hasta }; vallas.push(v);
+  if (mio) { misVallas.push(v); enviar("valla", { x: +x.toFixed(2), z: +z.toFixed(2), eje, hasta, id }); }
+}
+function quitarValla(v) { escena.remove(v.mesh); const i = edificios.indexOf(v.col); if (i >= 0) edificios.splice(i, 1); vallas.splice(vallas.indexOf(v), 1); const j = misVallas.indexOf(v); if (j >= 0) misVallas.splice(j, 1); }
+function tirarValla() {
+  if (yo.equipo !== "poli" || yo.preso || miAuto) return;
+  if (misVallas.length >= 2) quitarValla(misVallas[0]);   // máximo 2: la más vieja se levanta
+  const x = yo.x - Math.sin(yaw) * 2.2, z = yo.z - Math.cos(yaw) * 2.2;
+  const eje = Math.abs(Math.sin(yaw)) > Math.abs(Math.cos(yaw)) ? 1 : 0;   // atravesada a la dirección en la que mirás
+  if (choca(x, z, .3)) { grande("🚧 No entra ahí", "#aaaaaa"); return; }
+  ponerValla(x, z, eje, Date.now() + 45000, yo.id + ":" + Date.now(), true); beep(220, .08, "square");
+}
+// Refuerzos: marca la posición para toda la policía
+const pings = [];
+function refuerzos(de, x, z, mio) {
+  const q = jug[de]; if (!q && !mio) return;
+  if (yo.equipo === "poli" || mio) {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(.6, .6, 40, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0x3d8aff, transparent: true, opacity: .35, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+    m.position.set(x, 20, z); escena.add(m); pings.push({ m, hasta: Date.now() + 12000 });
+    feed(`📻 ${q ? q.nombre : "Agente"}: ¡Necesito refuerzos! (columna azul)`); beep(1200, .06, "sine"); setTimeout(() => beep(900, .06, "sine"), 90);
+  }
+  if (mio) enviar("refuerzos", { de, x: +x.toFixed(1), z: +z.toFixed(1) });
+}
+let refuerzosListo = 0;
+function pedirRefuerzos() { if (yo.equipo !== "poli" || Date.now() < refuerzosListo) return; refuerzosListo = Date.now() + 8000; refuerzos(yo.id, yo.x, yo.z, true); }
+addEventListener("keydown", e => { if (!jugando || e.repeat || $("compu").style.display === "block") return;
+  if (e.code === "KeyX") pedirHeli(); if (e.code === "KeyV") tirarValla(); if (e.code === "KeyZ") pedirRefuerzos(); });
+$("b-heli").onclick = pedirHeli; $("b-valla").onclick = tirarValla; $("b-ref").onclick = pedirRefuerzos;
+function actualizarPoliExtras(dt, t) {
+  const ahora = Date.now();
+  // Helicóptero
+  if (heli.visible) {
+    const l = jug[HELI.obj], activo = ahora < HELI.hasta && l && !l.preso;
+    const tx = activo ? l.x + Math.cos(t / 1800) * 7 : HELI.x + 200, tz = activo ? l.z + Math.sin(t / 1800) * 7 : HELI.z + 200;
+    const dx = tx - HELI.x, dz = tz - HELI.z, d = Math.hypot(dx, dz), v = Math.min(d, dt * 28);
+    if (d > .01) { HELI.x += dx / d * v; HELI.z += dz / d * v; HELI.h += (Math.atan2(dx, dz) - HELI.h) * Math.min(1, dt * 2); }
+    heli.position.set(HELI.x, 24 + Math.sin(t / 700) * .4, HELI.z); heli.rotation.y = HELI.h; heli.rotation.x = Math.min(.25, v / dt / 120);
+    heli.userData.rotor.rotation.y += dt * 30; heli.userData.rotorC.rotation.x += dt * 40;
+    const on = Math.floor(t / 400) % 2; heli.userData.br.visible = on; heli.userData.ba.visible = !on;
+    if (activo) { reflector.intensity = 40; reflector.position.copy(heli.position); reflector.position.y -= 1.3; reflector.target.position.set(l.x, 0, l.z);
+      const alto = reflector.position.y; conoLuz.visible = true; conoLuz.scale.set(1, alto, 1); conoLuz.position.set((reflector.position.x + l.x) / 2, alto / 2, (reflector.position.z + l.z) / 2);
+      conoLuz.lookAt(l.x, 0, l.z); conoLuz.rotateX(-Math.PI / 2); }
+    else { reflector.intensity = 0; conoLuz.visible = false; if (d < 5 || Math.hypot(HELI.x - yo.x, HELI.z - yo.z) > 180) heli.visible = false; }
+    // Ruido del rotor (cerca)
+    if (activo && Math.floor(t / 90) !== Math.floor((t - dt * 1000) / 90) && Math.hypot(HELI.x - yo.x, HELI.z - yo.z) < 40) beep(55, .05, "sawtooth", .012);
+  }
+  // Vallas que se vencen y su lucecita
+  for (let i = vallas.length - 1; i >= 0; i--) { const v = vallas[i]; if (ahora > v.hasta) { quitarValla(v); continue; } v.mesh.userData.luz.visible = Math.floor(t / 350) % 2 === 0; }
+  for (let i = pings.length - 1; i >= 0; i--) { const p = pings[i]; if (ahora > p.hasta) { escena.remove(p.m); pings.splice(i, 1); } else p.m.material.opacity = .2 + Math.sin(t / 150) * .15; }
+  $("poli-extras").innerHTML = yo.equipo === "poli" ? `🚁 X ${ahora < HELI.listo ? Math.ceil((HELI.listo - ahora) / 1000) + "s" : "listo"} · 🚧 V vallas ${misVallas.length}/2 · 📻 Z refuerzos` : "";
+}
+function resetPoliExtras() { HELI.hasta = HELI.listo = 0; heli.visible = false; reflector.intensity = 0; conoLuz.visible = false;
+  while (vallas.length) quitarValla(vallas[0]); for (const p of pings) escena.remove(p.m); pings.length = 0; refuerzosListo = 0; }
 // ================== COMPUTADORA: RENAPER (registro de personas ficticio del juego) ==================
 // Datos inventados a partir del id de cada jugador. Pedido de captura: marca al ladrón para toda la policía por 25 s.
 const capturas = {}; let capturaListo = 0;
@@ -1459,7 +1568,7 @@ function empezar(finTs) {
   modoCam = 0;
   jug = {}; botin = 0; BOLSAS.forEach(b => { b.hasta = 0; b.mesh.visible = true; });
   PAQUETES.forEach(p => p.hasta = 0); puerta.cerrada = true; puerta.hasta = 0;
-  for (const k in capturas) delete capturas[k]; capturaListo = 0;
+  for (const k in capturas) delete capturas[k]; capturaListo = 0; resetPoliExtras();
   quitarDisturbio(); DIST.prog = 0; DIST.prox = Date.now() + 35000;
   resetAutos(); miAuto = null; document.body.classList.toggle("poli", equipo === "poli");
   yo = jug[miId] = nuevoJug(miId, miNombre(), equipo, false, clase);
@@ -1552,7 +1661,7 @@ function loop(t) {
     if (yo.equipo === "poli" && yo.div === "comunicaciones") { const P = ["N","NE","E","SE","S","SO","O","NO"];
       const L = Object.values(jug).filter(s => s.equipo === "ladron" && !s.preso && (s.bolsa || s.paquete));
       $("radar").innerHTML = "📡 <b>Radio</b><br>" + (L.length ? L.map(s => { const a = Math.atan2(s.x - yo.x, -(s.z - yo.z)); return `🦹 ${esc(s.nombre)} ${s.paquete ? "📦" : "💰"} · ${Math.round(Math.hypot(s.x - yo.x, s.z - yo.z))} m ${P[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8]}`; }).join("<br>") : "Sin ladrones con botín"); }
-    actualizarDisturbio(dt, t);
+    actualizarDisturbio(dt, t); actualizarPoliExtras(dt, t);
     $("rejas").style.display = yo.preso ? "block" : "none";
     // Otros
     for (const s of Object.values(jug)) {
