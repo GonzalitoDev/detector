@@ -382,7 +382,9 @@ function barraLuces(g, x, y, z, largo) {
   return { rojo, azul };
 }
 function textoPlano(txt, fondo, letra, w, h, ancho = 512) { return new THREE.MeshBasicMaterial({ map: textura((c, W, H) => { if (fondo) { c.fillStyle = fondo; c.fillRect(0, 0, W, H); }
-  c.fillStyle = letra; c.font = `bold ${H * .62}px system-ui`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(txt, W / 2, H / 2 + 2); }, ancho, Math.round(ancho * h / w)), transparent: !fondo }); }
+  c.fillStyle = letra; let fs = H * .62; c.font = `bold ${fs}px system-ui`;
+  const medida = c.measureText(txt).width; if (medida > W * .94) { fs *= W * .94 / medida; c.font = `bold ${fs}px system-ui`; }   // achica si no entra
+  c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(txt, W / 2, H / 2 + 2); }, ancho, Math.round(ancho * h / w)), transparent: !fondo }); }
 function opticas(g, frenteZ, atrasZ, y, sep, ancho = .38) {
   for (const x of [-sep, sep]) {
     const f = new THREE.Mesh(new THREE.BoxGeometry(ancho, .14, .04), new THREE.MeshBasicMaterial({ color: 0xfff6d8 })); f.position.set(x, y, frenteZ); g.add(f);
@@ -444,7 +446,7 @@ function crearMoto() {
   g.userData = { rojo, azul: azulL, cartel: c, cuadro, ruedas: ruedasM, radio: .4 };
   escena.add(g); return g;
 }
-// Camioneta negra de la Policía Especial (para SWAT y Grupo Halcón)
+// Camioneta negra del Grupo Especial Táctico (para SWAT y Grupo Halcón)
 function crearCamioneta() {
   const g = new THREE.Group();
   const negro = new THREE.MeshLambertMaterial({ color: 0x17191c }), goma = new THREE.MeshLambertMaterial({ color: 0x0c0c0c });
@@ -454,8 +456,8 @@ function crearCamioneta() {
   g.add(cuerpo);
   const vid = extruir([[-2.3, 1.42], [-2.2, 2.12], [.85, 2.14], [1.47, 1.48]], 2.22, vidrio, .02); g.add(vid);
   for (const z of [-1.0, .25]) { const p = new THREE.Mesh(new THREE.BoxGeometry(2.26, .74, .12), negro); p.position.set(0, 1.78, z); g.add(p); }
-  // Letras a los costados y atrás: "POLICÍA ESPECIAL"
-  const matLetras = textoPlano("POLICÍA ESPECIAL", "#17191c", "#ffffff", 4.2, .5, 768);
+  // Letras a los costados y atrás: "GRUPO ESPECIAL TÁCTICO"
+  const matLetras = textoPlano("GRUPO ESPECIAL TÁCTICO", "#17191c", "#ffffff", 4.2, .5, 1024);
   for (const s of [-1, 1]) {
     const p = new THREE.Mesh(new THREE.PlaneGeometry(4.2, .5), matLetras); p.position.set(s * 1.13, 1.0, -.05); p.rotation.y = s * Math.PI / 2; g.add(p);
     const fr = new THREE.Mesh(new THREE.PlaneGeometry(4.6, .08), new THREE.MeshBasicMaterial({ color: 0xf2c200 })); fr.position.set(s * 1.131, .7, 0); fr.rotation.y = s * Math.PI / 2; g.add(fr);
@@ -471,13 +473,13 @@ function crearCamioneta() {
   const aux = new THREE.Mesh(new THREE.CylinderGeometry(.42, .42, .25, 18), goma); aux.rotation.x = Math.PI / 2; aux.position.set(0, 1.25, -2.66); g.add(aux);
   const { rojo, azul } = barraLuces(g, 0, 2.3, .6, 1.5);
   const ruedas = [[-1.0, 1.55], [1.0, 1.55], [-1.0, -1.55], [1.0, -1.55]].map(([x, z]) => rueda(g, x, .46, z, .46, .34, 0x2a2a2a));
-  const c = cartel("🚙 POLICÍA ESPECIAL", "#15171a"); c.scale.set(3.4, .7, 1); c.position.y = 3.2; c.visible = false; g.add(c);
+  const c = cartel("🚙 GRUPO ESPECIAL TÁCTICO", "#15171a"); c.scale.set(4.4, .9, 1); c.position.y = 3.2; c.visible = false; g.add(c);
   g.userData = { rojo, azul, cartel: c, ruedas, radio: .46 };
   escena.add(g); return g;
 }
 const autos = (() => {
   const lista = [], Z = { x: DEPTO.px, z: DEPTO.z2 + 4 };   // estacionados frente al departamento
-  // 4 patrulleros + 3 camionetas de la Policía Especial
+  // 4 patrulleros + 3 camionetas del Grupo Especial Táctico
   for (let r = 7; r < 40 && lista.length < 10; r += 1.5)
     for (let a = 0; a < Math.PI * 2 && lista.length < 10; a += Math.PI / 10) {
       const x = Z.x + Math.cos(a) * r, z = Z.z + Math.sin(a) * r;
@@ -495,7 +497,7 @@ function subirAuto(a) {
   if (a.tipo === "camioneta" && !ARMADO(yo.clase)) { grande("🚙 Solo para SWAT y Grupo Halcón", "#f2c200"); return; }
   a.conductor = yo.id; miAuto = a; yaw = a.h + Math.PI; pitch = -.05;
   enviar("auto", { i: a.i, quien: yo.id, sube: true });
-  grande(a.tipo === "camioneta" ? "🚙 POLICÍA ESPECIAL" : a.tipo === "moto" ? "🏍️ ¡MOTORIZADA!" : "🚓 ¡A PATRULLAR!", a.tipo === "camioneta" ? "#f2c200" : "#5a8aff"); beep(500, .1); setTimeout(() => beep(800, .1), 120);
+  grande(a.tipo === "camioneta" ? "🚙 GRUPO ESPECIAL TÁCTICO" : a.tipo === "moto" ? "🏍️ ¡MOTORIZADA!" : "🚓 ¡A PATRULLAR!", a.tipo === "camioneta" ? "#f2c200" : "#5a8aff"); beep(500, .1); setTimeout(() => beep(800, .1), 120);
 }
 function bajarAuto() {
   const a = miAuto; if (!a) return;
@@ -1107,7 +1109,7 @@ function loop(t) {
       else if (objetivo) pista = miAuto ? `🚓 ¡Atropellalo o tocá E para atrapar a ${objetivo.nombre}!` : `🚔 ¡Click para atrapar a ${objetivo.nombre}!`;
       else if (miAuto) pista = "🚓 F para bajarte · H sirena · Espacio freno";
       else if (autoCerca) pista = autoCerca.tipo === "camioneta"
-        ? (ARMADO(yo.clase) ? "🚙 Tocá F para subirte a la camioneta de la Policía Especial" : "🚙 Camioneta de la Policía Especial: solo SWAT y Grupo Halcón")
+        ? (ARMADO(yo.clase) ? "🚙 Tocá F para subirte a la camioneta del Grupo Especial Táctico" : "🚙 Camioneta del Grupo Especial Táctico: solo SWAT y Grupo Halcón")
         : autoCerca.tipo === "moto" ? "🏍️ Tocá F para subirte a la moto" : "🚓 Tocá F para subirte al patrullero";
       if (objetivo && accionPedida) { enviar("atrapa", { ladron: objetivo.id, poli: yo.id }); atrapado(objetivo.id, yo.id); }
     } else if (!yo.preso) {
