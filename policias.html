@@ -266,7 +266,7 @@ const META = 10000, DURACION = 240, ATRAPA = 2.2, RADIO = 0.45;
 // Cuadrícula de manzanas: edificios en las celdas, calles entre medio
 const CIUDAD = { tam: 168, cuadra: 16, calle: 8 };
 const edificios = [];   // { x1, z1, x2, z2, h }
-const ZONAS = { banco: { x: 0, z: -40, r: 6 }, guarida: { x: 44, z: 44, r: 5 }, carcel: { x: -44, z: 44, r: 5 },
+const ZONAS = { banco: { x: 0, z: -40, r: 6 }, guarida: { x: 40, z: 95, r: 5 } /* en el aguantadero, afuera de la ciudad (sur) */, carcel: { x: -44, z: 44, r: 5 },
                 narco: { x: 44, z: -44, r: 6 }, muelle: { x: -110, z: -32, r: 5 } };   // el muelle está en el puerto, afuera de la ciudad (oeste)
 // Casa narco: paredes con una puerta blindada que solo el SWAT puede romper
 const CASA = { x1: 39, x2: 49, z1: -48, z2: -40, alto: 3.6, grosor: .4, puertaZ1: -45.1, puertaZ2: -42.9 };
@@ -294,15 +294,19 @@ function poner(e) { if (!RESERVADOS.some(R => e.x1 < R.x2 + 2 && e.x2 > R.x1 - 2
 generarCiudad();
 // Aeropuerto, afuera de la ciudad hacia el este (se entra por la calle z = 16)
 const AER = { x1: 84, x2: 172, z1: -44, z2: 44, puerta1: 12, puerta2: 20 };
+// Aguantadero de los ladrones, afuera de la ciudad hacia el sur (se entra por la calle x = 40)
+const AGU = { x1: 14, x2: 86, z1: 82, z2: 138, puerta1: 36, puerta2: 44 };
 // Puerto, afuera de la ciudad hacia el oeste (se entra por la calle z = -32); más allá de x = -118 es agua
 const PUERTO = { x1: -150, x2: -84, z1: -62, z2: -2, puerta1: -36, puerta2: -28, agua: -118, muelleZ1: -35, muelleZ2: -29, muelleX: -138 };
 function choca(x, z, r = RADIO, eq = null) {
   const mitad = CIUDAD.tam / 2;
-  const enCiudad = x > -mitad - 1 && x < mitad + 1 && z > -mitad + r && z < mitad - r;
+  const enCiudad = x > -mitad - 1 && x < mitad + 1 && z > -mitad + r && z < mitad + 1;
   const enAer = x > mitad - 1 && x < AER.x2 - r && z > AER.z1 + r && z < AER.z2 - r;
   const enPuerto = x < -mitad + 1 && x > PUERTO.x1 + r && z > PUERTO.z1 + r && z < PUERTO.z2 - r &&
     (x > PUERTO.agua + r || (x > PUERTO.muelleX + r && z > PUERTO.muelleZ1 + r && z < PUERTO.muelleZ2 - r));   // al agua no se puede entrar, salvo por el muelle
-  if (!enCiudad && !enAer && !enPuerto) return true;
+  const enAgu = z > mitad - 1 && x > AGU.x1 + r && x < AGU.x2 - r && z < AGU.z2 - r;
+  if (!enCiudad && !enAer && !enPuerto && !enAgu) return true;
+  if (Math.abs(z - mitad) < r + .3 && x > -mitad && x < mitad && !(x > AGU.puerta1 + r && x < AGU.puerta2 - r)) return true;   // paredón sur con portón al aguantadero
   if (Math.abs(x + mitad) < r + .3 && !(z > PUERTO.puerta1 + r && z < PUERTO.puerta2 - r)) return true;   // paredón oeste con portón al puerto
   if (Math.abs(x - mitad) < r + .3 && !(z > AER.puerta1 + r && z < AER.puerta2 - r)) return true;   // paredón con portón hacia el aeropuerto
   if (puerta.cerrada && eq !== "ladron" && x + r > CASA.x1 - .3 && x - r < CASA.x1 + .3 && z + r > CASA.puertaZ1 && z - r < CASA.puertaZ2) return true;
@@ -447,7 +451,9 @@ const coloresEd = [0x8a8fa3, 0xa38a7a, 0x7a8fa3, 0x9a9a9a, 0xb0a080, 0x6f7f8f];
   instancias(new THREE.CylinderGeometry(.03, .05, 4, 4), new THREE.MeshBasicMaterial({ color: 0xff3030 }), antenas);
   // Paredón del borde y edificios lejanos (no se puede llegar)
   const borde = [];
-  for (const [x, z, ry] of [[0, -mitad - .3, 0], [0, mitad + .3, 0]]) borde.push([x, 1.2, z, ry]);
+  borde.push([0, 1.2, -mitad - .3, 0]);
+  { const s1 = AGU.puerta1 + mitad, s2 = mitad - AGU.puerta2;   // lado sur: dos tramos con el portón del aguantadero
+    borde.push([-mitad + s1 / 2, 1.2, mitad + .3, 0, s1 / (CIUDAD.tam + 1), 1, 1], [mitad - s2 / 2, 1.2, mitad + .3, 0, s2 / (CIUDAD.tam + 1), 1, 1]); }
   { const m1 = PUERTO.puerta1 + mitad, m2 = mitad - PUERTO.puerta2;   // lado oeste: dos tramos con el portón del puerto
     borde.push([-mitad - .3, 1.2, -mitad + m1 / 2, Math.PI / 2, m1 / (CIUDAD.tam + 1), 1, 1], [-mitad - .3, 1.2, mitad - m2 / 2, Math.PI / 2, m2 / (CIUDAD.tam + 1), 1, 1]); }
   const T = CIUDAD.tam + 1, l1 = AER.puerta1 + mitad, l2 = mitad - AER.puerta2;   // lado este: dos tramos con el portón en el medio
@@ -457,6 +463,7 @@ const coloresEd = [0x8a8fa3, 0xa38a7a, 0x7a8fa3, 0x9a9a9a, 0xb0a080, 0x6f7f8f];
   for (let i = 0; i < 70; i++) { const a = i / 70 * Math.PI * 2 + az() * .05, r = mitad + 14 + az() * 30, h = 15 + az() * 45, w = 6 + az() * 8;
     if (Math.cos(a) > .35) continue;   // del lado del aeropuerto no hay edificios
     if (Math.cos(a) < -.6 && Math.sin(a) < .3) continue;   // ni del lado del puerto
+    if (Math.sin(a) > .55 && Math.cos(a) > -.25) continue;   // ni del lado del aguantadero
     lejos.push([Math.cos(a) * r, h / 2, Math.sin(a) * r, -a, w, h, w]); }
   const tl = texVentanas.clone(), tle = texLuces.clone(); tl.needsUpdate = tle.needsUpdate = true; tl.repeat.set(2, 8); tle.repeat.set(2, 8);
   instancias(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0x5a6070, map: tl, emissiveMap: tle, emissive: 0xffffff, emissiveIntensity: .8 }), lejos);
@@ -716,6 +723,50 @@ const TAQUILLAS = { x: DEPTO.x1 + 2.5, z: DEPTO.z1 + 1.6 }, ARMERIA = { x: DEPTO
   // Ventanas en las paredes de planta baja (de afuera)
   for (const [x, z, ry] of [[D.x1 - .03, D.cz - 2, -Math.PI / 2], [D.x1 - .03, D.cz + 2, -Math.PI / 2], [D.x2 + .03, D.cz - 2.5, Math.PI / 2], [D.cx - 3.5, D.z2 + .03, 0], [D.cx + 3.8, D.z2 + .03, 0]]) {
     const v = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.2), new THREE.MeshLambertMaterial({ color: 0x9fd0ff, emissive: 0x2a4a6a })); v.position.set(x, 2.5, z); v.rotation.y = ry; escena.add(v); }
+}
+// ================== AGUANTADERO (guarida de los ladrones) ==================
+// Un predio abandonado afuera de la ciudad: galpones viejos, desarmadero de autos, tachos con fuego y contenedor-oficina
+{
+  const A = AGU, L = c => new THREE.MeshLambertMaterial({ color: c });
+  const tierra = new THREE.Mesh(new THREE.PlaneGeometry(A.x2 - A.x1, A.z2 - CIUDAD.tam / 2), L(0x4a3b2a)); tierra.rotation.x = -Math.PI / 2; tierra.position.set((A.x1 + A.x2) / 2, .01, (CIUDAD.tam / 2 + A.z2) / 2); escena.add(tierra);
+  const camino = new THREE.Mesh(new THREE.PlaneGeometry(A.puerta2 - A.puerta1, 26), L(0x3a3530)); camino.rotation.x = -Math.PI / 2; camino.position.set((A.puerta1 + A.puerta2) / 2, .015, CIUDAD.tam / 2 + 13); escena.add(camino);
+  // Alambrado alrededor (se ve, el límite real ya lo pone choca)
+  const malla = new THREE.MeshLambertMaterial({ color: 0x8a8a8a, transparent: true, opacity: .35, side: THREE.DoubleSide }), poste = L(0x555555);
+  for (const [x1, z1, x2, z2] of [[A.x1, A.z2, A.x2, A.z2], [A.x1, CIUDAD.tam / 2, A.x1, A.z2], [A.x2, CIUDAD.tam / 2, A.x2, A.z2]]) {
+    const lx = x2 - x1, lz = z2 - z1, largo = Math.max(lx, lz);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(largo, 2.4), malla); m.position.set((x1 + x2) / 2, 1.2, (z1 + z2) / 2); if (lz > lx) m.rotation.y = Math.PI / 2; escena.add(m);
+    for (let k = 0; k <= largo; k += 4) { const p = new THREE.Mesh(new THREE.BoxGeometry(.1, 2.6, .1), poste); p.position.set(lx > lz ? x1 + k : x1, 1.3, lx > lz ? z1 : z1 + k); escena.add(p); } }
+  // Chapa oxidada para los galpones
+  const texChapa = textura((c, w, h) => { for (let x = 0; x < w; x += 8) { c.fillStyle = x % 16 ? "#7a4a2a" : "#6a3a20"; c.fillRect(x, 0, 8, h); }
+    for (let i = 0; i < 40; i++) { c.fillStyle = `rgba(${120 + Math.random() * 60},${60 + Math.random() * 30},20,.6)`; c.fillRect(Math.random() * w, Math.random() * h, 6 + Math.random() * 14, 4 + Math.random() * 20); } }, 128, 128);
+  texChapa.wrapS = texChapa.wrapT = THREE.RepeatWrapping; texChapa.repeat.set(3, 1);
+  const chapa = new THREE.MeshLambertMaterial({ map: texChapa });
+  for (const [x, z, w, d] of [[26, 100, 14, 10], [72, 104, 12, 14], [30, 126, 16, 9]]) {
+    const g = new THREE.Mesh(new THREE.BoxGeometry(w, 5, d), chapa); g.position.set(x, 2.5, z); escena.add(g);
+    const techo = new THREE.Mesh(new THREE.CylinderGeometry(d / 2, d / 2, w + .4, 12, 1, false, 0, Math.PI), chapa); techo.rotation.set(0, 0, Math.PI / 2); techo.rotation.order = "ZXY"; techo.position.set(x, 5, z); escena.add(techo);
+    techo.rotation.set(Math.PI / 2, 0, Math.PI / 2);
+    edificios.push({ x1: x - w / 2, x2: x + w / 2, z1: z - d / 2, z2: z + d / 2, h: 5 });
+  }
+  // Desarmadero: autos viejos apilados
+  const colores = [0x6a2020, 0x2a4a6a, 0x5a5a3a, 0x3a3a3a, 0x7a6a50];
+  [[64, 128], [70, 128], [76, 128], [64, 132.5], [76, 132.5]].forEach(([x, z], i) => {
+    for (let pi = 0; pi < (i % 2 ? 2 : 1); pi++) { const a = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.3, 2), L(colores[(i + pi) % colores.length])); a.position.set(x, .65 + pi * 1.3, z); a.rotation.y = (i * .3 + pi * .5) % .6 - .3; escena.add(a);
+      const cab = new THREE.Mesh(new THREE.BoxGeometry(2, .7, 1.8), L(0x222222)); cab.position.set(x - .3, 1.65 + pi * 1.3, z); cab.rotation.y = a.rotation.y; escena.add(cab); }
+    edificios.push({ x1: x - 2.3, x2: x + 2.3, z1: z - 1.3, z2: z + 1.3, h: 2.5, arbol: true }); });
+  // Contenedor-oficina con cartel
+  const cont = new THREE.Mesh(new THREE.BoxGeometry(7, 2.6, 2.6), L(0x2a6a4a)); cont.position.set(62, 1.3, 96); escena.add(cont);
+  edificios.push({ x1: 58.5, x2: 65.5, z1: 94.7, z2: 97.3, h: 2.6 });
+  const cA = cartel("🏚️ AGUANTADERO", "#5a2a7a"); cA.scale.set(7, 1.75, 1); cA.position.set(40, 7, 100); escena.add(cA);
+  // Tachos con fuego (luz falsa: llama + charco, sin luces reales para no trabar)
+  const texF = textura((g, w, h) => { const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); gr.addColorStop(0, "rgba(255,150,60,.55)"); gr.addColorStop(1, "rgba(255,150,60,0)"); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
+  AGU.fuegos = [];
+  for (const [x, z] of [[42, 104], [55, 118], [38, 116]]) {
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(.4, .4, 1, 10), L(0x3a3a3a)); t.position.set(x, .5, z); escena.add(t);
+    const f = new THREE.Mesh(new THREE.ConeGeometry(.35, .9, 7), new THREE.MeshBasicMaterial({ color: 0xff8a20, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false })); f.position.set(x, 1.4, z); escena.add(f); AGU.fuegos.push(f);
+    const ch = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.MeshBasicMaterial({ map: texF, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); ch.rotation.x = -Math.PI / 2; ch.position.set(x, .04, z); escena.add(ch);
+    edificios.push({ x1: x - .45, x2: x + .45, z1: z - .45, z2: z + .45, h: 1, arbol: true }); }
+  // Pila de plata robada al lado de la zona
+  for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(new THREE.SphereGeometry(.45, 8, 6), new THREE.MeshLambertMaterial({ color: 0x2e9e4f })); b.scale.set(1, .8, 1); b.position.set(45.5 + (i % 3) * .7, .35 + Math.floor(i / 3) * .55, 95 + (i % 2) * .3); escena.add(b); }
 }
 // ================== PUERTO (muelle) ==================
 {
@@ -1905,7 +1956,8 @@ function pensarBot(b, dt) {
     if (!CAR.activa) b.asalta = undefined;
     const presos = Object.values(jug).some(s => s.equipo === "ladron" && s.preso);
     const poliCerca = Object.values(jug).find(o => o.equipo === "poli" && Math.hypot(o.x - b.x, o.z - b.z) < 7);
-    if (poliCerca) b.objetivo = { x: b.x + (b.x - poliCerca.x) * 3, z: b.z + (b.z - poliCerca.z) * 3 };
+    // Con botín, solo huye si el policía está encima; si no, sigue camino al aguantadero (que ahora está lejos)
+    if (poliCerca && !((b.bolsa || b.paquete) && Math.hypot(poliCerca.x - b.x, poliCerca.z - b.z) > 3.5)) b.objetivo = { x: b.x + (b.x - poliCerca.x) * 3, z: b.z + (b.z - poliCerca.z) * 3 };
     else if (b.paquete) b.objetivo = ZONAS.muelle;
     else if (b.bolsa) b.objetivo = ZONAS.guarida;
     else if (CAR.activa && (b.asalta ??= Math.random() < .35)) b.objetivo = { x: CAR.x, z: CAR.z };
@@ -1926,6 +1978,8 @@ function pensarBot(b, dt) {
                                                       : (Math.abs(b.x - DEPTO.px) < 1 && b.z > DEPTO.z2 - .5 ? { x: DEPTO.px, z: DEPTO.cz } : { x: DEPTO.px, z: DEPTO.z2 + 2 });
   else if (adentro(b, N) !== adentro(o, N)) o = adentro(b, N) ? (b.x < CASA.x1 + 1.2 ? { x: 36.5, z: -44 } : { x: CASA.x1 + .4, z: -44 }) : (Math.abs(b.z + 44) < 1 && b.x < CASA.x1 + .5 ? { x: 44, z: -44.5 } : { x: 37, z: -44 });
   // Puerto: para entrar o salir hay que pasar por el portón del paredón oeste
+  { const enA = p => p.z > CIUDAD.tam / 2, gx = (AGU.puerta1 + AGU.puerta2) / 2, m = CIUDAD.tam / 2;   // aguantadero: por el portón sur
+    if (enA(b) !== enA(o)) { const w = { x: gx, z: enA(b) ? m + 3 : m - 3 }; if (Math.hypot(b.x - w.x, b.z - w.z) > 1.2 && !(Math.abs(b.x - gx) < 1.5 && Math.abs(b.z - m) < 3)) o = w; } }
   { const enP = p => p.x < -CIUDAD.tam / 2, gz = (PUERTO.puerta1 + PUERTO.puerta2) / 2;
     if (enP(b) !== enP(o)) { const w = { x: enP(b) ? -CIUDAD.tam / 2 - 3 : -CIUDAD.tam / 2 + 3, z: gz }; if (Math.hypot(b.x - w.x, b.z - w.z) > 1.2 && !(Math.abs(b.z - gz) < 1.5 && Math.abs(b.x + CIUDAD.tam / 2) < 3)) o = w; } }
   // Camina hacia el objetivo esquivando edificios con un pequeño desvío
@@ -2061,7 +2115,7 @@ function loop(t) {
     if (yo.equipo === "poli" && yo.div === "comunicaciones") { const P = ["N","NE","E","SE","S","SO","O","NO"];
       const L = Object.values(jug).filter(s => s.equipo === "ladron" && !s.preso && (s.bolsa || s.paquete));
       $("radar").innerHTML = "📡 <b>Radio</b><br>" + (L.length ? L.map(s => { const a = Math.atan2(s.x - yo.x, -(s.z - yo.z)); return `🦹 ${esc(s.nombre)} ${s.paquete ? "📦" : "💰"} · ${Math.round(Math.hypot(s.x - yo.x, s.z - yo.z))} m ${P[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8]}`; }).join("<br>") : "Sin ladrones con botín"); }
-    actualizarAviones(t); nuevaRondaLibre(); actualizarDisturbio(dt, t); actualizarPoliExtras(dt, t); actualizarCaravana(dt, t);
+    actualizarAviones(t); for (const f of AGU.fuegos) f.scale.y = .8 + Math.random() * .5; nuevaRondaLibre(); actualizarDisturbio(dt, t); actualizarPoliExtras(dt, t); actualizarCaravana(dt, t);
     $("rejas").style.display = yo.preso ? "block" : "none";
     // Otros
     for (const s of Object.values(jug)) {
@@ -2144,7 +2198,7 @@ function loop(t) {
 }
 // Junta en una sola malla todos los objetos fijos que comparten material (veredas, rayas, carteles pintados, aeropuerto...)
 function fusionarEstaticos() {
-  const dyn = new Set([AER.faro, puerta.mesh, conoLuz, ...PAQUETES.map(p => p.mesh), ...balizasCarcel.map(b => b.b)]);
+  const dyn = new Set([AER.faro, puerta.mesh, conoLuz, ...AGU.fuegos, ...PAQUETES.map(p => p.mesh), ...balizasCarcel.map(b => b.b)]);
   const grupos = new Map();
   for (const m of [...escena.children]) {
     if (!m.isMesh || m.isInstancedMesh || m.children.length || dyn.has(m) || Array.isArray(m.material) || !m.visible) continue;
