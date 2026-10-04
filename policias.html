@@ -860,7 +860,8 @@ function opticas(g, frenteZ, atrasZ, y, sep, ancho = .38) {
 }
 function espejos(g, x, y, z, color) { for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.BoxGeometry(.18, .12, .1), new THREE.MeshLambertMaterial({ color })); e.position.set(s * x, y, z); g.add(e); } }
 
-function crearPatrullero() {
+function crearPatrullero(estilo = "ciudad") {
+  const prov = estilo === "provincia";   // diseño inspirado en la Policía de la Provincia de Buenos Aires (sin escudos oficiales)
   const g = new THREE.Group();
   const blanco = new THREE.MeshLambertMaterial({ color: 0xf4f4f4 }), negro = new THREE.MeshLambertMaterial({ color: 0x151515 });
   const vidrio = new THREE.MeshLambertMaterial({ color: 0x1b2633, polygonOffset: true, polygonOffsetFactor: -1 });
@@ -871,9 +872,17 @@ function crearPatrullero() {
   const parante = new THREE.Mesh(new THREE.BoxGeometry(2.04, .44, .12), blanco); parante.position.set(0, 1.22, -.15); g.add(parante);
   // Franjas celeste y azul oscuro a los costados, y "POLICÍA" en las puertas
   for (const s of [-1, 1]) {
+    if (prov) {
+      // Banda azul ancha con filete celeste, "POLICÍA" en blanco sobre la banda y "PROVINCIA" arriba
+      const banda = new THREE.Mesh(new THREE.PlaneGeometry(4.3, .36), new THREE.MeshBasicMaterial({ color: 0x0d3a8c })); banda.position.set(s * 1.0, .6, 0); banda.rotation.y = s * Math.PI / 2; g.add(banda);
+      const filete = new THREE.Mesh(new THREE.PlaneGeometry(4.3, .06), new THREE.MeshBasicMaterial({ color: 0x5ec8f2 })); filete.position.set(s * 1.001, .81, 0); filete.rotation.y = s * Math.PI / 2; g.add(filete);
+      const txt = new THREE.Mesh(new THREE.PlaneGeometry(1.6, .28), textoPlano("POLICÍA", null, "#ffffff", 1.6, .28)); txt.position.set(s * 1.002, .6, .1); txt.rotation.y = s * Math.PI / 2; g.add(txt);
+      const txt2 = new THREE.Mesh(new THREE.PlaneGeometry(1.7, .2), textoPlano("PROVINCIA", null, "#0d3a8c", 1.7, .2)); txt2.position.set(s * 1.002, .92, .1); txt2.rotation.y = s * Math.PI / 2; g.add(txt2);
+    } else {
     const f1 = new THREE.Mesh(new THREE.PlaneGeometry(4.2, .16), new THREE.MeshBasicMaterial({ color: 0x5ec8f2 })); f1.position.set(s * 1.0, .66, 0); f1.rotation.y = s * Math.PI / 2; g.add(f1);
     const f2 = new THREE.Mesh(new THREE.PlaneGeometry(4.2, .06), new THREE.MeshBasicMaterial({ color: 0x0f1d36 })); f2.position.set(s * 1.001, .55, 0); f2.rotation.y = s * Math.PI / 2; g.add(f2);
     const txt = new THREE.Mesh(new THREE.PlaneGeometry(1.5, .26), textoPlano("POLICÍA", null, "#0f1d36", 1.5, .26)); txt.position.set(s * 1.002, .84, .1); txt.rotation.y = s * Math.PI / 2; g.add(txt);
+    }
     for (const z of [-.75, .55]) { const junta = new THREE.Mesh(new THREE.PlaneGeometry(.025, .55), new THREE.MeshBasicMaterial({ color: 0x9a9a9a })); junta.position.set(s * 1.003, .72, z); junta.rotation.y = s * Math.PI / 2; g.add(junta); }
     const manija = new THREE.Mesh(new THREE.BoxGeometry(.03, .04, .16), negro); manija.position.set(s * 1.0, .9, -.35); g.add(manija);
     const pasa = new THREE.Mesh(new THREE.BoxGeometry(.06, .2, 4.3), negro); pasa.position.set(s * .97, .38, 0); g.add(pasa);   // zócalo
@@ -886,10 +895,13 @@ function crearPatrullero() {
   espejos(g, 1.06, 1.02, .95, 0xf4f4f4);
   const antena = new THREE.Mesh(new THREE.CylinderGeometry(.01, .01, .6, 4), negro); antena.position.set(.5, 1.75, -.9); g.add(antena);
   // Número en el techo (para el helicóptero)
-  const num = new THREE.Mesh(new THREE.PlaneGeometry(.9, .45), textoPlano("C-" + (10 + Math.floor(Math.random() * 89)), null, "#0f1d36", .9, .45, 256)); num.rotation.x = -Math.PI / 2; num.position.set(0, 1.49, -.55); g.add(num);
+  if (prov) {   // capó con banda azul y "POLICÍA" adelante y atrás
+    const capo = new THREE.Mesh(new THREE.PlaneGeometry(1.2, .7), new THREE.MeshBasicMaterial({ color: 0x0d3a8c })); capo.rotation.x = -Math.PI / 2 + .12; capo.position.set(0, 1.0, 1.55); g.add(capo);
+    for (const [z, ry] of [[2.39, 0], [-2.35, Math.PI]]) { const t = new THREE.Mesh(new THREE.PlaneGeometry(1.1, .18), textoPlano("POLICÍA", "#0d3a8c", "#ffffff", 1.1, .18)); t.position.set(0, .58, z); t.rotation.y = ry; g.add(t); } }
+  const num = new THREE.Mesh(new THREE.PlaneGeometry(.9, .45), textoPlano((prov ? "P-" : "C-") + (10 + Math.floor(Math.random() * 89)), null, prov ? "#0d3a8c" : "#0f1d36", .9, .45, 256)); num.rotation.x = -Math.PI / 2; num.position.set(0, 1.49, -.55); g.add(num);
   const { rojo, azul } = barraLuces(g, 0, 1.52, .05, 1.3);
   const ruedas = [[-.92, 1.38], [.92, 1.38], [-.92, -1.38], [.92, -1.38]].map(([x, z]) => rueda(g, x, .37, z, .37, .26, 0xc8c8c8));
-  const c = cartel("🚓 POLICÍA", "#1e4fd8"); c.scale.set(2.4, .6, 1); c.position.y = 2.4; c.visible = false; g.add(c);
+  const c = cartel(prov ? "🚓 POLICÍA PROVINCIA" : "🚓 POLICÍA", prov ? "#0d3a8c" : "#1e4fd8"); c.scale.set(prov ? 3.2 : 2.4, prov ? .8 : .6, 1); c.position.y = 2.4; c.visible = false; g.add(c);
   g.userData = { rojo, azul, cartel: c, ruedas, radio: .37 };
   escena.add(g); return g;
 }
@@ -1002,10 +1014,38 @@ const autos = (() => {
   const orden = [0, 2, 4, 6, 1, 3, 5, 7, 8, 9].map(k => lugares[k]);   // patrulleros adelante, camionetas atrás, motos en la punta
   return tipos.map((tipo, i) => { const p = orden[i];
     return { i, tipo, r: tipo === "camioneta" ? 1.6 : tipo === "moto" ? .7 : AUTO_R, max: tipo === "camioneta" ? 23 : tipo === "moto" ? 31 : 26, x0: p.x0, z0: p.z0, h0: p.h0, x: p.x0, z: p.z0, h: p.h0, vel: 0, conductor: null, sirena: true,
-      tx: p.x0, tz: p.z0, th: p.h0, mesh: tipo === "camioneta" ? crearCamioneta() : tipo === "moto" ? crearMoto() : crearPatrullero() }; });
+      tx: p.x0, tz: p.z0, th: p.h0, mesh: tipo === "camioneta" ? crearCamioneta() : tipo === "moto" ? crearMoto() : crearPatrullero(i >= 2 ? "provincia" : "ciudad") }; });
 })();
 function resetAutos() { for (const a of autos) Object.assign(a, { x: a.x0, z: a.z0, tx: a.x0, tz: a.z0, h: a.h0, th: a.h0, vel: 0, conductor: null, sirena: true, balizas: false }); }
 let miAuto = null, sirenaT = 0, sirenaAlt = false, mirarAuto = 0;
+// ================== CABINA (primera persona): volante, tablero, velocímetro y espejo ==================
+const cabina = new THREE.Group(); cabina.visible = false;
+{ const negro = new THREE.MeshLambertMaterial({ color: 0x141414 }), gris = new THREE.MeshLambertMaterial({ color: 0x2a2d33 });
+  const volante = new THREE.Group(); cabina.add(volante); cabina.userData.volante = volante;
+  const aro = new THREE.Mesh(new THREE.TorusGeometry(.19, .022, 8, 28), negro); volante.add(aro);
+  const centro = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, .04, 14), gris); centro.rotation.x = Math.PI / 2; volante.add(centro);
+  const logo = new THREE.Mesh(new THREE.CircleGeometry(.03, 12), new THREE.MeshBasicMaterial({ color: 0x5ec8f2 })); logo.position.z = -.022; logo.rotation.y = Math.PI; volante.add(logo);
+  for (const a of [Math.PI / 2, Math.PI * 7 / 6, -Math.PI / 6]) { const ry = new THREE.Mesh(new THREE.BoxGeometry(.19, .025, .015), negro); ry.position.set(Math.cos(a) * .095, Math.sin(a) * .095, 0); ry.rotation.z = a; volante.add(ry); }
+  const columna = new THREE.Mesh(new THREE.CylinderGeometry(.03, .04, .3, 8), negro); columna.rotation.x = Math.PI / 2 - .35; columna.position.set(0, -.04, .16); volante.add(columna);
+  const tablero = new THREE.Mesh(new THREE.BoxGeometry(1.9, .28, .5), gris); cabina.add(tablero); cabina.userData.tablero = tablero;
+  const visera = new THREE.Mesh(new THREE.BoxGeometry(.5, .08, .22), negro); cabina.add(visera); cabina.userData.visera = visera;
+  // Velocímetro: dial que brilla y aguja que se mueve con la velocidad
+  const dial = new THREE.Mesh(new THREE.CircleGeometry(.08, 24), new THREE.MeshBasicMaterial({ color: 0x0a2438 })); dial.rotation.y = Math.PI; cabina.add(dial); cabina.userData.dial = dial;
+  const borde = new THREE.Mesh(new THREE.RingGeometry(.075, .085, 24), new THREE.MeshBasicMaterial({ color: 0x5ec8f2 })); borde.rotation.y = Math.PI; dial.add(borde); borde.position.z = .001;
+  const aguja = new THREE.Mesh(new THREE.BoxGeometry(.006, .065, .004), new THREE.MeshBasicMaterial({ color: 0xff4040 })); aguja.geometry.translate(0, .03, 0); aguja.position.z = -.003; dial.add(aguja); cabina.userData.aguja = aguja;
+  // Pantallita de la radio con luz celeste y botones de sirena
+  const radio = new THREE.Mesh(new THREE.PlaneGeometry(.22, .1), new THREE.MeshBasicMaterial({ color: 0x1d6a9a })); radio.rotation.y = Math.PI; cabina.add(radio); cabina.userData.radio = radio;
+  const sir = new THREE.Mesh(new THREE.PlaneGeometry(.16, .05), new THREE.MeshBasicMaterial({ color: 0xff3030 })); sir.rotation.y = Math.PI; cabina.add(sir); cabina.userData.sir = sir;
+  const espejo = new THREE.Mesh(new THREE.BoxGeometry(.32, .09, .03), negro); cabina.add(espejo); cabina.userData.espejo = espejo;
+  const vidrioE = new THREE.Mesh(new THREE.PlaneGeometry(.29, .07), new THREE.MeshBasicMaterial({ color: 0x3a4a5a })); vidrioE.rotation.y = Math.PI; vidrioE.position.z = -.016; espejo.add(vidrioE); }
+function ponerCabina(a) {
+  if (!a || a.tipo === "moto") { if (cabina.parent) cabina.parent.remove(cabina); cabina.visible = false; return; }
+  const y = a.tipo === "camioneta" ? 1.95 : 1.35, U = cabina.userData;
+  a.mesh.add(cabina); cabina.visible = true;
+  cabina.userData.volante.position.set(-.4, y - .4, .72); cabina.userData.volante.rotation.set(-.4, Math.PI, 0); cabina.userData.volante.scale.setScalar(.85);
+  U.tablero.position.set(0, y - .6, 1.0); U.visera.visible = false;
+  U.dial.position.set(-.12, y - .44, .74); U.radio.position.set(.15, y - .4, .66); U.sir.position.set(.15, y - .48, .66); U.espejo.position.set(0, y + .22, .95);
+}
 function subirAuto(a) { setTimeout(pintarPanel, 0);
   if (a.conductor || yo.equipo !== "poli" || yo.preso) return;
   if (a.tipo === "camioneta" && !ARMADO(yo.clase)) { grande("🚙 Solo para SWAT y Grupo Halcón", "#f2c200"); return; }
@@ -1341,9 +1381,15 @@ function conectar(cod, host) {
   canal = SB.channel("polis-" + cod, { config: { broadcast: { self: false }, presence: { key: miId } } });
   Voz.preparar(canal, miId); Voz.nombre = id => jug[id]?.nombre;
   canal.on("presence", { event: "sync" }, () => {
-      $("jugadores").innerHTML = Object.values(canal.presenceState()).map(v => v[0]).map(p => `${ICONO(p.clase || p.equipo)} ${esc(p.nombre)}${p.host ? " 👑" : ""}`).join("<br>");
+      const est = canal.presenceState();
+      $("jugadores").innerHTML = Object.values(est).map(v => v[0]).map(p => `${ICONO(p.clase || p.equipo)} ${esc(p.nombre)}${p.host ? " 👑" : ""}`).join("<br>");
+      // Si el creador se fue, el que tenga el id más chico pasa a ser el anfitrión (maneja reloj, disturbios y caravana)
+      const hayHost = Object.values(est).some(v => v[0]?.host) ;
+      if (!soyHost && !hayHost && Object.keys(est).sort()[0] === miId) { soyHost = true; feed("👑 El creador se fue: ahora vos manejás la partida");
+        if (!jugando) { $("arrancar").classList.remove("oculto"); $("espera").textContent = "Ahora sos el anfitrión: tocá Empezar."; } }
     })
-    .on("broadcast", { event: "empieza" }, ({ payload }) => { if (!soyHost) empezar(payload.fin); })
+    .on("presence", { event: "join" }, () => { if (soyHost && jugando) enviar("empieza", { fin, botin, tarde: true }); })   // el que entra tarde arranca en la partida en curso
+    .on("broadcast", { event: "empieza" }, ({ payload }) => { if (!soyHost && !jugando) { empezar(payload.fin); if (payload.botin) botin = +payload.botin || 0; } })
     .on("broadcast", { event: "pos" }, ({ payload: p }) => recibirPos(p))
     .on("broadcast", { event: "disparo" }, ({ payload: p }) => verDisparo(p))
     .on("broadcast", { event: "dano" }, ({ payload: p }) => recibirDano(p.ladron, p.de, p.dmg, Math.min(4000, +p.at || 0)))
@@ -1376,7 +1422,9 @@ function recibirPos(p) {
   let s = jug[p.id];
   if (!s) { if (!jugando) return; s = jug[p.id] = nuevoJug(p.id, p.nombre, p.equipo, false, p.clase); s.div = p.div || "patrulla"; s.uni = p.uni || "azul"; s.mesh = crearMuneco(p.equipo, p.nombre, p.clase, s.div, s.uni); feed(`👋 Entró ${p.nombre}`); }
   if ((p.div && p.div !== s.div) || (p.uni && p.uni !== s.uni)) { s.div = p.div || s.div; s.uni = p.uni || s.uni; escena.remove(s.mesh); s.mesh = crearMuneco(s.equipo, s.nombre, s.clase, s.div, s.uni); }
-  s.tx = p.x; s.tz = p.z; s.rot = p.rot + Math.PI;   // la cámara mira hacia -z y el muñeco hacia +z if (p.res !== undefined) s.res = p.res; s.preso = p.preso; s.bolsa = p.bolsa; s.paquete = !!p.paq; s.visto = Date.now(); s.auto = p.auto ?? null;
+  s.tx = p.x; s.tz = p.z; s.rot = p.rot + Math.PI;   // la cámara mira hacia -z y el muñeco hacia +z
+  // (antes esta parte había quedado adentro del comentario: no se actualizaba preso/bolsa/auto y los jugadores "se iban" a los 8 s)
+  if (p.res !== undefined) s.res = p.res; s.preso = !!p.preso; s.bolsa = !!p.bolsa; s.paquete = !!p.paq; s.visto = Date.now(); s.auto = p.auto ?? null;
   if (s.auto !== null && autos[s.auto] && autos[s.auto] !== miAuto) { const a = autos[s.auto]; a.conductor = p.id; a.tx = p.x; a.tz = p.z; a.th = p.ah; a.sirena = p.sir; a.patron = p.sp || "alterno"; a.vel = p.av; }
 }
 
@@ -1955,6 +2003,7 @@ function pensarBot(b, dt) {
     if (b.preso) return;
     if (!CAR.activa) b.asalta = undefined;
     const presos = Object.values(jug).some(s => s.equipo === "ladron" && s.preso);
+    if (!presos) b.rescata = undefined;
     const poliCerca = Object.values(jug).find(o => o.equipo === "poli" && Math.hypot(o.x - b.x, o.z - b.z) < 7);
     // Con botín, solo huye si el policía está encima; si no, sigue camino al aguantadero (que ahora está lejos)
     if (poliCerca && !((b.bolsa || b.paquete) && Math.hypot(poliCerca.x - b.x, poliCerca.z - b.z) > 3.5)) b.objetivo = { x: b.x + (b.x - poliCerca.x) * 3, z: b.z + (b.z - poliCerca.z) * 3 };
@@ -1962,7 +2011,7 @@ function pensarBot(b, dt) {
     else if (b.bolsa) b.objetivo = ZONAS.guarida;
     else if (CAR.activa && (b.asalta ??= Math.random() < .35)) b.objetivo = { x: CAR.x, z: CAR.z };
     else if (b.narco === undefined ? (b.narco = Math.random() < .5) : b.narco) b.objetivo = { x: 45, z: -45.5 };
-    else if (presos && Math.random() < .5) b.objetivo = ZONAS.carcel;
+    else if (presos && (b.rescata ??= Math.random() < .5)) b.objetivo = ZONAS.carcel;   // decide una vez (antes cambiaba de idea en cada cuadro y temblaba en el lugar)
     else b.objetivo = ZONAS.banco;
     if (b.bolsa && dentro(b, ZONAS.guarida)) entregar(b.id);
     if (b.paquete && dentro(b, ZONAS.muelle)) { entregarPaquete(b.id); b.narco = Math.random() < .5; }
@@ -1971,25 +2020,72 @@ function pensarBot(b, dt) {
     if (presos && dentro(b, ZONAS.carcel, 1)) liberar(b.id);
   }
   let o = b.objetivo; if (!o || (b.aturdido && Date.now() < b.aturdido)) return;
-  // Para entrar o salir de un edificio, primero pasa por la puerta
-  const adentro = (p, R) => p.x > R.x1 && p.x < R.x2 && p.z > R.z1 && p.z < R.z2;
-  const D = { x1: DEPTO.x1, x2: DEPTO.x2, z1: DEPTO.z1, z2: DEPTO.z2 }, N = { x1: CASA.x1, x2: CASA.x2, z1: CASA.z1, z2: CASA.z2 };
-  if (adentro(b, D) !== adentro(o, D)) o = adentro(b, D) ? (b.z > DEPTO.z2 - 1.2 ? { x: DEPTO.px, z: DEPTO.z2 + 2.5 } : { x: DEPTO.px, z: DEPTO.z2 - .4 })
-                                                      : (Math.abs(b.x - DEPTO.px) < 1 && b.z > DEPTO.z2 - .5 ? { x: DEPTO.px, z: DEPTO.cz } : { x: DEPTO.px, z: DEPTO.z2 + 2 });
-  else if (adentro(b, N) !== adentro(o, N)) o = adentro(b, N) ? (b.x < CASA.x1 + 1.2 ? { x: 36.5, z: -44 } : { x: CASA.x1 + .4, z: -44 }) : (Math.abs(b.z + 44) < 1 && b.x < CASA.x1 + .5 ? { x: 44, z: -44.5 } : { x: 37, z: -44 });
-  // Puerto: para entrar o salir hay que pasar por el portón del paredón oeste
-  { const enA = p => p.z > CIUDAD.tam / 2, gx = (AGU.puerta1 + AGU.puerta2) / 2, m = CIUDAD.tam / 2;   // aguantadero: por el portón sur
-    if (enA(b) !== enA(o)) { const w = { x: gx, z: enA(b) ? m + 3 : m - 3 }; if (Math.hypot(b.x - w.x, b.z - w.z) > 1.2 && !(Math.abs(b.x - gx) < 1.5 && Math.abs(b.z - m) < 3)) o = w; } }
-  { const enP = p => p.x < -CIUDAD.tam / 2, gz = (PUERTO.puerta1 + PUERTO.puerta2) / 2;
-    if (enP(b) !== enP(o)) { const w = { x: enP(b) ? -CIUDAD.tam / 2 - 3 : -CIUDAD.tam / 2 + 3, z: gz }; if (Math.hypot(b.x - w.x, b.z - w.z) > 1.2 && !(Math.abs(b.z - gz) < 1.5 && Math.abs(b.x + CIUDAD.tam / 2) < 3)) o = w; } }
+  // Si no hay línea recta libre, sigue un camino calculado por las calles (A* sobre una grilla de 2 m)
+  if (!lineaLibre(b, o, .5, b.equipo)) {
+    const ahora = Date.now();
+    if (!b.ruta || !b.rutaObj || Math.hypot(b.rutaObj.x - o.x, b.rutaObj.z - o.z) > 4 || ahora > b.rutaT) {
+      b.ruta = buscarCamino(b, o); b.rutaObj = { x: o.x, z: o.z }; b.rutaT = ahora + 2500 + Math.random() * 1000; }
+    while (b.ruta && b.ruta.length > 1 && Math.hypot(b.ruta[0].x - b.x, b.ruta[0].z - b.z) < .9) b.ruta.shift();
+    if (b.ruta && b.ruta.length) o = b.ruta[0];
+  } else b.ruta = null;
   // Camina hacia el objetivo esquivando edificios con un pequeño desvío
   b.desvio = (b.desvio || 0) - dt;
   let dx = o.x - b.x, dz = o.z - b.z;
   if (b.desvio > 0) { const t = dx; dx = -dz * b.lado; dz = t * b.lado; }
   const antes = { x: b.x, z: b.z };
   mover(b, dx, dz, (b.equipo === "poli" ? 6.2 : 6) * (b.equipo === "poli" ? AJUSTES.mult : 1 / AJUSTES.mult * .95 + .05), dt);
-  if (Math.hypot(b.x - antes.x, b.z - antes.z) < .01 && b.desvio <= 0) { b.desvio = .8; b.lado = Math.random() < .5 ? 1 : -1; }
+  if (Math.hypot(b.x - antes.x, b.z - antes.z) < .01) { if (b.ruta) b.rutaT = 0; else if (b.desvio <= 0) { b.desvio = .8; b.lado = Math.random() < .5 ? 1 : -1; } }   // trabado: recalcula el camino
   b.rot = Math.atan2(dx, dz);
+}
+
+// ================== NAVEGACIÓN DE LOS BOTS ==================
+// Grilla de 2 m de toda la zona jugable (ciudad, aeropuerto, puerto y aguantadero). Se marca qué celdas son caminables
+// y los bots buscan el camino con A*; así no se quedan trabados contra los edificios.
+const NAV = { c: 2, x0: -151, z0: -85, W: 164, H: 114, libre: null };   // centros de celda en coordenadas pares: coinciden con el medio de las puertas
+function prepararNav() {
+  const N = NAV; N.libre = new Uint8Array(N.W * N.H); N.paso = new Uint8Array(N.W * N.H * 8);   // paso: 0 sin calcular, 1 se puede, 2 hay pared fina en el medio
+  for (let j = 0; j < N.H; j++) for (let i = 0; i < N.W; i++) N.libre[j * N.W + i] = choca(N.x0 + (i + .5) * N.c, N.z0 + (j + .5) * N.c, .6, "ladron") ? 0 : 1;   // la puerta de la casa narco cuenta como paso
+}
+function lineaLibre(a, b, r = .5, eq = null) {
+  const d = Math.hypot(b.x - a.x, b.z - a.z), n = Math.ceil(d / .4);
+  for (let k = 1; k <= n; k++) { const f = k / n; if (choca(a.x + (b.x - a.x) * f, a.z + (b.z - a.z) * f, r, eq)) return false; }
+  return true;
+}
+function buscarCamino(desde, hasta) {
+  const N = NAV; if (!N.libre) prepararNav();
+  const celda = p => [Math.max(0, Math.min(N.W - 1, Math.floor((p.x - N.x0) / N.c))), Math.max(0, Math.min(N.H - 1, Math.floor((p.z - N.z0) / N.c)))];
+  // Celda libre más cercana a la que se pueda llegar en línea recta (para no "arrancar" del otro lado de una pared)
+  const libreMasCerca = ([i, j], p) => { let mejor = -1, dm = 1e9;
+    for (let r = 0; r < 6 && mejor < 0; r++) for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) { if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue;
+      const a = i + di, b = j + dj; if (a < 0 || b < 0 || a >= N.W || b >= N.H || !N.libre[b * N.W + a]) continue;
+      const c = { x: N.x0 + (a + .5) * N.c, z: N.z0 + (b + .5) * N.c }, d = Math.hypot(c.x - p.x, c.z - p.z);
+      if (d < dm && lineaLibre(p, c, .4, "ladron")) { dm = d; mejor = b * N.W + a; } }
+    return mejor; };
+  const ini = libreMasCerca(celda(desde), desde), fin = libreMasCerca(celda(hasta), hasta); if (ini < 0 || fin < 0) return null;
+  const fx = fin % N.W, fz = (fin / N.W) | 0, g = new Float32Array(N.W * N.H).fill(1e9), de = new Int32Array(N.W * N.H).fill(-1), cerrado = new Uint8Array(N.W * N.H);
+  const heap = []; const push = (k, f) => { heap.push([f, k]); let i = heap.length - 1; while (i) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+  const pop = () => { const top = heap[0], u = heap.pop(); if (heap.length) { heap[0] = u; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i;
+      if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
+  const h = k => { const dx = Math.abs(k % N.W - fx), dz = Math.abs(((k / N.W) | 0) - fz); return dx + dz - .59 * Math.min(dx, dz); };
+  g[ini] = 0; push(ini, h(ini)); let vueltas = 0;
+  while (heap.length && vueltas++ < 120000) {
+    const [, k] = pop(); if (cerrado[k]) continue; cerrado[k] = 1; if (k === fin) break;
+    const i = k % N.W, j = (k / N.W) | 0;
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { if (!di && !dj) continue;
+      const a = i + di, b = j + dj; if (a < 0 || b < 0 || a >= N.W || b >= N.H) continue; const n = b * N.W + a; if (!N.libre[n] || cerrado[n]) continue;
+      if (di && dj && (!N.libre[j * N.W + a] || !N.libre[b * N.W + i])) continue;   // no cortar esquinas
+      const dir = (dj + 1) * 3 + (di + 1) - ((dj + 1) * 3 + (di + 1) > 4 ? 1 : 0), pk = k * 8 + dir;
+      if (!N.paso[pk]) { const x = N.x0 + (i + .5 + di / 2) * N.c, z = N.z0 + (j + .5 + dj / 2) * N.c; N.paso[pk] = choca(x, z, .45, "ladron") ? 2 : 1; }   // paredes más finas que la celda
+      if (N.paso[pk] === 2) continue;
+      const ng = g[k] + (di && dj ? 1.414 : 1); if (ng < g[n]) { g[n] = ng; de[n] = k; push(n, ng + h(n)); } }
+  }
+  if (de[fin] < 0 && fin !== ini) return null;
+  const pts = []; for (let k = fin; k >= 0; k = de[k]) { pts.push({ x: N.x0 + (k % N.W + .5) * N.c, z: N.z0 + (((k / N.W) | 0) + .5) * N.c }); if (k === ini) break; }
+  pts.reverse(); pts.push({ x: hasta.x, z: hasta.z });
+  // Suaviza: desde cada punto salta al más lejano que se vea en línea recta (con margen), así camina derecho por las calles
+  const ruta = [pts[0]]; let i = 0;
+  while (i < pts.length - 1) { let j = pts.length - 1; while (j > i + 1 && !lineaLibre(pts[i], pts[j], .7, "ladron")) j--; ruta.push(pts[j]); i = j; }
+  return ruta;
 }
 
 // ================== PARTIDA ==================
@@ -2173,6 +2269,7 @@ function loop(t) {
     { const v = Math.hypot(yo.x - (yo._px ?? yo.x), yo.z - (yo._pz ?? yo.z)) * 60; yo._px = yo.x; yo._pz = yo.z; animarMuneco(yo.mesh, v, t); }
     yo.mesh.position.set(yo.x, 0, yo.z); yo.mesh.rotation.y = yaw + Math.PI; yo.mesh.userData.bolsa.visible = yo.bolsa || !!yo.paquete;
   }
+  if (cabina.visible && (!miAuto || modoCam !== 0)) ponerCabina(null);
   if (jugando && yo && modoCam !== 0) {
     // 3ª persona: detrás y arriba · Aérea: desde arriba
     const cx = miAuto ? miAuto.x : yo.x, cz = miAuto ? miAuto.z : yo.z;
@@ -2190,6 +2287,9 @@ function loop(t) {
     if (Math.abs(miAuto.vel) > 1) mirarAuto = mirarAuto * Math.pow(.05, dt);   // al andar, la vista vuelve al frente
     camara.position.set(miAuto.x + Math.sin(miAuto.h) * .2 - (miAuto.tipo === "moto" ? 0 : Math.cos(miAuto.h) * .4), miAuto.tipo === "camioneta" ? 1.95 : miAuto.tipo === "moto" ? 1.55 : 1.35, miAuto.z + Math.cos(miAuto.h) * .2 + (miAuto.tipo === "moto" ? 0 : Math.sin(miAuto.h) * .4));
     camara.rotation.order = "YXZ"; camara.rotation.y = miAuto.h + Math.PI + mirarAuto; camara.rotation.x = pitch * .5 - .04;
+    if (cabina.parent !== miAuto.mesh) ponerCabina(miAuto);
+    if (cabina.visible) { const U = cabina.userData; U.volante.rotation.z += (-(miAuto.giro || 0) * 1.6 - U.volante.rotation.z) * Math.min(1, dt * 8);
+      U.aguja.rotation.z = 2.2 - Math.min(1, Math.abs(miAuto.vel) / 30) * 4.4; U.sir.visible = !!miAuto.sirena && Math.floor(t / 300) % 2 === 0; }
     renderer.render(escena, camara); return;
   }
   camara.position.set(yo ? yo.x : 0, yo ? (yo.preso ? 1.4 : 1.65 + (jugando && (teclas.KeyW || joy.y) ? Math.sin(t / 110) * .04 : 0)) : 20, yo ? yo.z : 40);
