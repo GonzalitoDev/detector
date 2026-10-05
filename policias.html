@@ -30,6 +30,14 @@
   #caravana small { display:block; font-weight:700; color:#fff; opacity:.85; font-size:12px; }
   #caravana .barra { height:6px; background:#ffffff22; border-radius:4px; margin:4px 0 2px; overflow:hidden; } #caravana .barra div { height:100%; background:linear-gradient(90deg,#e9a3a8,#5ec8f2); }
   #radar { position:fixed; right:12px; top:120px; z-index:5; display:none; pointer-events:none; background:#001a33cc; border:1px solid #5ec8f2; border-radius:10px; padding:6px 10px; font-size:13px; max-width:240px; }
+  #conce .pest { flex:1; padding:10px; border-radius:10px; border:2px solid #ffffff33; background:#ffffff14; color:#fff; font-weight:900; cursor:pointer; }
+  #conce .pest.on { border-color:#ffd400; background:#ffd40033; }
+  #co-lista { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:8px; }
+  #co-lista .auto { background:#021526; border:1px solid #5ec8f244; border-radius:10px; padding:10px; font-size:13px; }
+  #co-lista .auto.vip { background:linear-gradient(160deg,#3a2a00,#1a1200); border-color:#d4af37; }
+  #co-lista .nom { font-weight:900; font-size:15px; margin-bottom:4px; }
+  #co-lista button { width:100%; margin-top:8px; padding:8px; border:0; border-radius:8px; font-weight:800; background:#ffd400; cursor:pointer; }
+  #co-lista button:disabled { opacity:.4; }
   #control .ficha { display:flex; gap:12px; background:#021526; border:1px solid #5ec8f244; border-radius:10px; padding:10px; font-size:14px; line-height:1.5; }
   #control .foto { width:64px; height:76px; flex:none; border-radius:6px; background:#0d3a5e; display:flex; align-items:center; justify-content:center; font-size:38px; }
   #control .nom { font-weight:900; font-size:16px; color:#fff; }
@@ -180,6 +188,24 @@
     <div id="ctl-preg"></div>
     <div id="ctl-botones" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"></div>
     <button id="control-x" style="margin-top:10px;width:100%;padding:8px;border:0;border-radius:10px;background:#ffffff22;color:#fff;font-weight:800">Cerrar</button>
+  </div>
+</div>
+<div id="conce" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
+  <div style="max-width:620px;margin:0 auto;background:#0f1d36;border:2px solid #5ec8f2;border-radius:16px;padding:16px">
+    <h2 style="margin:0 0 4px;text-align:center">🚗 Concesionaria Gonzalito</h2>
+    <div id="co-plata" style="text-align:center;font-weight:900;color:#7dff8a;margin-bottom:8px"></div>
+    <div style="display:flex;gap:8px;margin-bottom:10px"><button data-pest="normales" class="pest">🚗 Normales</button><button data-pest="vip" class="pest">👑 VIP</button></div>
+    <div id="co-lista"></div>
+    <div style="font-size:12px;opacity:.75;margin-top:8px">Ganás plata jugando: policías $300 por detenido, ladrones la mitad de lo que entregan. Se guarda en tu teléfono.</div>
+    <button class="g" id="co-ok" style="width:100%;margin-top:10px">👋 Salir</button>
+  </div>
+</div>
+<div id="cacho" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
+  <div style="max-width:520px;margin:0 auto;background:#2a2410;border:2px solid #f2c200;border-radius:16px;padding:16px">
+    <h2 style="margin:0 0 4px;text-align:center">🔧 Mecánico Cacho</h2>
+    <div id="ca-plata" style="text-align:center;font-weight:900;color:#7dff8a;margin-bottom:8px"></div>
+    <div id="ca-lista" class="tq"></div>
+    <button class="g" id="ca-ok" style="width:100%;margin-top:10px">👋 Chau, Cacho</button>
   </div>
 </div>
 <div id="super" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
@@ -336,6 +362,8 @@ generarCiudad();
 // Autopista: atraviesa la ciudad de oeste a este (donde antes había una fila de manzanas), del puerto al aeropuerto
 const AUTOPISTA = { z1: -28, z2: -12, medio: -20 };
 const AER = { x1: 84, x2: 172, z1: -44, z2: 44, puerta1: 12, puerta2: 20 };
+// Zona de autos (concesionaria y Mecánico Cacho): al sureste, pegada al aeropuerto (se llega por el camino del aeropuerto)
+const ZAUTOS = { x1: 86, x2: 172, z1: 40, z2: 132 };
 // Aguantadero de los ladrones, afuera de la ciudad hacia el sur (se entra por la calle x = 40)
 // Puerto Madero (segunda ciudad): al noreste, afuera de la primera; se entra por la calle x = 64.
 // Tiene un dique de agua en el medio que solo se cruza por los puentes.
@@ -351,6 +379,7 @@ function choca(x, z, r = RADIO, eq = null) {
   const mitad = CIUDAD.tam / 2;
   const enCiudad = x > -mitad - 1 && x < mitad + 1 && z > -mitad - 1 && z < mitad + 1;
   const enAer = x > mitad - 1 && x < AER.x2 - r && z > AER.z1 + r && z < AER.z2 - r;
+  if (x > ZAUTOS.x1 + r && x < ZAUTOS.x2 - r && z > ZAUTOS.z1 && z < ZAUTOS.z2 - r) return cercanos(x, z).some(e => x + r > e.x1 && x - r < e.x2 && z + r > e.z1 && z - r < e.z2);
   const enPuerto = x < -mitad + 1 && x > PUERTO.x1 + r && z > PUERTO.z1 + r && z < PUERTO.z2 - r &&
     (x > PUERTO.agua + r || (x > PUERTO.muelleX + r && z > PUERTO.muelleZ1 + r && z < PUERTO.muelleZ2 - r));   // al agua no se puede entrar, salvo por el muelle
   const enAgu = z > mitad - 1 && x > AGU.x1 + r && x < AGU.x2 - r && z < AGU.z2 - r;
@@ -1101,9 +1130,19 @@ $("su-ok").onclick = () => { $("super").style.display = "none"; if (!document.bo
   for (let z = P.z1 + 4; z < P.z2 - 2; z += 6) { const b = new THREE.Mesh(new THREE.CylinderGeometry(.2, .25, .6, 8), L(0x222222)); b.position.set(P.agua + 1, .3, z); escena.add(b); }
   const cP = cartel("🚤 PUERTO ←", "#0aa0b0"); cP.scale.set(6, 1.5, 1); cP.position.set(-CIUDAD.tam / 2 + 2, 5, P.puerta1 - 2); escena.add(cP);
 }
-// Rejas de la cárcel
-for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2, b = new THREE.Mesh(new THREE.CylinderGeometry(.08, .08, 3), new THREE.MeshLambertMaterial({ color: 0x999999 }));
-  b.position.set(ZONAS.carcel.x + Math.cos(a) * ZONAS.carcel.r, 1.5, ZONAS.carcel.z + Math.sin(a) * ZONAS.carcel.r); escena.add(b); }
+// Cárcel: celda redonda con piso de cemento, rejas gruesas, aros, techo, bancos, garita y reflector (sin colisiones, para que se pueda rescatar)
+{ const C = ZONAS.carcel, R = C.r, gris = new THREE.MeshLambertMaterial({ color: 0x8c9096 }), hierro = new THREE.MeshLambertMaterial({ color: 0x3a3f47 });
+  const piso = new THREE.Mesh(new THREE.CylinderGeometry(R + .6, R + .6, .12, 32), new THREE.MeshLambertMaterial({ color: 0x6d7076 })); piso.position.set(C.x, .06, C.z); escena.add(piso);
+  for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2, b = new THREE.Mesh(new THREE.CylinderGeometry(.07, .07, 3.2, 6), hierro);
+    b.position.set(C.x + Math.cos(a) * R, 1.6, C.z + Math.sin(a) * R); escena.add(b); }
+  for (const y of [.15, 1.6, 3.15]) { const aro = new THREE.Mesh(new THREE.TorusGeometry(R, .08, 6, 40), hierro); aro.rotation.x = Math.PI / 2; aro.position.set(C.x, y, C.z); escena.add(aro); }
+  const techo = new THREE.Mesh(new THREE.ConeGeometry(R + .8, 1.4, 32), new THREE.MeshLambertMaterial({ color: 0x2b3a55 })); techo.position.set(C.x, 3.9, C.z); escena.add(techo);
+  for (const a of [0, Math.PI]) { const banco = new THREE.Mesh(new THREE.BoxGeometry(2.6, .45, .6), gris); banco.position.set(C.x + Math.cos(a) * (R - 1), .3, C.z + Math.sin(a) * (R - 1)); banco.rotation.y = a + Math.PI / 2; escena.add(banco); }
+  const gar = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.6, 1.6), new THREE.MeshLambertMaterial({ color: 0x1e4fd8 })); gar.position.set(C.x + R + 2.2, 1.3, C.z + R + 1); escena.add(gar);
+  const vid = new THREE.Mesh(new THREE.BoxGeometry(1.65, .6, 1.2), new THREE.MeshLambertMaterial({ color: 0x9fd4ff })); vid.position.set(C.x + R + 2.2, 1.9, C.z + R + 1); escena.add(vid);
+  const pos = new THREE.Mesh(new THREE.CylinderGeometry(.12, .12, 6, 8), hierro); pos.position.set(C.x - R - 2, 3, C.z + R + 1); escena.add(pos);
+  const ref = new THREE.Mesh(new THREE.BoxGeometry(.8, .5, .5), new THREE.MeshBasicMaterial({ color: 0xfff6c0 })); ref.position.set(C.x - R - 2, 6.1, C.z + R + 1); escena.add(ref);
+  const cC = cartel("⛓️ CÁRCEL · traé a los presos", "#1e4fd8"); cC.scale.set(8, 1.5, 1); cC.position.set(C.x, 5.6, C.z); escena.add(cC); }
 // Faroles
 for (let x = -52; x <= 52; x += 24) for (let z = -52; z <= 52; z += 24) {
   if (choca(x, z, .5)) continue;
@@ -1340,6 +1379,7 @@ function ponerCabina(a) {
   U.dial.position.set(-.12, y - .44, .74); U.radio.position.set(.15, y - .4, .66); U.sir.position.set(.15, y - .48, .66); U.espejo.position.set(0, y + .22, .95);
 }
 function subirAuto(a) { setTimeout(pintarPanel, 0);
+  if (a.propio) { if (yo.preso) return; a.conductor = yo.id; miAuto = a; yaw = a.h + Math.PI; pitch = -.05; grande(`🔑 ${MODELO(a.modeloId).nom}`, "#7dff8a"); beep(500, .1); return; }
   if (a.conductor || yo.equipo !== "poli" || yo.preso) return;
   if (a.tipo === "camioneta" && !ARMADO(yo.clase)) { grande("🚙 Solo para SWAT y Grupo Halcón", "#f2c200"); return; }
   a.conductor = yo.id; miAuto = a; yaw = a.h + Math.PI; pitch = -.05;
@@ -1350,6 +1390,7 @@ function bajarAuto() { setTimeout(pintarPanel, 0);
   const a = miAuto; if (!a) return;
   for (const lado of [1, -1, 2, -2]) { const x = a.x + Math.cos(a.h) * 2 * lado, z = a.z - Math.sin(a.h) * 2 * lado; if (!choca(x, z)) { yo.x = x; yo.z = z; break; } }
   a.conductor = null; a.vel = 0; a.balizas = !!a.sirena; miAuto = null; yaw = a.h + Math.PI + mirarAuto; mirarAuto = 0;
+  if (a.propio) return;
   enviar("auto", { i: a.i, quien: yo.id, sube: false, x: a.x, z: a.z, h: a.h, sir: a.sirena, sp: a.patron || "alterno" });
 }
 function manejar(a, dt) {
@@ -1693,6 +1734,8 @@ function conectar(cod, host) {
     .on("broadcast", { event: "dano" }, ({ payload: p }) => recibirDano(p.ladron, p.de, p.dmg, Math.min(4000, +p.at || 0)))
     .on("broadcast", { event: "atrapa" }, ({ payload: p }) => atrapado(p.ladron, p.poli))
     .on("broadcast", { event: "libera" }, ({ payload: p }) => liberar(p.quien))
+    .on("broadcast", { event: "entregaPreso" }, ({ payload: p }) => { const s = jug[p.id]; if (s && p.poli === "") { s.esposado = null; return; } entregarPreso(p.id, p.poli); })
+    .on("broadcast", { event: "suelta" }, ({ payload: p }) => soltarEsposado(p.id, p.quien))
     .on("broadcast", { event: "bolsa" }, ({ payload: p }) => tomarBolsa(p.i, p.quien))
     .on("broadcast", { event: "entrega" }, ({ payload: p }) => entregar(p.quien))
     .on("broadcast", { event: "paquete" }, ({ payload: p }) => tomarPaquete(p.i, p.quien))
@@ -1724,7 +1767,8 @@ function recibirPos(p) {
   if ((p.div && p.div !== s.div) || (p.uni && p.uni !== s.uni)) { s.div = p.div || s.div; s.uni = p.uni || s.uni; escena.remove(s.mesh); s.mesh = crearMuneco(s.equipo, s.nombre, s.clase, s.div, s.uni); }
   s.tx = p.x; s.tz = p.z; s.rot = p.rot + Math.PI;   // la cámara mira hacia -z y el muñeco hacia +z
   // (antes esta parte había quedado adentro del comentario: no se actualizaba preso/bolsa/auto y los jugadores "se iban" a los 8 s)
-  if (p.res !== undefined) s.res = p.res; s.preso = !!p.preso; s.bolsa = !!p.bolsa; s.paquete = !!p.paq; s.visto = Date.now(); s.auto = p.auto ?? null;
+  if (p.res !== undefined) s.res = p.res; s.preso = !!p.preso; s.bolsa = !!p.bolsa; s.paquete = !!p.paq; s.visto = Date.now(); s.auto = p.auto ?? null; s.esposado = s.preso ? (p.esp || null) : null;
+  autoRemoto(s, p.pc, p);
   if (s.auto !== null && autos[s.auto] && autos[s.auto] !== miAuto) { const a = autos[s.auto]; a.conductor = p.id; a.tx = p.x; a.tz = p.z; a.th = p.ah; a.sirena = p.sir; a.patron = p.sp || "alterno"; a.vel = p.av; }
 }
 
@@ -1739,15 +1783,42 @@ function atrapado(idLadron, idPoli) {
   { const l = jug[idLadron]; if (l && !l.preso) { l.detenciones = (l.detenciones || 0) + 1; delete capturas[idLadron]; } }
   const l = jug[idLadron], p = jug[idPoli]; if (!l || l.preso) return;
   l.preso = true; l.res = 100; if (l.bolsa) { l.bolsa = false; } l.paquete = false; if (l.maletin) { l.maletin = false; feed("💼 La policía recuperó el maletín presidencial"); }
-  if (p) p.atrapados++;
-  const c = lugarLibre(ZONAS.carcel, 2.5); l.x = l.tx = c.x; l.z = l.tz = c.z;
+  if (p) p.atrapados++; if (p === yo) ganar(300, "detención");
+  // Si lo atrapó un jugador policía, queda esposado y lo tiene que llevar él a la cárcel (antes se teletransportaba)
+  if (p && !p.bot && p.equipo === "poli") l.esposado = p.id; else alaCelda(l);
   feed(`🚔 ${p ? p.nombre : "La poli"} atrapó a ${l.nombre}`);
-  if (l === yo) { grande("🚔 ¡TE ATRAPARON!", "#5a8aff"); sirena(); }
-  else if (p === yo) { grande("👮 ¡ATRAPADO!", "#5a8aff"); sirena(); }
+  if (l === yo) { grande(l.esposado ? "🔗 ¡ESPOSADO! Te llevan a la cárcel" : "🚔 ¡TE ATRAPARON!", "#5a8aff"); sirena(); }
+  else if (p === yo) { grande("👮 ¡ATRAPADO! Llevalo a la ⛓️ CÁRCEL", "#5a8aff"); sirena(); }
   revisarFin();
 }
+function alaCelda(s) { const c = lugarLibre(ZONAS.carcel, 2.5); s.x = s.tx = c.x; s.z = s.tz = c.z; s.esposado = null; }
+const poliEnAuto = p => !!p && (p === yo ? !!miAuto : (p.auto !== null && p.auto !== undefined) || !!p.enPropio);
+// El preso esposado sigue al policía (lo mueve quien lo controla: él mismo, o el host si es NPC)
+function moverEsposados(dt) {
+  for (const s of Object.values(jug)) { if (!s.esposado) continue;
+    const manda = s === yo || (s.bot && (!online || soyHost)); if (!manda) continue;
+    const p = jug[s.esposado];
+    if (!p || !s.preso) { if (s.preso) { alaCelda(s); enviar("entregaPreso", { id: s.id, poli: "" }); } else s.esposado = null; continue; }
+    if (poliEnAuto(p)) { s.x = s.tx = p.x; s.z = s.tz = p.z; continue; }   // va atrás en el patrullero
+    const d = Math.hypot(s.x - p.x, s.z - p.z);
+    if (d > 8) { s.x = s.tx = p.x; s.z = s.tz = p.z + 1.3; }
+    else if (d > 1.3) { const k = 1.3 / d; s.x = s.tx = p.x + (s.x - p.x) * k; s.z = s.tz = p.z + (s.z - p.z) * k; s.rot = Math.atan2(p.x - s.x, p.z - s.z); }
+  }
+}
+function entregarPreso(id, idPoli) {
+  const s = jug[id]; if (!s || !s.esposado) return; s.esposado = null; alaCelda(s);
+  const p = jug[idPoli]; if (!p) return;
+  feed(`⛓️ ${p.nombre} metió preso a ${s.nombre}`);
+  if (p === yo) { ganar(200, "traslado a la cárcel"); grande("⛓️ ¡PRESO ENTREGADO!", "#7dff8a"); beep(600, .15, "triangle"); }
+  if (s === yo) grande("⛓️ Estás en la celda", "#5a8aff");
+}
+function soltarEsposado(id, idQuien) {
+  const s = jug[id]; if (!s || !s.esposado) return; s.esposado = null; s.preso = false; s.res = 100;
+  const q = jug[idQuien]; feed(`🔓 ${q ? q.nombre : "Alguien"} rescató a ${s.nombre} de las esposas`);
+  if (s === yo) grande("🔓 ¡TE SOLTARON! ¡Corré!", "#7dff8a"); beep(1200, .2, "triangle");
+}
 function liberar(idQuien) {
-  let n = 0; for (const s of Object.values(jug)) if (s.equipo === "ladron" && s.preso) { s.preso = false; n++; const l = lugarLibre(ZONAS.carcel, 9); if (s === yo || s.bot) { s.x = s.tx = l.x; s.z = s.tz = l.z; } }
+  let n = 0; for (const s of Object.values(jug)) if (s.equipo === "ladron" && s.preso && !s.esposado) { s.preso = false; n++; const l = lugarLibre(ZONAS.carcel, 9); if (s === yo || s.bot) { s.x = s.tx = l.x; s.z = s.tz = l.z; } }
   if (!n) return;
   const q = jug[idQuien]; feed(`🔓 ${q ? q.nombre : "Alguien"} liberó a ${n} preso${n > 1 ? "s" : ""}`);
   if (yo.equipo === "ladron") grande("🔓 ¡LIBERADOS!", "#7dff8a"); else grande("😡 ¡SE ESCAPARON!", "#ff6a6a");
@@ -1767,7 +1838,7 @@ function entregarPaquete(idQuien) {
   const q = jug[idQuien]; if (!q || !q.paquete) return;
   q.paquete = false; q.robado += 2000; botin += 2000;
   feed(`🚤 ${q.nombre} sacó un cargamento por $2.000 (total $${botin.toLocaleString("es-AR")})`);
-  if (q === yo) { grande("🚤 +$2.000", "#ffb36b"); beep(1300, .25, "triangle"); }
+  if (q === yo) { grande("🚤 +$2.000", "#ffb36b"); beep(1300, .25, "triangle"); ganar(1000, "contrabando"); }
   revisarFin();
 }
 function irrupcion(idQuien) {
@@ -1793,7 +1864,7 @@ function entregar(idQuien) {
   const v = q.maletin ? 3000 : DIST.activo ? 1500 : 1000; q.maletin = false;
   q.bolsa = false; q.robado += v; botin += v;
   feed(`💰 ${q.nombre} entregó $${v.toLocaleString("es-AR")}${DIST.activo ? " (🔥 disturbio)" : ""} (total $${botin.toLocaleString("es-AR")})`);
-  if (q === yo) { grande(`💸 +$${v.toLocaleString("es-AR")}`, "#7dff8a"); beep(1300, .25, "triangle"); }
+  if (q === yo) { grande(`💸 +$${v.toLocaleString("es-AR")}`, "#7dff8a"); beep(1300, .25, "triangle"); ganar(v / 2, "botín entregado"); }
   revisarFin();
 }
 function revisarFin() {
@@ -2361,6 +2432,7 @@ function pensarBot(b, dt) {
     if (!b.bolsa && !b.paquete) for (const p of PAQUETES) if (p.hasta < Date.now() && Math.hypot(p.x - b.x, p.z - b.z) < 1.8) { enviar("paquete", { i: p.i, quien: b.id }); tomarPaquete(p.i, b.id); }
     if (!b.bolsa) for (const bo of BOLSAS) if (bo.hasta < Date.now() && Math.hypot(bo.x - b.x, bo.z - b.z) < 1.3) { enviar("bolsa", { i: bo.i, quien: b.id }); tomarBolsa(bo.i, b.id); }
     if (presos && dentro(b, ZONAS.carcel, 1)) { enviar("libera", { quien: b.id }); liberar(b.id); }
+    { const e = Object.values(jug).find(o => o !== b && o.esposado && !poliEnAuto(jug[o.esposado]) && Math.hypot(o.x - b.x, o.z - b.z) < 1.8); if (e) { enviar("suelta", { id: e.id, quien: b.id }); soltarEsposado(e.id, b.id); } }
   }
   let o = b.objetivo; if (!o || (b.aturdido && Date.now() < b.aturdido)) return;
   // Si no hay línea recta libre, sigue un camino calculado por las calles (A* sobre una grilla de 2 m)
@@ -2528,6 +2600,11 @@ function loop(t) {
       pistaDepto = ARMADO(yo.clase) ? "🦅 E: armería Halcón (elegir arma, recargar y granadas)" : "🦅 La armería de la base es solo para Halcón y SWAT";
       if (accionPedida && ARMADO(yo.clase)) { accionPedida = false; abrirArmeria(); balas = ARMA().carg || 0; recargando = 0; if (yo.clase === "halcon") granadas = 3; }
     }
+    // Concesionaria y Mecánico Cacho
+    if (!miAuto && !yo.preso && !pistaDepto) {
+      if (Math.hypot(yo.x - 104.6, yo.z - 69) < 1.8) { pistaDepto = "🚗 E: hablar con el vendedor (comprar autos)"; if (accionPedida) { accionPedida = false; abrirConce(); } }
+      else if (Math.hypot(yo.x - 102.4, yo.z - 106) < 2) { pistaDepto = "🔧 E: hablar con Cacho, el mecánico"; if (accionPedida) { accionPedida = false; abrirCacho(); } }
+    }
     // Hotel: recepción y camas para descansar
     if (!miAuto && !yo.preso && !pistaDepto) {
       if (Math.hypot(yo.x - HOTEL.recep.x, yo.z - HOTEL.recep.z) < 1.6) { pistaDepto = "🛎️ E: hablar con la recepción";
@@ -2551,7 +2628,8 @@ function loop(t) {
     if (SUPER.pata) SUPER.pata.rotation.x = Math.sin(t / 250) * .6;   // el gatito saluda
     // Subir / bajar del patrullero
     let autoCerca = null;
-    if (yo.equipo === "poli" && !miAuto) { let dm = 3.2; for (const a of autos) { const d = Math.hypot(a.x - yo.x, a.z - yo.z); if (!a.conductor && d < dm) { dm = d; autoCerca = a; } } }   // el más cercano
+    if (!miAuto && miPropio && !yo.preso && Math.hypot(miPropio.x - yo.x, miPropio.z - yo.z) < 3.4) autoCerca = miPropio;
+    if (yo.equipo === "poli" && !miAuto && !autoCerca) { let dm = 3.2; for (const a of autos) { const d = Math.hypot(a.x - yo.x, a.z - yo.z); if (!a.conductor && d < dm) { dm = d; autoCerca = a; } } }   // el más cercano
     if (autoPedido) { if (miAuto) bajarAuto(); else if (autoCerca) subirAuto(autoCerca); }
     autoPedido = false;
     if (miAuto) manejar(miAuto, dt);
@@ -2577,19 +2655,26 @@ function loop(t) {
       }
       else if (objetivo) pista = miAuto ? `🚓 ¡Atropellalo o tocá E para atrapar a ${objetivo.nombre}!` : `🚔 ¡Click para atrapar a ${objetivo.nombre}!`;
       else if (miAuto) pista = document.body.classList.contains("tactil") ? "🚓 Botón azul 🚓 para bajarte · sirenas en el panel" : "🚓 F para bajarte · H sirena · Espacio freno";
+      else if (autoCerca && autoCerca.propio) pista = "🔑 F: subirte a tu auto";
       else if (autoCerca) pista = autoCerca.tipo === "camioneta"
         ? (ARMADO(yo.clase) ? "🚙 Tocá F para subirte a la camioneta del Grupo Especial Táctico" : "🚙 Camioneta del Grupo Especial Táctico: solo SWAT y Grupo Halcón")
         : autoCerca.tipo === "moto" ? "🏍️ Tocá F para subirte a la moto" : "🚓 Tocá F para subirte al patrullero";
+      const llevo = Object.values(jug).filter(s => s.esposado === yo.id);
+      if (llevo.length && dentro(yo, ZONAS.carcel, 3)) for (const s of llevo) { enviar("entregaPreso", { id: s.id, poli: yo.id }); entregarPreso(s.id, yo.id); }
+      else if (llevo.length && !pista && !objetivo) pista = `🔗 Llevás a ${llevo.map(s => s.nombre).join(", ")}: andá a la ⛓️ CÁRCEL (${Math.round(Math.hypot(yo.x - ZONAS.carcel.x, yo.z - ZONAS.carcel.z))} m)`;
       if (objetivo && accionPedida) { enviar("atrapa", { ladron: objetivo.id, poli: yo.id }); atrapado(objetivo.id, yo.id); }
     } else if (!yo.preso) {
       if (!yo.bolsa) for (const b of BOLSAS) if (b.hasta < Date.now() && Math.hypot(b.x - yo.x, b.z - yo.z) < 1.3) { enviar("bolsa", { i: b.i, quien: yo.id }); tomarBolsa(b.i, yo.id); }
       if (yo.bolsa && dentro(yo, ZONAS.guarida)) { enviar("entrega", { quien: yo.id }); entregar(yo.id); }
       if (!yo.bolsa && !yo.paquete) for (const p of PAQUETES) if (p.hasta < Date.now() && Math.hypot(p.x - yo.x, p.z - yo.z) < 1.6) { enviar("paquete", { i: p.i, quien: yo.id }); tomarPaquete(p.i, yo.id); }
       if (yo.paquete && dentro(yo, ZONAS.muelle)) { enviar("entregaP", { quien: yo.id }); entregarPaquete(yo.id); }
-      const presos = Object.values(jug).some(s => s.equipo === "ladron" && s.preso);
-      if (presos && dentro(yo, ZONAS.carcel, 1.2)) { pista = "🔓 ¡Click para liberar a tus compañeros!"; if (accionPedida) { enviar("libera", { quien: yo.id }); liberar(yo.id); } }
+      const esp = Object.values(jug).find(s => s !== yo && s.esposado && !poliEnAuto(jug[s.esposado]) && Math.hypot(s.x - yo.x, s.z - yo.z) < 2);
+      if (esp) { pista = `🔓 ¡Click para soltar a ${esp.nombre} de las esposas!`; if (accionPedida) { enviar("suelta", { id: esp.id, quien: yo.id }); soltarEsposado(esp.id, yo.id); } }
+      const presos = Object.values(jug).some(s => s.equipo === "ladron" && s.preso && !s.esposado);
+      if (!esp && presos && dentro(yo, ZONAS.carcel, 1.2)) { pista = "🔓 ¡Click para liberar a tus compañeros!"; if (accionPedida) { enviar("libera", { quien: yo.id }); liberar(yo.id); } }
       if (!pista) pista = yo.paquete ? "📦 Llevá el paquete al 🚤 MUELLE ($2.000)" : yo.bolsa ? "💰 Llevá la bolsa a la 🏚️ GUARIDA" : "🏦 Robá el BANCO o buscá contrabando en la 🏚️ CASA NARCO";
-    } else pista = "⛓️ Estás preso. Esperá que un compañero te libere.";
+    } else pista = yo.esposado ? "🔗 Estás esposado: te llevan a la cárcel. Un compañero te puede soltar en el camino." : "⛓️ Estás preso. Esperá que un compañero te libere.";
+    if (!pista && autoCerca && autoCerca.propio) pista = "🔑 F: subirte a tu auto";
     accionPedida = false;
     $("pista").textContent = pistaDepto || pista; $("mira").classList.toggle("cerca", !!objetivo);
     $("radar").style.display = yo.equipo === "poli" && yo.div === "comunicaciones" ? "block" : "none";
@@ -2605,11 +2690,12 @@ function loop(t) {
       else { s.x += (s.tx - s.x) * Math.min(1, dt * 10); s.z += (s.tz - s.z) * Math.min(1, dt * 10);
         if (online && Date.now() - s.visto > 8000) { feed(`🚪 Se fue ${s.nombre}`); escena.remove(s.mesh); delete jug[s.id]; continue; } }
       if (s.mesh) { const v = Math.hypot(s.x - (s._px ?? s.x), s.z - (s._pz ?? s.z)) / Math.max(dt, .001); s._px = s.x; s._pz = s.z; animarMuneco(s.mesh, s.preso ? 0 : v, t);
-        s.mesh.visible = !(s.auto !== null && s.auto !== undefined) && Math.abs(s.x - camara.position.x) + Math.abs(s.z - camara.position.z) < 110;   // lejos no se dibuja s.mesh.position.set(s.x, 0, s.z); s.mesh.rotation.y = s.rot; s.mesh.userData.bolsa.visible = s.bolsa || !!s.paquete;
+        s.mesh.visible = !(s.auto !== null && s.auto !== undefined) && !s.enPropio && Math.abs(s.x - camara.position.x) + Math.abs(s.z - camara.position.z) < 110 && !(s.esposado && poliEnAuto(jug[s.esposado]));   // lejos no se dibuja
+        s.mesh.position.set(s.x, 0, s.z); s.mesh.rotation.y = s.rot; s.mesh.userData.bolsa.visible = s.bolsa || !!s.paquete;
         s.mesh.userData.marca.visible = yo.equipo === "poli" && s.equipo === "ladron" && !s.preso && (((yo.div === "investigaciones" || yo.clase === "investigador") && (s.bolsa || !!s.paquete)) || (capturas[s.id] || 0) > Date.now());
         s.mesh.position.y = 0; }
     }
-    actualizarSwat(dt, t); actualizarLuces(t); actualizarGranadas(dt);
+    moverEsposados(dt); actualizarSwat(dt, t); actualizarLuces(t); actualizarGranadas(dt);
     // Puerta: abierta queda tirada en el piso; se repara sola si no hay nadie adentro
     if (!puerta.cerrada && Date.now() > puerta.hasta && !Object.values(jug).some(s => s.x > CASA.x1 - 1 && s.x < CASA.x2 && s.z > CASA.z1 && s.z < CASA.z2)) { puerta.cerrada = true; feed("🔒 Los narcos repararon la puerta"); }
     puerta.mesh.rotation.z += ((puerta.cerrada ? 0 : -Math.PI / 2) - puerta.mesh.rotation.z) * Math.min(1, dt * 8);
@@ -2630,6 +2716,7 @@ function loop(t) {
       a.mesh.visible = a === miAuto || Math.abs(a.x - camara.position.x) + Math.abs(a.z - camara.position.z) < 120;
       if (a.mesh.visible) pintarAuto(a, t);
     }
+    if (miPropio) pintarAuto(miPropio, t);
     sonidoSirena(t);
     $("velocimetro").style.display = miAuto ? "block" : "none";
     if (miAuto) $("velocimetro").textContent = `${miAuto.tipo === "camioneta" ? "🚙" : miAuto.tipo === "moto" ? "🏍️" : "🚓"} ${Math.round(Math.abs(miAuto.vel) * 3.6)} km/h${miAuto.sirena ? " 🚨" : ""}`;
@@ -2638,17 +2725,17 @@ function loop(t) {
     // HUD
     const quedan = Math.max(0, Math.ceil((fin - Date.now()) / 1000));
     $("reloj").textContent = isFinite(fin) ? `⏱️ ${Math.floor(quedan / 60)}:${String(quedan % 60).padStart(2, "0")}` : `♾️ 👮${rondas.poli} · 🦹${rondas.ladron}`;
-    $("rol").textContent = yo.equipo === "poli" ? `${ICONO(yo.clase)} ${yo.nombre} · 🚔 ${yo.atrapados}` : `🦹 ${yo.nombre}${yo.bolsa ? " · 💰" : ""}`;
+    $("rol").textContent = (yo.equipo === "poli" ? `${ICONO(yo.clase)} ${yo.nombre} · 🚔 ${yo.atrapados}` : `🦹 ${yo.nombre}${yo.bolsa ? " · 💰" : ""}`) + ` · 💵 $${BILLE.plata.toLocaleString("es-AR")}`;
     $("botin").textContent = `💰 Botín: $${botin.toLocaleString("es-AR")} / $${META.toLocaleString("es-AR")}`;
     const L = Object.values(jug).filter(s => s.equipo === "ladron");
     $("equipos").innerHTML = `👮 ${Object.values(jug).filter(s => s.equipo === "poli").length} polis<br>🦹 ${L.filter(s => !s.preso).length} libres · ⛓️ ${L.filter(s => s.preso).length} presos`;
     $("b-accion").textContent = yo.equipo === "poli" ? "🚔" : "🔓";
     if (quedan <= 0 && (soyHost || !online)) { const g = botin >= META ? "ladron" : "poli"; enviar("fin", { gana: g }); terminar(g); }
     if (online && t - ultPos > 100) { ultPos = t;
-      const npcs = soyHost ? Object.values(jug).filter(b => b.bot).map(b => ({ id: b.id, nombre: b.nombre, equipo: "ladron", clase: "ladron", res: Math.round(b.res), x: +b.x.toFixed(2), z: +b.z.toFixed(2), rot: +((b.rot || 0) - Math.PI).toFixed(2), preso: b.preso, bolsa: b.bolsa, paq: !!b.paquete, auto: null })) : [];
+      const npcs = soyHost ? Object.values(jug).filter(b => b.bot).map(b => ({ id: b.id, nombre: b.nombre, equipo: "ladron", clase: "ladron", res: Math.round(b.res), x: +b.x.toFixed(2), z: +b.z.toFixed(2), rot: +((b.rot || 0) - Math.PI).toFixed(2), preso: b.preso, esp: b.esposado || null, bolsa: b.bolsa, paq: !!b.paquete, auto: null })) : [];
       const danos = danosPend.splice(0);
-      enviar("pos", { npcs, danos, id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, uni: yo.uni, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, bolsa: yo.bolsa, paq: !!yo.paquete,
-      auto: miAuto ? miAuto.i : null, ah: miAuto ? +miAuto.h.toFixed(2) : 0, av: miAuto ? +miAuto.vel.toFixed(1) : 0, sir: miAuto ? miAuto.sirena : false, sp: miAuto ? (miAuto.patron || "alterno") : "" }); }
+      enviar("pos", { npcs, danos, id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, uni: yo.uni, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, esp: yo.esposado || null, bolsa: yo.bolsa, paq: !!yo.paquete,
+      auto: miAuto && !miAuto.propio ? miAuto.i : null, pc: miAuto && miAuto.propio ? { m: miAuto.modeloId, c: miAuto.color, n: miAuto.neon || 0 } : null, ah: miAuto ? +miAuto.h.toFixed(2) : 0, av: miAuto ? +miAuto.vel.toFixed(1) : 0, sir: miAuto ? miAuto.sirena : false, sp: miAuto ? (miAuto.patron || "alterno") : "" }); }
   } else { yaw += dt * .1; }
   // Mi propio muñeco (se ve en tercera persona o vista aérea)
   if (yo) {
@@ -2686,7 +2773,7 @@ function loop(t) {
 }
 // Junta en una sola malla todos los objetos fijos que comparten material (veredas, rayas, carteles pintados, aeropuerto...)
 function fusionarEstaticos() {
-  const dyn = new Set([...HOTEL.camas.map(k => k.zz), GOB.rueda, SUPER.pata, AER.faro, puerta.mesh, conoLuz, ...AGU.fuegos, ...PAQUETES.map(p => p.mesh), ...balizasCarcel.map(b => b.b)]);
+  const dyn = new Set([ZAUTOS.cacho, ...HOTEL.camas.map(k => k.zz), GOB.rueda, SUPER.pata, AER.faro, puerta.mesh, conoLuz, ...AGU.fuegos, ...PAQUETES.map(p => p.mesh), ...balizasCarcel.map(b => b.b)]);
   const grupos = new Map();
   for (const m of [...escena.children]) {
     if (!m.isMesh || m.isInstancedMesh || m.children.length || dyn.has(m) || Array.isArray(m.material) || !m.visible) continue;
@@ -2741,6 +2828,168 @@ function actualizarPatrullas(dt, t) {
         feed(`🚓 Una patrulla de la Ciudad vio a ${s.nombre}`); pedidoCaptura(s.id, null, true); break; }
     }
   }
+}
+// ================== AUTOS PROPIOS: CONCESIONARIA Y MECÁNICO CACHO ==================
+// Billetera del jugador (se guarda en el teléfono): la policía gana $300 por detenido, los ladrones la mitad de lo que entregan.
+const BILLE = { get plata() { try { return +(localStorage.getItem("polis-plata") ?? 3000); } catch (e) { return 3000; } },
+  set plata(v) { try { localStorage.setItem("polis-plata", Math.max(0, Math.round(v))); } catch (e) {} },
+  get garage() { try { return JSON.parse(localStorage.getItem("polis-autos") || '{"tengo":[],"mejoras":{}}'); } catch (e) { return { tengo: [], mejoras: {} }; } },
+  set garage(v) { try { localStorage.setItem("polis-autos", JSON.stringify(v)); } catch (e) {} } };
+function ganar(v, porQue) { if (v <= 0) return; BILLE.plata = BILLE.plata + v; feed(`💵 +$${v.toLocaleString("es-AR")} a tu billetera (${porQue})`); }
+const CATALOGO = {
+  normales: [
+    { id: "hatch", nom: "Hatchback", precio: 1500, color: 0xe8e8e8, modelo: "hatch", max: 23 },
+    { id: "sedan", nom: "Sedán familiar", precio: 2500, color: 0x8a1a1a, modelo: "sedan", max: 25 },
+    { id: "taxi", nom: "Taxi", precio: 3000, color: 0x111111, techo: 0xf2c200, modelo: "sedan", max: 25 },
+    { id: "pickup", nom: "Pickup", precio: 4000, color: 0x1a3a7a, modelo: "pickup", max: 24 },
+  ],
+  vip: [
+    { id: "deportivo", nom: "Deportivo rojo", precio: 9000, color: 0xd01010, modelo: "deportivo", max: 34 },
+    { id: "limusina", nom: "Limusina blanca", precio: 15000, color: 0xf4f4f4, modelo: "limusina", max: 27 },
+    { id: "dorado", nom: "Superauto dorado", precio: 22000, color: 0xd4af37, modelo: "deportivo", max: 38, neon: 0xffd400 },
+    { id: "bolido", nom: "Bólido neón", precio: 30000, color: 0x151515, modelo: "deportivo", max: 41, neon: 0x00ffcc },
+  ],
+};
+const MODELO = id => [...CATALOGO.normales, ...CATALOGO.vip].find(m => m.id === id);
+// Auto civil con forma propia según el modelo (sin balizas ni letras)
+function crearAutoCivil(modelo, color, extra = {}) {
+  const g = new THREE.Group(), pin = new THREE.MeshLambertMaterial({ color }), negro = new THREE.MeshLambertMaterial({ color: 0x151515 });
+  const vidrio = new THREE.MeshLambertMaterial({ color: 0x1b2633, polygonOffset: true, polygonOffsetFactor: -1 });
+  const P = {
+    hatch: [[[-1.9, .32], [-1.92, 1.0], [-1.6, 1.42], [.35, 1.45], [1.0, 1.0], [1.9, .88], [1.95, .32]], [[-1.6, 1.0], [-1.45, 1.4], [.35, 1.43], [.98, 1.0]], 1.8, .35],
+    sedan: [[[-2.2, .32], [-2.22, .85], [-1.95, .97], [-1.2, 1.0], [-.78, 1.44], [.42, 1.47], [1.05, 1.02], [2.05, .9], [2.25, .72], [2.25, .32]], [[-1.2, .99], [-.78, 1.43], [.42, 1.46], [1.07, 1.01]], 1.86, .37],
+    pickup: [[[-2.5, .4], [-2.5, 1.0], [-.3, 1.0], [-.25, 1.75], [.9, 1.78], [1.4, 1.15], [2.45, 1.0], [2.5, .4]], [[-.2, 1.1], [-.2, 1.72], [.88, 1.74], [1.35, 1.15]], 2.0, .45],
+    deportivo: [[[-2.2, .25], [-2.2, .8], [-1.4, .9], [-.6, 1.15], [.5, 1.18], [1.2, .82], [2.3, .6], [2.35, .25]], [[-1.1, .92], [-.55, 1.13], [.5, 1.16], [1.15, .84]], 1.9, .34],
+    limusina: [[[-3.6, .32], [-3.62, .88], [-3.3, .98], [-2.4, 1.0], [-2.0, 1.42], [1.4, 1.45], [2.0, 1.02], [3.4, .9], [3.6, .72], [3.6, .32]], [[-2.4, .99], [-2.0, 1.41], [1.4, 1.44], [2.02, 1.01]], 1.9, .37],
+  }[modelo] || null;
+  const [cuerpo, vid, ancho, radio] = P || [];
+  g.add(extruir(cuerpo, ancho, pin));
+  const v = extruir(vid, ancho + .12, vidrio, .02); v.position.y = .005; g.add(v);
+  if (modelo === "pickup") { const caja = new THREE.Mesh(new THREE.BoxGeometry(ancho - .1, .1, 2.2), negro); caja.position.set(0, 1.0, -1.35); g.add(caja); }
+  if (extra.techo) { const t = new THREE.Mesh(new THREE.BoxGeometry(.6, .25, .3), new THREE.MeshBasicMaterial({ color: extra.techo })); t.position.set(0, 1.62, -.3); g.add(t);
+    const f = new THREE.Mesh(new THREE.BoxGeometry(ancho + .02, .15, 3), new THREE.MeshBasicMaterial({ color: extra.techo })); f.position.set(0, .7, 0); g.add(f); }
+  const largo = modelo === "limusina" ? 3.6 : modelo === "pickup" ? 2.5 : 2.2;
+  opticas(g, largo + .02, -largo + .02, .68, ancho / 2 - .25);
+  const ruedas = [[-1, 1], [1, 1], [-1, -1], [1, -1]].map(([sx, sz]) => rueda(g, sx * (ancho / 2 - .02), radio, sz * (largo - .85), radio, .26, 0xc8c8c8));
+  if (extra.neon) { const n = new THREE.Mesh(new THREE.PlaneGeometry(ancho + .6, largo * 2 + .4), new THREE.MeshBasicMaterial({ color: extra.neon, transparent: true, opacity: .55, blending: THREE.AdditiveBlending, depthWrite: false }));
+    n.rotation.x = -Math.PI / 2; n.position.y = .05; g.add(n); }
+  if (extra.turbo) { const al = new THREE.Mesh(new THREE.BoxGeometry(ancho, .06, .4), negro); al.position.set(0, 1.25, -largo + .2); g.add(al); }
+  const dummy = () => new THREE.Mesh(new THREE.BoxGeometry(.01, .01, .01), new THREE.MeshBasicMaterial({ visible: false }));
+  const rojo = dummy(), azul = dummy(), cartelC = new THREE.Object3D(); g.add(rojo, azul, cartelC);
+  g.userData = { rojo, azul, cartel: cartelC, ruedas, radio };
+  escena.add(g); return g;
+}
+// Mi auto propio (uno a la vez en la calle)
+let miPropio = null;
+function sacarAuto(id, x, z, h = 0) {
+  const m = MODELO(id); if (!m) return;
+  if (miPropio) { if (miAuto === miPropio) bajarAuto(); escena.remove(miPropio.mesh); }
+  const mej = BILLE.garage.mejoras[id] || {}, color = mej.color ?? m.color, neon = mej.neon ?? m.neon;
+  miPropio = { i: -1, propio: true, modeloId: id, tipo: "civil", r: m.modelo === "limusina" ? 1.9 : 1.3, max: m.max * (mej.turbo ? 1.2 : 1), x, z, h, x0: x, z0: z, h0: h, tx: x, tz: z, th: h, vel: 0, conductor: null, sirena: false, balizas: false,
+    color, neon, mesh: crearAutoCivil(m.modelo, color, { techo: m.techo, neon, turbo: mej.turbo }) };
+  pintarAuto(miPropio, 0);
+}
+// Autos propios de los demás jugadores (se dibujan con lo que mandan en su posición)
+function autoRemoto(s, pc, p) {
+  if (!pc) { if (s.propioMesh) { escena.remove(s.propioMesh); s.propioMesh = null; } s.enPropio = false; return; }
+  const k = pc.m + "|" + pc.c + "|" + (pc.n || 0);
+  if (s.propioClave !== k) { if (s.propioMesh) escena.remove(s.propioMesh); const m = MODELO(pc.m); s.propioMesh = m ? crearAutoCivil(m.modelo, pc.c, { techo: m.techo, neon: pc.n }) : null; s.propioClave = k; }
+  s.enPropio = true; if (s.propioMesh) { s.propioMesh.position.set(p.x, 0, p.z); s.propioMesh.rotation.y = p.ah || 0; }
+}
+// ---- Concesionaria ----
+let pestañaConce = "normales";
+function abrirConce() { document.exitPointerLock?.(); $("conce").style.display = "block"; pintarConce(); }
+function pintarConce() {
+  const gar = BILLE.garage, plata = BILLE.plata;
+  $("co-plata").textContent = `💵 Tu billetera: $${plata.toLocaleString("es-AR")}`;
+  document.querySelectorAll("#conce [data-pest]").forEach(b => b.classList.toggle("on", b.dataset.pest === pestañaConce));
+  $("co-lista").innerHTML = CATALOGO[pestañaConce].map(m => { const tengo = gar.tengo.includes(m.id);
+    return `<div class="auto ${pestañaConce}"><div class="nom">${pestañaConce === "vip" ? "👑 " : "🚗 "}${m.nom}</div><div>Velocidad máx: ${Math.round(m.max * 3.6)} km/h${m.neon ? " · luces neón" : ""}</div>
+      ${tengo ? `<button data-sacar="${m.id}">🔑 Sacarlo a la calle</button>` : `<button data-comprar="${m.id}" ${plata < m.precio ? "disabled" : ""}>💵 Comprar $${m.precio.toLocaleString("es-AR")}</button>`}</div>`; }).join("");
+  $("co-lista").querySelectorAll("[data-comprar]").forEach(b => b.onclick = () => { const m = MODELO(b.dataset.comprar); if (BILLE.plata < m.precio) return;
+    BILLE.plata = BILLE.plata - m.precio; const g = BILLE.garage; g.tengo.push(m.id); BILLE.garage = g; grande(`🔑 ¡Compraste el ${m.nom}!`, "#7dff8a"); beep(900, .1, "triangle"); setTimeout(() => beep(1300, .15, "triangle"), 120); pintarConce(); });
+  $("co-lista").querySelectorAll("[data-sacar]").forEach(b => b.onclick = () => { sacarAuto(b.dataset.sacar, 96, 70, Math.PI); $("conce").style.display = "none"; grande("🔑 Tu auto te espera en la puerta de la concesionaria (F para subir)", "#7dff8a"); });
+}
+document.querySelectorAll("#conce [data-pest]").forEach(b => b.onclick = () => { pestañaConce = b.dataset.pest; pintarConce(); });
+$("co-ok").onclick = () => { $("conce").style.display = "none"; if (!document.body.classList.contains("tactil")) renderer.domElement.requestPointerLock?.(); };
+// ---- Mecánico Cacho ----
+const SERVICIOS = [
+  { id: "turbo", nom: "🚀 Turbo", d: "20% más velocidad máxima", precio: 2500 },
+  { id: "neon", nom: "💡 Luces neón", d: "Luz de color abajo del auto", precio: 1500 },
+  { id: "pintura", nom: "🎨 Pintura", d: "Cambia el color (cada vez uno nuevo)", precio: 800 },
+  { id: "service", nom: "🛠️ Service completo", d: "Cacho lo revisa y te da un consejo", precio: 0 },
+];
+const COLORES_CACHO = [0xd01010, 0x1a5ad0, 0x18a058, 0xf2c200, 0x8e44ad, 0xff7a1a, 0xffffff, 0x111111, 0xff4fa0, 0x00c8d8];
+const CONSEJOS = ["\"Pibe, los frenos andan joya. Pero no te mandes por la autopista a lo loco.\"", "\"Le cambié el aceite, quedó como nuevo.\"", "\"Ese ruidito era una tuerca floja, ya está.\"", "\"Si le ponés turbo, vas a volar, eh.\""];
+function abrirCacho() {
+  const auto = miPropio && Math.hypot(miPropio.x - yo.x, miPropio.z - yo.z) < 14 ? miPropio : null;
+  document.exitPointerLock?.(); $("cacho").style.display = "block";
+  $("ca-plata").textContent = `💵 Tu billetera: $${BILLE.plata.toLocaleString("es-AR")}`;
+  if (!auto) { $("ca-lista").innerHTML = `<p>"¡Hola, pibe! Soy Cacho. Traeme tu auto propio acá al taller y te lo dejo hecho una pinturita." <br><small>(Comprá uno en la concesionaria y estacionalo cerca)</small></p>`; return; }
+  const mej = BILLE.garage.mejoras[auto.modeloId] || {};
+  $("ca-lista").innerHTML = `<p>"¡Qué lindo ${MODELO(auto.modeloId).nom}! ¿Qué le hacemos?"</p>` + SERVICIOS.map(sv => { const ya = (sv.id === "turbo" && mej.turbo) || (sv.id === "neon" && mej.neon);
+    return `<button data-serv="${sv.id}" ${ya || BILLE.plata < sv.precio ? "disabled" : ""}>${sv.nom} ${ya ? "✅" : sv.precio ? `$${sv.precio.toLocaleString("es-AR")}` : "gratis"}<small>${sv.d}</small></button>`; }).join("");
+  $("ca-lista").querySelectorAll("[data-serv]").forEach(b => b.onclick = () => { const sv = SERVICIOS.find(x => x.id === b.dataset.serv); if (BILLE.plata < sv.precio) return;
+    BILLE.plata = BILLE.plata - sv.precio; const g = BILLE.garage, m = g.mejoras[auto.modeloId] = g.mejoras[auto.modeloId] || {};
+    if (sv.id === "turbo") m.turbo = true; if (sv.id === "neon") m.neon = [0x00ffcc, 0xff00cc, 0x3d8aff, 0xffd400][Math.floor(Math.random() * 4)];
+    if (sv.id === "pintura") m.color = COLORES_CACHO[Math.floor(Math.random() * COLORES_CACHO.length)];
+    BILLE.garage = g; const { x, z, h } = auto; sacarAuto(auto.modeloId, x, z, h);
+    grande(sv.id === "service" ? CONSEJOS[Math.floor(Math.random() * CONSEJOS.length)] : `🔧 ¡Listo, ${sv.nom.replace(/^\S+ /, "")}!`, "#ffd400"); beep(300, .2, "sawtooth", .03); abrirCacho(); });
+}
+$("ca-ok").onclick = () => { $("cacho").style.display = "none"; if (!document.body.classList.contains("tactil")) renderer.domElement.requestPointerLock?.(); };
+// ---- La zona: camino, concesionaria (normales y VIP separados) y taller ----
+{
+  const Z = ZAUTOS, L = c => new THREE.MeshLambertMaterial({ color: c });
+  const plano = (x1, z1, x2, z2, mat, y) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(x2 - x1, z2 - z1), mat); m.rotation.x = -Math.PI / 2; m.position.set((x1 + x2) / 2, y, (z1 + z2) / 2); escena.add(m); };
+  plano(Z.x1, AER.z2, Z.x2, Z.z2, L(0x3d5a32), .006);
+  plano(88, 20, 96, 124, L(0x2b2d33), .02);                                                  // camino desde el aeropuerto
+  const pared = (x1, z1, x2, z2, h, mat) => { const m = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1, h, z2 - z1), mat); m.position.set((x1 + x2) / 2, h / 2, (z1 + z2) / 2); escena.add(m); edificios.push({ x1, z1, x2, z2, h }); };
+  // Concesionaria: salón de vidrio con mostrador del vendedor
+  const vidrio = new THREE.MeshLambertMaterial({ color: 0x9fd0ff, transparent: true, opacity: .35 }), gris = L(0xd8dde2);
+  pared(100, 60, 124, 60.3, 5, gris); pared(123.7, 60, 124, 78, 5, gris); pared(100, 77.7, 124, 78, 5, gris);
+  pared(99.8, 60, 100.1, 66.5, 5, vidrio); pared(99.8, 71.5, 100.1, 78, 5, vidrio);
+  const techoC = new THREE.Mesh(new THREE.BoxGeometry(24.6, .3, 18.6), L(0x1e4fd8)); techoC.position.set(112, 5.15, 69); escena.add(techoC);
+  plano(100.3, 60.3, 123.7, 77.7, L(0xf2f2f2), .03);
+  const mostr = new THREE.Mesh(new THREE.BoxGeometry(1, 1.1, 3), L(0x2a2a3a)); mostr.position.set(106, .55, 69); escena.add(mostr); edificios.push({ x1: 105.5, x2: 106.5, z1: 67.5, z2: 70.5, h: 1.1 });
+  const vend = new THREE.Group(); vend.position.set(107.2, 0, 69); vend.rotation.y = -Math.PI / 2; escena.add(vend);
+  { const c = new THREE.Mesh(new THREE.BoxGeometry(.5, .64, .28), L(0x1a1a1a)); c.position.y = 1.24; vend.add(c); const cor = new THREE.Mesh(new THREE.BoxGeometry(.08, .4, .02), L(0xc0161b)); cor.position.set(0, 1.3, .15); vend.add(cor);
+    const pi = new THREE.Mesh(new THREE.BoxGeometry(.4, .9, .22), L(0x1a1a1a)); pi.position.y = .45; vend.add(pi); const ca = new THREE.Mesh(new THREE.SphereGeometry(.18, 10, 8), L(0xe0ac7e)); ca.position.y = 1.78; vend.add(ca);
+    const n = cartel("Vendedor", "#1e4fd8"); n.scale.set(2, .5, 1); n.position.y = 2.4; vend.add(n); }
+  const texConce = textura((c, w, h) => { c.fillStyle = "#1e4fd8"; c.fillRect(0, 0, w, h); c.fillStyle = "#fff"; c.font = "bold 56px system-ui"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("🚗 CONCESIONARIA GONZALITO", w / 2, h / 2 + 2); }, 1024, 128);
+  const cc = new THREE.Mesh(new THREE.PlaneGeometry(14, 1.75), new THREE.MeshBasicMaterial({ map: texConce })); cc.position.set(99.7, 4.2, 69); cc.rotation.y = -Math.PI / 2; escena.add(cc);
+  // Playón de autos NORMALES y, separado por una reja, el sector VIP con piso dorado y alfombra roja
+  plano(128, 56, 156, 78, L(0x55585f), .02); plano(128, 86, 156, 108, new THREE.MeshLambertMaterial({ color: 0x8a7020, emissive: 0x2a2000 }), .02);
+  plano(140.5, 86, 143.5, 108, L(0x9a1020), .03);
+  for (const [z1, z2] of [[81.6, 82]]) pared(128, z1, 156, z2, 1.4, L(0x222222));
+  for (let x = 129; x < 156; x += 2.5) { const p = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, .9, 6), L(0xd4af37)); p.position.set(x, .45, 85.6); escena.add(p); }
+  const cN = cartel("🚗 AUTOS NORMALES", "#1e4fd8"); cN.scale.set(6, 1.5, 1); cN.position.set(142, 4, 67); escena.add(cN);
+  const cV = cartel("👑 AUTOS VIP", "#8a6a10"); cV.scale.set(6, 1.5, 1); cV.position.set(142, 4.5, 97); escena.add(cV);
+  const exhibir = (lista, z, vip) => lista.forEach((m, i) => { const x = 132 + i * 6.4; const a = crearAutoCivil(m.modelo, m.color, { techo: m.techo, neon: m.neon }); a.position.set(x, 0, z); a.rotation.y = .5;
+    const pr = cartel(`$${m.precio.toLocaleString("es-AR")}`, vip ? "#8a6a10" : "#1e4fd8"); pr.scale.set(2.4, .6, 1); pr.position.set(x, 2.6, z); escena.add(pr);
+    edificios.push({ x1: x - 1.6, x2: x + 1.6, z1: z - 2.6, z2: z + 2.6, h: 1.5, arbol: true }); });
+  exhibir(CATALOGO.normales, 67, false); exhibir(CATALOGO.vip, 97, true);
+  // Taller del Mecánico Cacho
+  const chapa = L(0x6a7480); pared(100, 100, 124, 100.3, 5.5, chapa); pared(123.7, 100, 124, 118, 5.5, chapa); pared(100, 117.7, 124, 118, 5.5, chapa);
+  const techoT = new THREE.Mesh(new THREE.BoxGeometry(24.6, .3, 18.6), L(0x3a3d44)); techoT.position.set(112, 5.65, 109); escena.add(techoT);
+  plano(100.3, 100.3, 123.7, 117.7, L(0x4a4a4a), .03);
+  const elev = new THREE.Mesh(new THREE.BoxGeometry(3, .2, 5), L(0xf2c200)); elev.position.set(114, .1, 109); escena.add(elev);
+  for (const [x, z] of [[112.6, 107], [115.4, 107], [112.6, 111], [115.4, 111]]) { const c = new THREE.Mesh(new THREE.BoxGeometry(.25, 1.6, .25), L(0xf2c200)); c.position.set(x, .8, z); escena.add(c); }
+  for (let i = 0; i < 6; i++) { const n = new THREE.Mesh(new THREE.TorusGeometry(.4, .15, 6, 12), L(0x111111)); n.rotation.x = Math.PI / 2; n.position.set(121.5, .15 + i * .3, 103); escena.add(n); }
+  edificios.push({ x1: 121, x2: 122, z1: 102.5, z2: 103.5, h: 2, arbol: true });
+  const banco = new THREE.Mesh(new THREE.BoxGeometry(4, 1, 1), L(0x8a2a1a)); banco.position.set(121.6, .5, 112); escena.add(banco); edificios.push({ x1: 119.6, x2: 123.6, z1: 111.5, z2: 112.5, h: 1 });
+  const tambor = new THREE.Mesh(new THREE.CylinderGeometry(.35, .35, 1, 12), L(0x1a5a2a)); tambor.position.set(102, .5, 116); escena.add(tambor);
+  const texT = textura((c, w, h) => { c.fillStyle = "#f2c200"; c.fillRect(0, 0, w, h); c.fillStyle = "#111"; c.font = "bold 62px system-ui"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("🔧 MECÁNICO CACHO", w / 2, h / 2 + 2); }, 1024, 128);
+  const ct = new THREE.Mesh(new THREE.PlaneGeometry(12, 1.5), new THREE.MeshBasicMaterial({ map: texT })); ct.position.set(99.7, 4.6, 109); ct.rotation.y = -Math.PI / 2; escena.add(ct);
+  // Cacho: mameluco azul, gorra y llave inglesa
+  const cacho = new THREE.Group(); cacho.position.set(104, 0, 106); cacho.rotation.y = -Math.PI / 2; escena.add(cacho); ZAUTOS.cacho = cacho;
+  { const m = new THREE.Mesh(new THREE.BoxGeometry(.56, 1.6, .32), L(0x1a3a7a)); m.position.y = .95; cacho.add(m);
+    const ca = new THREE.Mesh(new THREE.SphereGeometry(.2, 10, 8), L(0xd8a070)); ca.position.y = 1.95; cacho.add(ca);
+    const bi = new THREE.Mesh(new THREE.BoxGeometry(.3, .08, .14), L(0x3a3a3a)); bi.position.set(0, 1.86, .17); cacho.add(bi);   // bigote
+    const go = new THREE.Mesh(new THREE.CylinderGeometry(.22, .22, .1, 12), L(0xc0161b)); go.position.y = 2.12; cacho.add(go);
+    const vi = new THREE.Mesh(new THREE.BoxGeometry(.3, .03, .2), L(0xc0161b)); vi.position.set(0, 2.08, .2); cacho.add(vi);
+    const llave = new THREE.Mesh(new THREE.BoxGeometry(.06, .5, .06), L(0x9a9a9a)); llave.position.set(.4, 1, .1); llave.rotation.z = .4; cacho.add(llave);
+    const n = cartel("Cacho, el mecánico", "#8a6a10"); n.scale.set(2.6, .65, 1); n.position.y = 2.6; cacho.add(n); }
+  const cZ = cartel("🚗 CONCESIONARIA · 🔧 CACHO ↓", "#1e4fd8"); cZ.scale.set(7, 1.75, 1); cZ.position.set(92, 5, 36); escena.add(cZ);
 }
 // ================== HOTEL PLAZA ==================
 // Hotel de 4 pisos donde se puede entrar: hall con recepción y 3 habitaciones con cama en planta baja.
@@ -2894,7 +3143,7 @@ const PREG_LADRON = [
 function cerrarControl(accion) {
   const c = civilControl; $("control").style.display = "none"; if (!document.body.classList.contains("tactil")) renderer.domElement.requestPointerLock?.();
   if (!c) return; civilControl = null; c.controlado = false; c.paradoHasta = Date.now() + 1500;
-  if (accion === "detener") { yo.atrapados++; feed(`🚔 ${yo.nombre} detuvo a ${c.nombre} (tenía pedido de captura)`); grande("🚔 ¡DETENIDO!", "#5a8aff"); beep(700, .15, "triangle");
+  if (accion === "detener") { yo.atrapados++; ganar(300, "detención"); feed(`🚔 ${yo.nombre} detuvo a ${c.nombre} (tenía pedido de captura)`); grande("🚔 ¡DETENIDO!", "#5a8aff"); beep(700, .15, "triangle");
     escena.remove(c.mesh); civiles.splice(civiles.indexOf(c), 1); setTimeout(() => { if (jugando) civiles.push(crearCivil(Math.floor(Math.random() * 100))); }, 20000); }
   else if (accion === "pista") { let obj = null, d = 1e9;
     for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso) { const dd = Math.hypot(s.x - c.x, s.z - c.z); if (dd < d) { d = dd; obj = s; } }
