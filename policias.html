@@ -326,6 +326,9 @@ generarCiudad();
 const AUTOPISTA = { z1: -28, z2: -12, medio: -20 };
 const AER = { x1: 84, x2: 172, z1: -44, z2: 44, puerta1: 12, puerta2: 20 };
 // Aguantadero de los ladrones, afuera de la ciudad hacia el sur (se entra por la calle x = 40)
+// Puerto Madero (segunda ciudad): al noreste, afuera de la primera; se entra por la calle x = 64.
+// Tiene un dique de agua en el medio que solo se cruza por los puentes.
+const PM = { x1: 32, x2: 176, z1: -206, puerta1: 60, puerta2: 68, aguaZ1: -152, aguaZ2: -138, puentes: [[96, 104], [138, 146]] };
 // Supermercado, afuera de la ciudad hacia el norte (se entra por la calle x = -8)
 const SUPER = { x1: -44, x2: 28, z1: -132, puerta1: -12, puerta2: -4, ex1: -20, ex2: 4, ez1: -116, ez2: -100, entrada1: -10.5, entrada2: -5.5 };
 const AGU = { x1: 14, x2: 86, z1: 82, z2: 138, puerta1: 36, puerta2: 44 };
@@ -339,8 +342,10 @@ function choca(x, z, r = RADIO, eq = null) {
     (x > PUERTO.agua + r || (x > PUERTO.muelleX + r && z > PUERTO.muelleZ1 + r && z < PUERTO.muelleZ2 - r));   // al agua no se puede entrar, salvo por el muelle
   const enAgu = z > mitad - 1 && x > AGU.x1 + r && x < AGU.x2 - r && z < AGU.z2 - r;
   const enSuper = z < -mitad + 1 && x > SUPER.x1 + r && x < SUPER.x2 - r && z > SUPER.z1 + r;
-  if (Math.abs(z + mitad) < r + .3 && x > -mitad && x < mitad && !(x > SUPER.puerta1 + r && x < SUPER.puerta2 - r)) return true;   // paredón norte con portón al súper
-  if (!enCiudad && !enAer && !enPuerto && !enAgu && !enSuper) return true;
+  const enPM = z < -mitad + 1 && x > PM.x1 + r && x < PM.x2 - r && z > PM.z1 + r &&
+    !(z > PM.aguaZ1 - r && z < PM.aguaZ2 + r && !PM.puentes.some(([a, b]) => x > a + r && x < b - r));   // al dique no se entra, salvo por los puentes
+  if (Math.abs(z + mitad) < r + .3 && x > -mitad && x < mitad && !(x > SUPER.puerta1 + r && x < SUPER.puerta2 - r) && !(x > PM.puerta1 + r && x < PM.puerta2 - r)) return true;   // paredón norte con portones al súper y a Puerto Madero
+  if (!enCiudad && !enAer && !enPuerto && !enAgu && !enSuper && !enPM) return true;
   if (Math.abs(z - mitad) < r + .3 && x > -mitad && x < mitad && !(x > AGU.puerta1 + r && x < AGU.puerta2 - r)) return true;   // paredón sur con portón al aguantadero
   if (Math.abs(x + mitad) < r + .3 && !(z > PUERTO.puerta1 + r && z < PUERTO.puerta2 - r)) return true;   // paredón oeste con portón al puerto
   if (Math.abs(x - mitad) < r + .3 && !(z > AER.puerta1 + r && z < AER.puerta2 - r) && !(z > AUTOPISTA.z1 + r && z < AUTOPISTA.z2 - r)) return true;   // paredón con portón hacia el aeropuerto
@@ -489,8 +494,8 @@ const coloresEd = [0x8a8fa3, 0xa38a7a, 0x7a8fa3, 0x9a9a9a, 0xb0a080, 0x6f7f8f];
   instancias(new THREE.CylinderGeometry(.03, .05, 4, 4), new THREE.MeshBasicMaterial({ color: 0xff3030 }), antenas);
   // Paredón del borde y edificios lejanos (no se puede llegar)
   const borde = [];
-  { const n1 = SUPER.puerta1 + mitad, n2 = mitad - SUPER.puerta2;   // lado norte: dos tramos con el portón del supermercado
-    borde.push([-mitad + n1 / 2, 1.2, -mitad - .3, 0, n1 / (CIUDAD.tam + 1), 1, 1], [mitad - n2 / 2, 1.2, -mitad - .3, 0, n2 / (CIUDAD.tam + 1), 1, 1]); }
+  { const T = CIUDAD.tam + 1, cortes = [[-mitad, SUPER.puerta1], [SUPER.puerta2, PM.puerta1], [PM.puerta2, mitad]];   // lado norte: portones al súper y a Puerto Madero
+    for (const [a, b] of cortes) borde.push([(a + b) / 2, 1.2, -mitad - .3, 0, (b - a) / T, 1, 1]); }
   { const s1 = AGU.puerta1 + mitad, s2 = mitad - AGU.puerta2;   // lado sur: dos tramos con el portón del aguantadero
     borde.push([-mitad + s1 / 2, 1.2, mitad + .3, 0, s1 / (CIUDAD.tam + 1), 1, 1], [mitad - s2 / 2, 1.2, mitad + .3, 0, s2 / (CIUDAD.tam + 1), 1, 1]); }
   { const m1 = PUERTO.puerta1 + mitad, m2 = mitad - PUERTO.puerta2;   // lado oeste: dos tramos con el portón del puerto
@@ -504,6 +509,7 @@ const coloresEd = [0x8a8fa3, 0xa38a7a, 0x7a8fa3, 0x9a9a9a, 0xb0a080, 0x6f7f8f];
     if (Math.cos(a) < -.6 && Math.sin(a) < .3) continue;   // ni del lado del puerto
     if (Math.sin(a) > .55 && Math.cos(a) > -.25) continue;   // ni del lado del aguantadero
     if (Math.sin(a) < -.6 && Math.cos(a) > -.55 && Math.cos(a) < .4) continue;   // ni del lado del supermercado
+    if (Math.sin(a) < -.3 && Math.cos(a) > .2) continue;   // ni del lado de Puerto Madero
     lejos.push([Math.cos(a) * r, h / 2, Math.sin(a) * r, -a, w, h, w]); }
   const tl = texVentanas.clone(), tle = texLuces.clone(); tl.needsUpdate = tle.needsUpdate = true; tl.repeat.set(2, 8); tle.repeat.set(2, 8);
   instancias(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0x5a6070, map: tl, emissiveMap: tle, emissive: 0xffffff, emissiveIntensity: .8 }), lejos);
@@ -807,6 +813,61 @@ const TAQUILLAS = { x: DEPTO.x1 + 2.5, z: DEPTO.z1 + 1.6 }, ARMERIA = { x: DEPTO
   // Ventanas en las paredes de planta baja (de afuera)
   for (const [x, z, ry] of [[D.x1 - .03, D.cz - 2, -Math.PI / 2], [D.x1 - .03, D.cz + 2, -Math.PI / 2], [D.x2 + .03, D.cz - 2.5, Math.PI / 2], [D.cx - 3.5, D.z2 + .03, 0], [D.cx + 3.8, D.z2 + .03, 0]]) {
     const v = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.2), new THREE.MeshLambertMaterial({ color: 0x9fd0ff, emissive: 0x2a4a6a })); v.position.set(x, 2.5, z); v.rotation.y = ry; escena.add(v); }
+}
+// ================== PUERTO MADERO (segunda ciudad) ==================
+// Barrio moderno al noreste, separado de la ciudad: dique con agua, docks de ladrillo rojo con grúas antiguas,
+// torres de vidrio altísimas, costanera con faroles y un puente peatonal blanco con mástil inclinado.
+{
+  const P = PM, mitad = CIUDAD.tam / 2, L = c => new THREE.MeshLambertMaterial({ color: c });
+  const plano = (x1, z1, x2, z2, mat, y) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(x2 - x1, z2 - z1), mat); m.rotation.x = -Math.PI / 2; m.position.set((x1 + x2) / 2, y, (z1 + z2) / 2); escena.add(m); return m; };
+  const baldosa = L(0x8c8478), asf = L(0x2b2d33);
+  plano(P.x1, P.z1, P.x2, -mitad, baldosa, .01);                                                   // suelo del barrio
+  plano(P.puerta1, P.aguaZ2, P.puerta2, -mitad, asf, .015);                                        // avenida de entrada
+  plano(P.x1, P.aguaZ2 + 2, P.x2, P.aguaZ2 + 10, asf, .015);                                       // avenida costanera sur
+  plano(P.x1, P.aguaZ1 - 10, P.x2, P.aguaZ1 - 2, asf, .015);                                       // avenida costanera norte
+  plano(P.x1, P.aguaZ1, P.x2, P.aguaZ2, new THREE.MeshLambertMaterial({ color: 0x0d3b5c, emissive: 0x04121e }), -.2);   // dique
+  for (const z of [P.aguaZ1, P.aguaZ2]) { const b = new THREE.Mesh(new THREE.BoxGeometry(P.x2 - P.x1, .5, .5), L(0x6a6a6a)); b.position.set((P.x1 + P.x2) / 2, -.05, z); escena.add(b); }
+  // Docks de ladrillo rojo con techo de chapa y ventanas arqueadas, sobre la costanera sur
+  const texDock = textura((c, w, h) => { c.fillStyle = "#9a4a32"; c.fillRect(0, 0, w, h); c.fillStyle = "#7a3a26"; for (let y = 0; y < h; y += 6) for (let x = (y / 6) % 2 * 6; x < w; x += 12) c.fillRect(x, y, 11, 5);
+    for (let p = 0; p < 2; p++) for (let i = 0; i < 6; i++) { const x = 8 + i * 20, y = 10 + p * 30; c.fillStyle = "#f2e6c8"; c.beginPath(); c.arc(x + 6, y + 6, 6, Math.PI, 0); c.fill(); c.fillRect(x, y + 6, 12, 14); c.fillStyle = "#ffd88a"; c.fillRect(x + 2, y + 4, 8, 14); } }, 128, 64);
+  texDock.wrapS = THREE.RepeatWrapping; texDock.repeat.set(4, 1);
+  const matDock = new THREE.MeshLambertMaterial({ map: texDock, emissiveMap: texDock, emissive: 0x332211 });
+  for (const [x1, x2] of [[38, 56], [72, 92], [108, 134], [150, 172]]) { const w = x2 - x1, d = 12, z = P.aguaZ2 + 18;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 9, d), [matDock, matDock, L(0x5a5a5a), L(0x5a5a5a), matDock, matDock]); m.position.set((x1 + x2) / 2, 4.5, z); escena.add(m);
+    edificios.push({ x1, x2, z1: z - d / 2, z2: z + d / 2, h: 9 }); }
+  // Grúas antiguas rojas en la costanera
+  const rojo = L(0xb02a20);
+  for (const x of [50, 82, 120, 160]) { const g = new THREE.Group(); g.position.set(x, 0, P.aguaZ2 + 1.2); escena.add(g);
+    for (const dx of [-1, 1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(.3, 8, .3), rojo); p.position.set(dx, 4, 0); g.add(p); }
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 2.4), rojo); cab.position.y = 9; g.add(cab);
+    const brazo = new THREE.Mesh(new THREE.BoxGeometry(.4, .4, 12), rojo); brazo.position.set(0, 10.5, -5); brazo.rotation.x = -.35; g.add(brazo);
+    edificios.push({ x1: x - 1.3, x2: x + 1.3, z1: P.aguaZ2 + 1, z2: P.aguaZ2 + 1.4, h: 8, arbol: true }); }
+  // Torres de vidrio (las más altas del mapa)
+  const texVid = textura((c, w, h) => { c.fillStyle = "#2a4a6a"; c.fillRect(0, 0, w, h); for (let y = 0; y < h; y += 8) { c.fillStyle = "#1a2a3a"; c.fillRect(0, y, w, 2); }
+    for (let x = 0; x < w; x += 16) { c.fillStyle = "#3a6a9a"; c.fillRect(x, 0, 2, h); } for (let i = 0; i < 60; i++) { c.fillStyle = Math.random() < .5 ? "#ffe6a8" : "#bfe3ff"; c.fillRect(Math.floor(Math.random() * 8) * 16 + 3, Math.floor(Math.random() * 16) * 8 + 2, 12, 5); } }, 128, 128);
+  texVid.wrapS = texVid.wrapT = THREE.RepeatWrapping;
+  const torres = [[46, -100, 10, 10, 48], [82, -100, 12, 12, 62], [100, -102, 9, 9, 40], [124, -100, 14, 10, 75], [152, -100, 10, 10, 54], [168, -96, 8, 8, 36],
+                  [48, -172, 12, 12, 70], [76, -182, 10, 14, 92], [104, -170, 14, 10, 58], [132, -184, 12, 12, 84], [160, -172, 10, 10, 66], [92, -196, 10, 8, 44]];
+  for (const [x, z, w, d, h] of torres) {
+    const t = texVid.clone(); t.needsUpdate = true; t.repeat.set(Math.max(1, w / 6), h / 12);
+    const mat = new THREE.MeshLambertMaterial({ map: t, emissiveMap: t, emissive: 0x99aabb, color: 0xb8d0e8 });
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, h / 2, z); escena.add(m);
+    const remate = new THREE.Mesh(new THREE.BoxGeometry(w * .6, 2, d * .6), L(0xd8dde2)); remate.position.set(x, h + 1, z); escena.add(remate);
+    const luz = new THREE.Mesh(new THREE.SphereGeometry(.4, 6, 4), new THREE.MeshBasicMaterial({ color: 0xff3030 })); luz.position.set(x, h + 2.4, z); escena.add(luz);
+    edificios.push({ x1: x - w / 2, x2: x + w / 2, z1: z - d / 2, z2: z + d / 2, h }); }
+  // Puentes: uno vehicular gris y uno peatonal blanco con mástil inclinado (diseño propio)
+  for (const [a, b] of P.puentes) { const c = (a + b) / 2, peatonal = a < 120;
+    const tabla = new THREE.Mesh(new THREE.BoxGeometry(b - a, .4, P.aguaZ2 - P.aguaZ1 + 2), L(peatonal ? 0xf2f2f2 : 0x7a7f88)); tabla.position.set(c, .05, (P.aguaZ1 + P.aguaZ2) / 2); escena.add(tabla);
+    for (const x of [a + .2, b - .2]) { const bar = new THREE.Mesh(new THREE.BoxGeometry(.1, 1, P.aguaZ2 - P.aguaZ1 + 2), L(0xe8e8e8)); bar.position.set(x, .6, (P.aguaZ1 + P.aguaZ2) / 2); escena.add(bar); }
+    if (peatonal) { const mastil = new THREE.Mesh(new THREE.CylinderGeometry(.25, .5, 34, 10), L(0xffffff)); mastil.position.set(c + 4, 13, (P.aguaZ1 + P.aguaZ2) / 2); mastil.rotation.z = -.62; escena.add(mastil);
+      for (let k = 0; k < 7; k++) { const zz = P.aguaZ1 + 1 + k * 2, top = new THREE.Vector3(c + 4 + Math.sin(.62) * 13 * (k / 7 + .3), 13 + Math.cos(.62) * 13 * (k / 7 + .3), (P.aguaZ1 + P.aguaZ2) / 2), bot = new THREE.Vector3(c, .3, zz);
+        const len = top.distanceTo(bot), cab = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, len, 4), L(0xdddddd)); cab.position.copy(top).add(bot).multiplyScalar(.5); cab.lookAt(top); cab.rotateX(Math.PI / 2); escena.add(cab); } } }
+  // Faroles y árboles de la costanera
+  for (let x = P.x1 + 4; x < P.x2 - 2; x += 10) for (const z of [P.aguaZ2 + 1.6, P.aguaZ1 - 1.6]) { if (P.puentes.some(([a, b]) => x > a - 1 && x < b + 1)) continue;
+    const f = new THREE.Mesh(new THREE.CylinderGeometry(.06, .08, 3.6, 6), L(0x222222)); f.position.set(x, 1.8, z); escena.add(f);
+    const g = new THREE.Mesh(new THREE.SphereGeometry(.22, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffe9b0 })); g.position.set(x, 3.7, z); escena.add(g); }
+  const cP = cartel("🌉 PUERTO MADERO", "#0a4a7a"); cP.scale.set(8, 2, 1); cP.position.set(64, 7, -mitad - 6); escena.add(cP);
+  const cE = cartel("🌉 PUERTO MADERO ↑", "#0a4a7a"); cE.scale.set(6, 1.5, 1); cE.position.set(PM.puerta2 + 2, 5, -mitad + 2); escena.add(cE);
 }
 // ================== SUPERMERCADO ==================
 // Un "súper chino" de barrio afuera de la ciudad: estacionamiento, cartel, góndolas, heladeras y el señor Li en la caja.
