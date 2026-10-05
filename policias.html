@@ -294,7 +294,7 @@
     <div id="tiempos" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:10px;font-size:14px;align-items:center">⏱️ Práctica:
       <button data-t="240">4 min</button><button data-t="600">10 min</button><button data-t="0" class="on">♾️ Sin límite</button></div>
     <div id="modo-imagen" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:8px;font-size:14px;align-items:center">🖼️ Imagen:
-      <button data-img="nitida">✨ Nítida</button><button data-img="auto">⚖️ Automática</button><button data-img="rapida">⚡ Rápida</button></div>
+      <button data-img="nitida">✨ Nítida</button><button data-img="auto">⚖️ Automática</button><button data-img="rapida">⚡ Rápida</button><button data-img="antilag">🐢 Antilag (PC lenta)</button></div>
     <div id="cant-bots" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:8px;font-size:14px;align-items:center">🤖 Bots:
       <button data-b="4">4</button><button data-b="6" class="on">6</button><button data-b="10">10</button></div>
     <div style="display:flex;gap:8px;justify-content:center;margin-top:10px"><input id="cod" maxlength="4" placeholder="CÓDIGO"><button class="g" id="unirse">🚪 Unirse</button></div>
@@ -432,8 +432,9 @@ const ES_TACTIL = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 const renderer = new THREE.WebGLRenderer({ antialias: !ES_TACTIL, powerPreference: "high-performance" });
 // Modo de imagen (se guarda en el teléfono): "nitida" = resolución completa, "auto" = baja solo si se traba mucho, "rapida" = prioriza fluidez
 let modoImagen = "auto"; try { modoImagen = localStorage.getItem("polis-imagen") || "auto"; } catch (e) {}
-const RES_MAX = Math.min(2, devicePixelRatio), RES_MIN = { nitida: RES_MAX, auto: Math.min(RES_MAX, ES_TACTIL ? 1.5 : 1), rapida: 1 };
-let calidad = modoImagen === "rapida" ? 1 : RES_MAX;
+const RES_MAX = Math.min(2, devicePixelRatio), RES_MIN = { nitida: RES_MAX, auto: Math.min(RES_MAX, ES_TACTIL ? 1.5 : 1), rapida: 1, antilag: .7 };
+const resModo = m => m === "rapida" ? 1 : m === "antilag" ? .7 : RES_MAX;
+let calidad = resModo(modoImagen);
 renderer.setPixelRatio(calidad); renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = false;
 document.body.prepend(renderer.domElement);
@@ -2524,7 +2525,7 @@ function empezar(finTs) {
   modoCam = 0;
   jug = {}; botin = 0; GOB.listo = 0; BOLSAS.forEach(b => { b.hasta = 0; b.mesh.visible = true; });
   PAQUETES.forEach(p => p.hasta = 0); puerta.cerrada = true; puerta.hasta = 0;
-  for (const k in capturas) delete capturas[k]; capturaListo = 0; resetPoliExtras(); resetCaravana(); crearCiviles(ES_TACTIL ? 10 : 16);
+  for (const k in capturas) delete capturas[k]; capturaListo = 0; resetPoliExtras(); resetCaravana(); crearCiviles(modoImagen === "antilag" ? 5 : ES_TACTIL ? 10 : 16); aplicarAntilag();
   quitarDisturbio(); DIST.prog = 0; DIST.prox = Date.now() + 35000;
   resetAutos(); miAuto = null; document.body.classList.toggle("poli", equipo === "poli");
   yo = jug[miId] = nuevoJug(miId, miNombre(), equipo, false, clase);
@@ -2569,10 +2570,18 @@ for (const id of ["pista", "reloj", "rol", "botin", "equipos", "velocimetro", "l
 // Calidad automática: si los FPS bajan, se dibuja a menos resolución; si sobran, sube de a poco
 // (antes bajaba hasta 0,6 de resolución y en los teléfonos se veía pixelado; ahora nunca baja del mínimo del modo elegido)
 const FPS = { acum: 0, n: 0 };
+// Antilag para PCs y celulares lentos: menos resolución, se ve menos lejos, sin luces de colores y menos vecinos caminando
+const LEJOS = { niebla: escena.fog.far, cam: camara.far };
+function aplicarAntilag() {
+  const on = modoImagen === "antilag";
+  escena.fog.far = on ? 60 : LEJOS.niebla; escena.fog.near = on ? 14 : 22; camara.far = on ? 70 : LEJOS.cam; camara.updateProjectionMatrix();
+  escena.traverse(o => { if (o.isPointLight || o.isSpotLight) { if (o.userData.antes === undefined) o.userData.antes = o.visible; o.visible = on ? false : o.userData.antes; } });
+}
+aplicarAntilag();
 function ajustarCalidad(dt) {
   FPS.acum += dt; FPS.n++; if (FPS.acum < 3) return;
   const fps = FPS.n / FPS.acum; FPS.acum = 0; FPS.n = 0;
-  const antes = calidad, min = RES_MIN[modoImagen] || 1, max = modoImagen === "rapida" ? 1 : RES_MAX;
+  const antes = calidad, min = RES_MIN[modoImagen] || 1, max = resModo(modoImagen);
   if (fps < 28 && calidad > min) calidad = Math.max(min, calidad - .25);
   else if (fps > 50 && calidad < max) calidad = Math.min(max, calidad + .25);
   else if (calidad < min) calidad = min;
@@ -3254,7 +3263,7 @@ function nuevaRondaLibre() {
 }
 document.querySelectorAll("#modo-imagen [data-img]").forEach(b => { b.classList.toggle("on", b.dataset.img === modoImagen);
   b.onclick = () => { modoImagen = b.dataset.img; try { localStorage.setItem("polis-imagen", modoImagen); } catch (e) {}
-    calidad = modoImagen === "rapida" ? 1 : RES_MAX; renderer.setPixelRatio(calidad);
+    calidad = resModo(modoImagen); renderer.setPixelRatio(calidad); aplicarAntilag();
     document.querySelectorAll("#modo-imagen [data-img]").forEach(x => x.classList.toggle("on", x === b)); }; });
 let cantBots = 6, ladronesNPC = 4;
 document.querySelectorAll("#npc-sala [data-n]").forEach(b => b.onclick = () => { ladronesNPC = +b.dataset.n; document.querySelectorAll("#npc-sala [data-n]").forEach(x => x.classList.toggle("on", x === b)); });
