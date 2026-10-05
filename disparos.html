@@ -148,7 +148,7 @@ function tienda() {
 }
 
 // ===================== RED =====================
-const SB = supabase.createClient("https://eluxvcixctwnzyysvoor.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsdXh2Y2l4Y3R3bnp5eXN2b29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMTk5NzAsImV4cCI6MjEwMzY5NTk3MH0.Gq29eHc-X1vEfbxM_9E5mlOynIJCh0pBbsSOPX923IQ");
+const SB = supabase.createClient("https://eluxvcixctwnzyysvoor.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsdXh2Y2l4Y3R3bnp5eXN2b29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMTk5NzAsImV4cCI6MjEwMzY5NTk3MH0.Gq29eHc-X1vEfbxM_9E5mlOynIJCh0pBbsSOPX923IQ", { realtime: { params: { eventsPerSecond: 25 } } });
 const miId = Math.random().toString(36).slice(2, 9);
 let canal = null, codigo = "", soyHost = false, online = false;
 function enviar(ev, p) { if (canal && online) canal.send({ type:"broadcast", event:ev, payload:p }); }
@@ -305,7 +305,7 @@ function loop(t) {
   }
   for (let i = parts.length-1; i >= 0; i--) { const p = parts[i]; p.x += p.vx*dt; p.y += p.vy*dt; p.vx *= .92; p.vy *= .92; p.t -= dt; if (p.t <= 0) parts.splice(i, 1); }
   // Red: mando mi posición 12 veces por segundo
-  if (online && t - ultPos > 80) { ultPos = t; enviar("pos", { id:yo.id, nombre:yo.nombre, pj:yo.pj, arma:yo.arma, x:Math.round(yo.x), y:Math.round(yo.y), a:+yo.a.toFixed(2), hp:Math.round(yo.hp), vivo:yo.vivo, kills:yo.kills }); }
+  if (online && t - ultPos > 100) { ultPos = t; enviar("pos", { id:yo.id, nombre:yo.nombre, pj:yo.pj, arma:yo.arma, x:Math.round(yo.x), y:Math.round(yo.y), a:+yo.a.toFixed(2), hp:Math.round(yo.hp), vivo:yo.vivo, kills:yo.kills }); }
   dibujar(); hud();
   requestAnimationFrame(loop);
 }

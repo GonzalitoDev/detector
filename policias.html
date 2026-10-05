@@ -34,6 +34,11 @@
   #control .foto { width:64px; height:76px; flex:none; border-radius:6px; background:#0d3a5e; display:flex; align-items:center; justify-content:center; font-size:38px; }
   #control .nom { font-weight:900; font-size:16px; color:#fff; }
   #ctl-botones button { flex:1; }
+  #ctl-chat { max-height:180px; overflow:auto; margin-top:8px; font-size:14px; line-height:1.4; }
+  #ctl-chat .yo { color:#9fd0ff; margin-top:6px; } #ctl-chat .el { background:#021526; border-radius:8px; padding:6px 8px; margin-top:2px; }
+  #ctl-preg { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  #ctl-preg button { flex:1 1 45%; padding:8px; border-radius:10px; border:1px solid #5ec8f2; background:#16325a; color:#fff; font-weight:700; cursor:pointer; font-size:13px; }
+  #ctl-preg button:disabled { opacity:.4; }
   #compu .ficha { display:flex; gap:12px; background:#021526; border:1px solid #5ec8f244; border-radius:10px; padding:10px; margin-bottom:8px; font-size:13px; line-height:1.5; }
   #compu .foto { width:64px; height:76px; flex:none; border-radius:6px; background:#0d3a5e; display:flex; align-items:center; justify-content:center; font-size:38px; }
   #compu .nom { font-weight:900; font-size:15px; color:#fff; }
@@ -43,6 +48,7 @@
   body.poli #poli-extras { display:block; }
   #b-poli { position:fixed; right:12px; bottom:190px; z-index:5; display:none; flex-direction:column; gap:8px; }
   body.tactil.poli #b-poli { display:flex; }
+  #b-inv { display:none; } body.invest #b-inv { display:inline-block; }
   #b-poli button { width:52px; height:52px; border-radius:50%; border:0; font-size:24px; background:#1e4fd8cc; }
   /* ===== Celular / tablet (Android): botones adaptados ===== */
   body.tactil { --b: clamp(46px, 13vmin, 64px); --g: clamp(6px, 2vmin, 10px); }
@@ -105,6 +111,7 @@
   .equipo button { flex:1; min-width:180px; padding:18px; border-radius:16px; border:3px solid transparent; font-size:18px; font-weight:900; cursor:pointer; color:#fff; }
   .equipo .poli { background:linear-gradient(160deg,#1e4fd8,#0b2a7a); }
   .equipo .ladron { background:linear-gradient(160deg,#444,#111); }
+  .equipo .invest { background:linear-gradient(160deg,#5a4a3a,#2a2018); }
   .equipo .swat { background:linear-gradient(160deg,#2b2f24,#0c0e09); }
   .equipo .halcon { background:linear-gradient(160deg,#1a1a1a,#000); border-color:#5a5a5a; }
   body.halcon #municion { display:block; }
@@ -167,8 +174,10 @@
 </div>
 <div id="control" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
   <div style="max-width:520px;margin:0 auto;background:#0f1d36;border:2px solid #5ec8f2;border-radius:16px;padding:16px">
-    <h2 style="margin:0 0 8px;text-align:center">🪪 Control de identidad</h2>
+    <h2 id="ctl-titulo" style="margin:0 0 8px;text-align:center">🪪 Control de identidad</h2>
     <div id="ctl-txt"></div>
+    <div id="ctl-chat"></div>
+    <div id="ctl-preg"></div>
     <div id="ctl-botones" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"></div>
     <button id="control-x" style="margin-top:10px;width:100%;padding:8px;border:0;border-radius:10px;background:#ffffff22;color:#fff;font-weight:800">Cerrar</button>
   </div>
@@ -217,7 +226,7 @@
   </div>
 </div>
 <div id="megafono"></div>
-<div id="b-extra"><button id="b-luz">🔦</button><button id="b-rec">🔄</button></div><div id="girar">📱↻<div>Girá el celular para jugar mejor</div><button id="girar-ok" style="padding:10px 18px;border:0;border-radius:10px;font-weight:800;background:#ffd400">Jugar igual</button></div><button id="b-salir">🚪 Terminar</button><div id="disturbio"></div><div id="caravana"></div><div id="poli-extras"></div><div id="b-poli"><button id="b-heli">🚁</button><button id="b-valla">🚧</button><button id="b-ref">📻</button></div><div id="radar"></div><div id="mira"></div><div id="pista"></div><div id="grande"></div><div id="feed"></div>
+<div id="b-extra"><button id="b-luz">🔦</button><button id="b-rec">🔄</button></div><div id="girar">📱↻<div>Girá el celular para jugar mejor</div><button id="girar-ok" style="padding:10px 18px;border:0;border-radius:10px;font-weight:800;background:#ffd400">Jugar igual</button></div><button id="b-salir">🚪 Terminar</button><div id="disturbio"></div><div id="caravana"></div><div id="poli-extras"></div><div id="b-poli"><button id="b-inv">🕵️</button><button id="b-heli">🚁</button><button id="b-valla">🚧</button><button id="b-ref">📻</button></div><div id="radar"></div><div id="mira"></div><div id="pista"></div><div id="grande"></div><div id="feed"></div>
 <div id="sirena"></div><div id="rejas"></div>
 <div class="stick" id="stick"><b></b></div><button id="b-accion">🚔</button><button id="b-auto">🚓</button><button id="b-cam">🎥</button>
 <div id="velocimetro"></div>
@@ -240,6 +249,7 @@
       <button class="poli on" data-e="poli">👮 POLICÍA<small>Atrapá a los ladrones: acercate y hacé click, o pasalos por arriba con el 🚓 patrullero. Cuando están todos presos, ganás.</small></button>
       <button class="swat" data-e="swat">🪖 SWAT<small>Equipo especial con ametralladora: disparale a los ladrones hasta que se rindan (sin sangre, se quedan sin resistencia y van presos). Click para disparar, R para recargar. Es el único que puede reventar la puerta de la casa narco (E).</small></button>
       <button class="halcon" data-e="halcon">🦅 GRUPO HALCÓN<small>Fuerza de élite: ametralladora, 3 granadas aturdidoras (G) que dejan quietos a los ladrones, visión nocturna (N) y puede reventar la puerta de la casa narco.</small></button>
+      <button class="invest" data-e="investigador">🕵️ INVESTIGACIONES<small>Grupo de Investigaciones: andan de civil, sacan más información a los vecinos cuando les preguntan, ven marcados a los ladrones con botín y llevan el RENAPER en el celular (tecla K o botón 🕵️).</small></button>
       <button class="ladron" data-e="ladron">🦹 LADRÓN<small>Robá bolsas de plata 💰 del banco y llevalas a la guarida. También podés sacar contrabando 📦 de la casa narco y llevarlo al muelle 🚤 ($2.000). Juntá $10.000 antes de que termine el tiempo.</small></button>
     </div>
   </div>
@@ -326,9 +336,14 @@ generarCiudad();
 const AUTOPISTA = { z1: -28, z2: -12, medio: -20 };
 const AER = { x1: 84, x2: 172, z1: -44, z2: 44, puerta1: 12, puerta2: 20 };
 // Aguantadero de los ladrones, afuera de la ciudad hacia el sur (se entra por la calle x = 40)
+// Puerto Madero (segunda ciudad): al noreste, afuera de la primera; se entra por la calle x = 64.
+// Tiene un dique de agua en el medio que solo se cruza por los puentes.
+const PM = { x1: 32, x2: 176, z1: -206, puerta1: 60, puerta2: 68, aguaZ1: -152, aguaZ2: -138, puentes: [[96, 104], [138, 146]] };
 // Supermercado, afuera de la ciudad hacia el norte (se entra por la calle x = -8)
 const SUPER = { x1: -44, x2: 28, z1: -132, puerta1: -12, puerta2: -4, ex1: -20, ex2: 4, ez1: -116, ez2: -100, entrada1: -10.5, entrada2: -5.5 };
 const AGU = { x1: 14, x2: 86, z1: 82, z2: 138, puerta1: 36, puerta2: 44 };
+// Base del Grupo Halcón: afuera de la ciudad, al suroeste (se entra por la calle z = 40)
+const HALCON = { x1: -150, x2: -86, z1: 6, z2: 74, puerta1: 36, puerta2: 44, ex1: -130, ex2: -112, ez1: 30, ez2: 50, armX: -113.6, armZ: 40 };
 // Puerto, afuera de la ciudad hacia el oeste (se entra por la calle z = -32); más allá de x = -118 es agua
 const PUERTO = { x1: -150, x2: -84, z1: -62, z2: -2, puerta1: -36, puerta2: -12, agua: -118, muelleZ1: -35, muelleZ2: -29, muelleX: -138 };
 function choca(x, z, r = RADIO, eq = null) {
@@ -339,10 +354,13 @@ function choca(x, z, r = RADIO, eq = null) {
     (x > PUERTO.agua + r || (x > PUERTO.muelleX + r && z > PUERTO.muelleZ1 + r && z < PUERTO.muelleZ2 - r));   // al agua no se puede entrar, salvo por el muelle
   const enAgu = z > mitad - 1 && x > AGU.x1 + r && x < AGU.x2 - r && z < AGU.z2 - r;
   const enSuper = z < -mitad + 1 && x > SUPER.x1 + r && x < SUPER.x2 - r && z > SUPER.z1 + r;
-  if (Math.abs(z + mitad) < r + .3 && x > -mitad && x < mitad && !(x > SUPER.puerta1 + r && x < SUPER.puerta2 - r)) return true;   // paredón norte con portón al súper
-  if (!enCiudad && !enAer && !enPuerto && !enAgu && !enSuper) return true;
+  const enPM = z < -mitad + 1 && x > PM.x1 + r && x < PM.x2 - r && z > PM.z1 + r &&
+    !(z > PM.aguaZ1 - r && z < PM.aguaZ2 + r && !PM.puentes.some(([a, b]) => x > a + r && x < b - r));   // al dique no se entra, salvo por los puentes
+  if (Math.abs(z + mitad) < r + .3 && x > -mitad && x < mitad && !(x > SUPER.puerta1 + r && x < SUPER.puerta2 - r) && !(x > PM.puerta1 + r && x < PM.puerta2 - r)) return true;   // paredón norte con portones al súper y a Puerto Madero
+  const enHalcon = x < -mitad + 1 && x > HALCON.x1 + r && z > HALCON.z1 + r && z < HALCON.z2 - r;
+  if (!enCiudad && !enAer && !enPuerto && !enAgu && !enSuper && !enPM && !enHalcon) return true;
   if (Math.abs(z - mitad) < r + .3 && x > -mitad && x < mitad && !(x > AGU.puerta1 + r && x < AGU.puerta2 - r)) return true;   // paredón sur con portón al aguantadero
-  if (Math.abs(x + mitad) < r + .3 && !(z > PUERTO.puerta1 + r && z < PUERTO.puerta2 - r)) return true;   // paredón oeste con portón al puerto
+  if (Math.abs(x + mitad) < r + .3 && !(z > PUERTO.puerta1 + r && z < PUERTO.puerta2 - r) && !(z > HALCON.puerta1 + r && z < HALCON.puerta2 - r)) return true;   // paredón oeste con portones al puerto y a la base Halcón
   if (Math.abs(x - mitad) < r + .3 && !(z > AER.puerta1 + r && z < AER.puerta2 - r) && !(z > AUTOPISTA.z1 + r && z < AUTOPISTA.z2 - r)) return true;   // paredón con portón hacia el aeropuerto
   if (puerta.cerrada && eq !== "ladron" && x + r > CASA.x1 - .3 && x - r < CASA.x1 + .3 && z + r > CASA.puertaZ1 && z - r < CASA.puertaZ2) return true;
   return cercanos(x, z).some(e => x + r > e.x1 && x - r < e.x2 && z + r > e.z1 && z - r < e.z2);
@@ -489,12 +507,12 @@ const coloresEd = [0x8a8fa3, 0xa38a7a, 0x7a8fa3, 0x9a9a9a, 0xb0a080, 0x6f7f8f];
   instancias(new THREE.CylinderGeometry(.03, .05, 4, 4), new THREE.MeshBasicMaterial({ color: 0xff3030 }), antenas);
   // Paredón del borde y edificios lejanos (no se puede llegar)
   const borde = [];
-  { const n1 = SUPER.puerta1 + mitad, n2 = mitad - SUPER.puerta2;   // lado norte: dos tramos con el portón del supermercado
-    borde.push([-mitad + n1 / 2, 1.2, -mitad - .3, 0, n1 / (CIUDAD.tam + 1), 1, 1], [mitad - n2 / 2, 1.2, -mitad - .3, 0, n2 / (CIUDAD.tam + 1), 1, 1]); }
+  { const T = CIUDAD.tam + 1, cortes = [[-mitad, SUPER.puerta1], [SUPER.puerta2, PM.puerta1], [PM.puerta2, mitad]];   // lado norte: portones al súper y a Puerto Madero
+    for (const [a, b] of cortes) borde.push([(a + b) / 2, 1.2, -mitad - .3, 0, (b - a) / T, 1, 1]); }
   { const s1 = AGU.puerta1 + mitad, s2 = mitad - AGU.puerta2;   // lado sur: dos tramos con el portón del aguantadero
     borde.push([-mitad + s1 / 2, 1.2, mitad + .3, 0, s1 / (CIUDAD.tam + 1), 1, 1], [mitad - s2 / 2, 1.2, mitad + .3, 0, s2 / (CIUDAD.tam + 1), 1, 1]); }
-  { const m1 = PUERTO.puerta1 + mitad, m2 = mitad - PUERTO.puerta2;   // lado oeste: dos tramos con el portón del puerto
-    borde.push([-mitad - .3, 1.2, -mitad + m1 / 2, Math.PI / 2, m1 / (CIUDAD.tam + 1), 1, 1], [-mitad - .3, 1.2, mitad - m2 / 2, Math.PI / 2, m2 / (CIUDAD.tam + 1), 1, 1]); }
+  { const T = CIUDAD.tam + 1, cortes = [[-mitad, PUERTO.puerta1], [PUERTO.puerta2, HALCON.puerta1], [HALCON.puerta2, mitad]];   // lado oeste: portones al puerto y a la base Halcón
+    for (const [a, b] of cortes) borde.push([-mitad - .3, 1.2, (a + b) / 2, Math.PI / 2, (b - a) / T, 1, 1]); }
   { const T = CIUDAD.tam + 1, cortes = [[-mitad, AUTOPISTA.z1], [AUTOPISTA.z2, AER.puerta1], [AER.puerta2, mitad]];   // lado este: autopista y portón del aeropuerto
     for (const [a, b] of cortes) borde.push([mitad + .3, 1.2, (a + b) / 2, Math.PI / 2, (b - a) / T, 1, 1]); }
   instancias(new THREE.BoxGeometry(CIUDAD.tam + 1, 2.4, .6), new THREE.MeshLambertMaterial({ color: 0x4a4d55 }), borde);
@@ -502,8 +520,10 @@ const coloresEd = [0x8a8fa3, 0xa38a7a, 0x7a8fa3, 0x9a9a9a, 0xb0a080, 0x6f7f8f];
   for (let i = 0; i < 70; i++) { const a = i / 70 * Math.PI * 2 + az() * .05, r = mitad + 14 + az() * 30, h = 15 + az() * 45, w = 6 + az() * 8;
     if (Math.cos(a) > .35) continue;   // del lado del aeropuerto no hay edificios
     if (Math.cos(a) < -.6 && Math.sin(a) < .3) continue;   // ni del lado del puerto
+    if (Math.cos(a) < -.5 && Math.sin(a) > 0) continue;   // ni del lado de la base Halcón
     if (Math.sin(a) > .55 && Math.cos(a) > -.25) continue;   // ni del lado del aguantadero
     if (Math.sin(a) < -.6 && Math.cos(a) > -.55 && Math.cos(a) < .4) continue;   // ni del lado del supermercado
+    if (Math.sin(a) < -.3 && Math.cos(a) > .2) continue;   // ni del lado de Puerto Madero
     lejos.push([Math.cos(a) * r, h / 2, Math.sin(a) * r, -a, w, h, w]); }
   const tl = texVentanas.clone(), tle = texLuces.clone(); tl.needsUpdate = tle.needsUpdate = true; tl.repeat.set(2, 8); tle.repeat.set(2, 8);
   instancias(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0x5a6070, map: tl, emissiveMap: tle, emissive: 0xffffff, emissiveIntensity: .8 }), lejos);
@@ -808,6 +828,61 @@ const TAQUILLAS = { x: DEPTO.x1 + 2.5, z: DEPTO.z1 + 1.6 }, ARMERIA = { x: DEPTO
   for (const [x, z, ry] of [[D.x1 - .03, D.cz - 2, -Math.PI / 2], [D.x1 - .03, D.cz + 2, -Math.PI / 2], [D.x2 + .03, D.cz - 2.5, Math.PI / 2], [D.cx - 3.5, D.z2 + .03, 0], [D.cx + 3.8, D.z2 + .03, 0]]) {
     const v = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.2), new THREE.MeshLambertMaterial({ color: 0x9fd0ff, emissive: 0x2a4a6a })); v.position.set(x, 2.5, z); v.rotation.y = ry; escena.add(v); }
 }
+// ================== PUERTO MADERO (segunda ciudad) ==================
+// Barrio moderno al noreste, separado de la ciudad: dique con agua, docks de ladrillo rojo con grúas antiguas,
+// torres de vidrio altísimas, costanera con faroles y un puente peatonal blanco con mástil inclinado.
+{
+  const P = PM, mitad = CIUDAD.tam / 2, L = c => new THREE.MeshLambertMaterial({ color: c });
+  const plano = (x1, z1, x2, z2, mat, y) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(x2 - x1, z2 - z1), mat); m.rotation.x = -Math.PI / 2; m.position.set((x1 + x2) / 2, y, (z1 + z2) / 2); escena.add(m); return m; };
+  const baldosa = L(0x8c8478), asf = L(0x2b2d33);
+  plano(P.x1, P.z1, P.x2, -mitad, baldosa, .01);                                                   // suelo del barrio
+  plano(P.puerta1, P.aguaZ2, P.puerta2, -mitad, asf, .015);                                        // avenida de entrada
+  plano(P.x1, P.aguaZ2 + 2, P.x2, P.aguaZ2 + 10, asf, .015);                                       // avenida costanera sur
+  plano(P.x1, P.aguaZ1 - 10, P.x2, P.aguaZ1 - 2, asf, .015);                                       // avenida costanera norte
+  plano(P.x1, P.aguaZ1, P.x2, P.aguaZ2, new THREE.MeshLambertMaterial({ color: 0x0d3b5c, emissive: 0x04121e }), -.2);   // dique
+  for (const z of [P.aguaZ1, P.aguaZ2]) { const b = new THREE.Mesh(new THREE.BoxGeometry(P.x2 - P.x1, .5, .5), L(0x6a6a6a)); b.position.set((P.x1 + P.x2) / 2, -.05, z); escena.add(b); }
+  // Docks de ladrillo rojo con techo de chapa y ventanas arqueadas, sobre la costanera sur
+  const texDock = textura((c, w, h) => { c.fillStyle = "#9a4a32"; c.fillRect(0, 0, w, h); c.fillStyle = "#7a3a26"; for (let y = 0; y < h; y += 6) for (let x = (y / 6) % 2 * 6; x < w; x += 12) c.fillRect(x, y, 11, 5);
+    for (let p = 0; p < 2; p++) for (let i = 0; i < 6; i++) { const x = 8 + i * 20, y = 10 + p * 30; c.fillStyle = "#f2e6c8"; c.beginPath(); c.arc(x + 6, y + 6, 6, Math.PI, 0); c.fill(); c.fillRect(x, y + 6, 12, 14); c.fillStyle = "#ffd88a"; c.fillRect(x + 2, y + 4, 8, 14); } }, 128, 64);
+  texDock.wrapS = THREE.RepeatWrapping; texDock.repeat.set(4, 1);
+  const matDock = new THREE.MeshLambertMaterial({ map: texDock, emissiveMap: texDock, emissive: 0x332211 });
+  for (const [x1, x2] of [[38, 56], [72, 92], [108, 134], [150, 172]]) { const w = x2 - x1, d = 12, z = P.aguaZ2 + 18;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 9, d), [matDock, matDock, L(0x5a5a5a), L(0x5a5a5a), matDock, matDock]); m.position.set((x1 + x2) / 2, 4.5, z); escena.add(m);
+    edificios.push({ x1, x2, z1: z - d / 2, z2: z + d / 2, h: 9 }); }
+  // Grúas antiguas rojas en la costanera
+  const rojo = L(0xb02a20);
+  for (const x of [50, 82, 120, 160]) { const g = new THREE.Group(); g.position.set(x, 0, P.aguaZ2 + 1.2); escena.add(g);
+    for (const dx of [-1, 1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(.3, 8, .3), rojo); p.position.set(dx, 4, 0); g.add(p); }
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 2.4), rojo); cab.position.y = 9; g.add(cab);
+    const brazo = new THREE.Mesh(new THREE.BoxGeometry(.4, .4, 12), rojo); brazo.position.set(0, 10.5, -5); brazo.rotation.x = -.35; g.add(brazo);
+    edificios.push({ x1: x - 1.3, x2: x + 1.3, z1: P.aguaZ2 + 1, z2: P.aguaZ2 + 1.4, h: 8, arbol: true }); }
+  // Torres de vidrio (las más altas del mapa)
+  const texVid = textura((c, w, h) => { c.fillStyle = "#2a4a6a"; c.fillRect(0, 0, w, h); for (let y = 0; y < h; y += 8) { c.fillStyle = "#1a2a3a"; c.fillRect(0, y, w, 2); }
+    for (let x = 0; x < w; x += 16) { c.fillStyle = "#3a6a9a"; c.fillRect(x, 0, 2, h); } for (let i = 0; i < 60; i++) { c.fillStyle = Math.random() < .5 ? "#ffe6a8" : "#bfe3ff"; c.fillRect(Math.floor(Math.random() * 8) * 16 + 3, Math.floor(Math.random() * 16) * 8 + 2, 12, 5); } }, 128, 128);
+  texVid.wrapS = texVid.wrapT = THREE.RepeatWrapping;
+  const torres = [[46, -100, 10, 10, 48], [82, -100, 12, 12, 62], [100, -102, 9, 9, 40], [124, -100, 14, 10, 75], [152, -100, 10, 10, 54], [168, -96, 8, 8, 36],
+                  [48, -172, 12, 12, 70], [76, -182, 10, 14, 92], [104, -170, 14, 10, 58], [132, -184, 12, 12, 84], [160, -172, 10, 10, 66], [92, -196, 10, 8, 44]];
+  for (const [x, z, w, d, h] of torres) {
+    const t = texVid.clone(); t.needsUpdate = true; t.repeat.set(Math.max(1, w / 6), h / 12);
+    const mat = new THREE.MeshLambertMaterial({ map: t, emissiveMap: t, emissive: 0x99aabb, color: 0xb8d0e8 });
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, h / 2, z); escena.add(m);
+    const remate = new THREE.Mesh(new THREE.BoxGeometry(w * .6, 2, d * .6), L(0xd8dde2)); remate.position.set(x, h + 1, z); escena.add(remate);
+    const luz = new THREE.Mesh(new THREE.SphereGeometry(.4, 6, 4), new THREE.MeshBasicMaterial({ color: 0xff3030 })); luz.position.set(x, h + 2.4, z); escena.add(luz);
+    edificios.push({ x1: x - w / 2, x2: x + w / 2, z1: z - d / 2, z2: z + d / 2, h }); }
+  // Puentes: uno vehicular gris y uno peatonal blanco con mástil inclinado (diseño propio)
+  for (const [a, b] of P.puentes) { const c = (a + b) / 2, peatonal = a < 120;
+    const tabla = new THREE.Mesh(new THREE.BoxGeometry(b - a, .4, P.aguaZ2 - P.aguaZ1 + 2), L(peatonal ? 0xf2f2f2 : 0x7a7f88)); tabla.position.set(c, .05, (P.aguaZ1 + P.aguaZ2) / 2); escena.add(tabla);
+    for (const x of [a + .2, b - .2]) { const bar = new THREE.Mesh(new THREE.BoxGeometry(.1, 1, P.aguaZ2 - P.aguaZ1 + 2), L(0xe8e8e8)); bar.position.set(x, .6, (P.aguaZ1 + P.aguaZ2) / 2); escena.add(bar); }
+    if (peatonal) { const mastil = new THREE.Mesh(new THREE.CylinderGeometry(.25, .5, 34, 10), L(0xffffff)); mastil.position.set(c + 4, 13, (P.aguaZ1 + P.aguaZ2) / 2); mastil.rotation.z = -.62; escena.add(mastil);
+      for (let k = 0; k < 7; k++) { const zz = P.aguaZ1 + 1 + k * 2, top = new THREE.Vector3(c + 4 + Math.sin(.62) * 13 * (k / 7 + .3), 13 + Math.cos(.62) * 13 * (k / 7 + .3), (P.aguaZ1 + P.aguaZ2) / 2), bot = new THREE.Vector3(c, .3, zz);
+        const len = top.distanceTo(bot), cab = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, len, 4), L(0xdddddd)); cab.position.copy(top).add(bot).multiplyScalar(.5); cab.lookAt(top); cab.rotateX(Math.PI / 2); escena.add(cab); } } }
+  // Faroles y árboles de la costanera
+  for (let x = P.x1 + 4; x < P.x2 - 2; x += 10) for (const z of [P.aguaZ2 + 1.6, P.aguaZ1 - 1.6]) { if (P.puentes.some(([a, b]) => x > a - 1 && x < b + 1)) continue;
+    const f = new THREE.Mesh(new THREE.CylinderGeometry(.06, .08, 3.6, 6), L(0x222222)); f.position.set(x, 1.8, z); escena.add(f);
+    const g = new THREE.Mesh(new THREE.SphereGeometry(.22, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffe9b0 })); g.position.set(x, 3.7, z); escena.add(g); }
+  const cP = cartel("🌉 PUERTO MADERO", "#0a4a7a"); cP.scale.set(8, 2, 1); cP.position.set(64, 7, -mitad - 6); escena.add(cP);
+  const cE = cartel("🌉 PUERTO MADERO ↑", "#0a4a7a"); cE.scale.set(6, 1.5, 1); cE.position.set(PM.puerta2 + 2, 5, -mitad + 2); escena.add(cE);
+}
 // ================== SUPERMERCADO ==================
 // Un "súper chino" de barrio afuera de la ciudad: estacionamiento, cartel, góndolas, heladeras y el señor Li en la caja.
 // Se le puede comprar (gratis, con espera): gaseosa para correr más rápido y alfajor para recuperar resistencia.
@@ -931,6 +1006,59 @@ $("su-ok").onclick = () => { $("super").style.display = "none"; if (!document.bo
     edificios.push({ x1: x - .45, x2: x + .45, z1: z - .45, z2: z + .45, h: 1, arbol: true }); }
   // Pila de plata robada al lado de la zona
   for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(new THREE.SphereGeometry(.45, 8, 6), new THREE.MeshLambertMaterial({ color: 0x2e9e4f })); b.scale.set(1, .8, 1); b.position.set(45.5 + (i % 3) * .7, .35 + Math.floor(i / 3) * .55, 95 + (i % 2) * .3); escena.add(b); }
+}
+// ================== BASE DEL GRUPO HALCÓN ==================
+// Predio negro afuera de la ciudad: cuartel con armería propia, helipuerto con helicóptero negro, polígono de tiro,
+// pista de obstáculos y camionetas negras. Solo el Grupo Halcón (y el SWAT) recargan acá.
+{
+  const H = HALCON, mitad = CIUDAD.tam / 2, L = c => new THREE.MeshLambertMaterial({ color: c }), negro = L(0x141414), gris = L(0x3a3d44);
+  const plano = (x1, z1, x2, z2, c, y) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(x2 - x1, z2 - z1), L(c)); m.rotation.x = -Math.PI / 2; m.position.set((x1 + x2) / 2, y, (z1 + z2) / 2); escena.add(m); };
+  plano(H.x1, H.z1, -mitad, H.z2, 0x3a3f2a, .01);                         // pasto seco
+  plano(-108, H.puerta1, -mitad, H.puerta2, 0x2b2d33, .015);              // camino de entrada
+  plano(-112, 22, -88, 58, 0x34363c, .015);                               // playón
+  // Cuartel: paredes negras con la puerta hacia el playón (mirando a la ciudad)
+  const alto = 5, g = .4;
+  const paredes = [[H.ex1, H.ez1, H.ex2, H.ez1 + g], [H.ex1, H.ez2 - g, H.ex2, H.ez2], [H.ex1, H.ez1, H.ex1 + g, H.ez2], [H.ex2 - g, H.ez1, H.ex2, 38.6], [H.ex2 - g, 41.4, H.ex2, H.ez2]];
+  for (const [x1, z1, x2, z2] of paredes) { const m = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1, alto, z2 - z1), negro); m.position.set((x1 + x2) / 2, alto / 2, (z1 + z2) / 2); escena.add(m); edificios.push({ x1, z1, x2, z2, h: alto }); }
+  const dintel = new THREE.Mesh(new THREE.BoxGeometry(g, alto - 3, 2.8), negro); dintel.position.set(H.ex2 - g / 2, 3 + (alto - 3) / 2, 40); escena.add(dintel);
+  const techo = new THREE.Mesh(new THREE.BoxGeometry(H.ex2 - H.ex1 + .6, .4, H.ez2 - H.ez1 + .6), L(0x0a0a0a)); techo.position.set((H.ex1 + H.ex2) / 2, alto + .2, (H.ez1 + H.ez2) / 2); escena.add(techo);
+  const franja = new THREE.Mesh(new THREE.BoxGeometry(.05, .4, H.ez2 - H.ez1), new THREE.MeshBasicMaterial({ color: 0x3dff6a })); franja.position.set(H.ex2 + .03, 3.6, (H.ez1 + H.ez2) / 2); escena.add(franja);
+  const pisoC = new THREE.Mesh(new THREE.PlaneGeometry(H.ex2 - H.ex1, H.ez2 - H.ez1), L(0x2a2a2a)); pisoC.rotation.x = -Math.PI / 2; pisoC.position.set((H.ex1 + H.ex2) / 2, .02, (H.ez1 + H.ez2) / 2); escena.add(pisoC);
+  // Cartel con el halcón (diseño propio)
+  const texH = textura((c, w, h) => { c.fillStyle = "#0a0a0a"; c.fillRect(0, 0, w, h); c.fillStyle = "#3dff6a"; c.fillRect(0, h - 10, w, 10);
+    c.fillStyle = "#e8e8e8"; c.textAlign = "left"; c.textBaseline = "middle"; c.font = "bold 64px system-ui"; c.fillText("🦅 GRUPO HALCÓN", 30, h / 2 - 18); c.font = "bold 28px system-ui"; c.fillStyle = "#9a9a9a"; c.fillText("BASE DE OPERACIONES ESPECIALES", 34, h / 2 + 40); }, 1024, 192);
+  const cart = new THREE.Mesh(new THREE.PlaneGeometry(12, 2.25), new THREE.MeshBasicMaterial({ map: texH })); cart.position.set(H.ex2 + .06, 3.9, 40); cart.rotation.y = Math.PI / 2; escena.add(cart);
+  // Armería adentro (al lado de la puerta) y bancos/lockers
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.1, 3.2), L(0x2d2d2d)); arm.position.set(H.ex2 - 1.2, .55, 45); escena.add(arm); edificios.push({ x1: H.ex2 - 1.8, x2: H.ex2 - .6, z1: 43.4, z2: 46.6, h: 1.1 });
+  for (let i = 0; i < 6; i++) { const lk = new THREE.Mesh(new THREE.BoxGeometry(.6, 2, .5), L(0x1e2a1e)); lk.position.set(H.ex1 + 1 + i * .7, 1, H.ez1 + .7); escena.add(lk); }
+  edificios.push({ x1: H.ex1 + .6, x2: H.ex1 + 5.1, z1: H.ez1 + .4, z2: H.ez1 + 1, h: 2 });
+  const cA = cartel("🔫 ARMERÍA HALCÓN", "#0a0a0a"); cA.scale.set(3.2, .8, 1); cA.position.set(H.ex2 - 1.2, 2.3, 45); escena.add(cA);
+  // Helipuerto con helicóptero negro
+  plano(-140, 56, -124, 72, 0x2a2a2a, .02);
+  const hT = new THREE.Mesh(new THREE.RingGeometry(5, 5.6, 32), new THREE.MeshBasicMaterial({ color: 0xffd400 })); hT.rotation.x = -Math.PI / 2; hT.position.set(-132, .03, 64); escena.add(hT);
+  const hL = textura((c, w, h) => { c.fillStyle = "#ffd400"; c.font = "bold 110px system-ui"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("H", w / 2, h / 2 + 6); }, 128, 128);
+  const hM = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), new THREE.MeshBasicMaterial({ map: hL, transparent: true })); hM.rotation.x = -Math.PI / 2; hM.position.set(-132, .035, 64); escena.add(hM);
+  const heliN = new THREE.Group(); heliN.position.set(-132, 0, 64); escena.add(heliN);
+  { const cu = new THREE.Mesh(new THREE.SphereGeometry(1.3, 14, 10), negro); cu.scale.set(1, .8, 1.6); cu.position.y = 1.6; heliN.add(cu);
+    const co = new THREE.Mesh(new THREE.BoxGeometry(.35, .35, 3.8), negro); co.position.set(0, 1.9, -3.2); heliN.add(co);
+    for (const x of [-.8, .8]) { const p = new THREE.Mesh(new THREE.BoxGeometry(.1, .1, 2.6), gris); p.position.set(x, .25, 0); heliN.add(p); }
+    for (const ry of [0, Math.PI / 2]) { const pa = new THREE.Mesh(new THREE.BoxGeometry(7, .05, .25), gris); pa.rotation.y = ry; pa.position.y = 2.8; heliN.add(pa); }
+    const v = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8, 0, Math.PI * 2, 0, 1.1), new THREE.MeshLambertMaterial({ color: 0x3dff6a, transparent: true, opacity: .4 })); v.rotation.x = Math.PI / 2.4; v.position.set(0, 1.8, 1); heliN.add(v); }
+  edificios.push({ x1: -133.4, x2: -130.6, z1: 61.5, z2: 66.5, h: 3, arbol: true });
+  // Polígono de tiro: siluetas de cartón y bolsas de arena
+  for (let i = 0; i < 5; i++) { const z = 14 + i * 3; const s = new THREE.Mesh(new THREE.PlaneGeometry(.8, 1.7), new THREE.MeshLambertMaterial({ map: textura((c, w, h) => { c.fillStyle = "#e8e0c8"; c.fillRect(0, 0, w, h); c.fillStyle = "#1a1a1a"; c.beginPath(); c.arc(w / 2, h * .2, w * .18, 0, 7); c.fill(); c.fillRect(w * .25, h * .32, w * .5, h * .6); c.strokeStyle = "#d02020"; c.lineWidth = 3; for (const rr of [8, 16, 24]) { c.beginPath(); c.arc(w / 2, h * .55, rr, 0, 7); c.stroke(); } }, 64, 128), side: THREE.DoubleSide }));
+    s.position.set(-145, .85, z); s.rotation.y = Math.PI / 2; escena.add(s); }
+  const arena = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 16), L(0x8a7a50)); arena.position.set(-138, .5, 20); escena.add(arena); edificios.push({ x1: -138.5, x2: -137.5, z1: 12, z2: 28, h: 1, arbol: true });
+  // Pista de obstáculos: vallas bajas y neumáticos
+  for (let i = 0; i < 4; i++) { const v = new THREE.Mesh(new THREE.BoxGeometry(3, .9, .2), L(0x6a4a2a)); v.position.set(-104 + i * 4, .45, 66); escena.add(v); edificios.push({ x1: -105.5 + i * 4, x2: -102.5 + i * 4, z1: 65.9, z2: 66.1, h: .9, arbol: true }); }
+  for (let i = 0; i < 6; i++) { const n = new THREE.Mesh(new THREE.TorusGeometry(.4, .14, 6, 12), negro); n.rotation.x = Math.PI / 2; n.position.set(-104 + (i % 3) * 1.1, .14, 70 + Math.floor(i / 3) * 1.1); escena.add(n); }
+  // Camionetas negras estacionadas (de adorno)
+  for (const z of [26, 30, 50, 54]) { const c = crearCamioneta("GRUPO HALCÓN"); c.position.set(-98, 0, z); c.rotation.y = -Math.PI / 2; edificios.push({ x1: -100.6, x2: -95.4, z1: z - 1.2, z2: z + 1.2, h: 2.2, arbol: true }); }
+  // Torre de vigilancia y alambrado
+  const torre = new THREE.Mesh(new THREE.BoxGeometry(2, 7, 2), negro); torre.position.set(-146, 3.5, 10); escena.add(torre); edificios.push({ x1: -147, x2: -145, z1: 9, z2: 11, h: 7 });
+  const foco = new THREE.Mesh(new THREE.BoxGeometry(.6, .4, .4), new THREE.MeshBasicMaterial({ color: 0xffffe0 })); foco.position.set(-145, 7.2, 10.8); escena.add(foco);
+  const cE = cartel("🦅 BASE HALCÓN ←", "#0a0a0a"); cE.scale.set(6, 1.5, 1); cE.position.set(-mitad + 2, 5, H.puerta2 + 2); escena.add(cE);
+  const cG = cartel("🦅 GRUPO HALCÓN", "#0a0a0a"); cG.scale.set(7, 1.75, 1); cG.position.set((H.ex1 + H.ex2) / 2, alto + 3, 40); escena.add(cG);
 }
 // ================== PUERTO (muelle) ==================
 {
@@ -1405,7 +1533,7 @@ function texTexto(txt, fondo, letra) { const k = txt + fondo + letra; return _te
   c.fillStyle = fondo; c.fillRect(0, 0, w, h); c.fillStyle = letra; c.font = "bold 44px system-ui"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(txt, w / 2, h / 2 + 2); }, 256, 64)); }
 const texRayas = textura((c, w, h) => { for (let y = 0; y < h; y += 16) { c.fillStyle = (y / 16) % 2 ? "#f2f2f2" : "#151515"; c.fillRect(0, y, w, 16); } }, 64, 64);
 function crearMuneco(equipo, nombre, clase, div, uni) {
-  const U = equipo === "poli" && !ARMADO(clase) ? (UNIFORMES[uni] || UNIFORMES.azul) : null;
+  const U = equipo === "poli" && !ARMADO(clase) ? (clase === "investigador" ? UNIFORMES.civil : (UNIFORMES[uni] || UNIFORMES.azul)) : null;
   const swat = ARMADO(clase), halcon = clase === "halcon", ladron = equipo === "ladron";
   const L = c => new THREE.MeshLambertMaterial({ color: c }), B = c => new THREE.MeshBasicMaterial({ color: c });
   const caja = (w, h, d, mat, x, y, z, padre) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); (padre || g).add(m); return m; };
@@ -1445,7 +1573,8 @@ function crearMuneco(equipo, nombre, clase, div, uni) {
     if (U.extra === "medallas") { for (let i = 0; i < 3; i++) caja(.05, .06, .02, B([0xffd400, 0xc0c0c0, 0xcd7f32][i]), -.18 + i * .06, 1.45, .16); caja(.5, .03, .31, B(0xd4af37), 0, 1.58, 0); }
     if (U.extra === "cuello") { const cu = new THREE.Mesh(new THREE.TorusGeometry(.13, .05, 8, 14), L(0x2a2a2a)); cu.rotation.x = Math.PI / 2; cu.position.y = 1.64; g.add(cu); caja(.58, .3, .32, L(0x151515), 0, 1.07, 0); }
     // Gorra / sombrero / casco
-    if (U.extra === "sombrero") { const ala = new THREE.Mesh(new THREE.CylinderGeometry(.42, .42, .03, 18), L(U.gorro)); ala.position.y = 2.03; g.add(ala);
+    if (U.extra === "civil") { caja(.58, .2, .32, L(0x5a3a1a), 0, 1.5, 0); }   // campera de civil, sin gorra (la placa va en el cinturón)
+    else if (U.extra === "sombrero") { const ala = new THREE.Mesh(new THREE.CylinderGeometry(.42, .42, .03, 18), L(U.gorro)); ala.position.y = 2.03; g.add(ala);
       const copa = new THREE.Mesh(new THREE.CylinderGeometry(.18, .21, .2, 14), L(U.gorro)); copa.position.y = 2.14; g.add(copa); }
     else if (U.extra === "casco") { const ca = new THREE.Mesh(new THREE.SphereGeometry(.25, 16, 10, 0, Math.PI * 2, 0, Math.PI / 1.8), L(U.gorro)); ca.position.y = 1.9; g.add(ca);
       caja(.3, .08, .05, B(0x223344), 0, 1.93, .22); }
@@ -1506,10 +1635,11 @@ function animarMuneco(m, vel, t) {
 const miId = Math.random().toString(36).slice(2, 9);
 let clase = "poli", equipo = "poli", jug = {}, yo = null, jugando = false, online = false, soyHost = false, canal = null, codigo = "", fin = 0, botin = 0, inicioT = 0;
 const miNombre = () => (DB.nombre || (clase === "halcon" ? "Halcón" : clase === "swat" ? "SWAT" : equipo === "poli" ? "Poli" : "Ladrón")).slice(0, 14);
-const ICONO = c => c === "halcon" ? "🦅" : c === "swat" ? "🪖" : c === "poli" ? "👮" : "🦹";
+const ICONO = c => c === "halcon" ? "🦅" : c === "swat" ? "🪖" : c === "investigador" ? "🕵️" : c === "poli" ? "👮" : "🦹";
 const ARMADO = c => c === "swat" || c === "halcon";
 // Uniformes de la policía (se eligen en las taquillas)
 const UNIFORMES = {
+  civil:    { nom: "De civil (Investigaciones)", ico: "🕵️", camisa: 0x6a4a2a, pantalon: 0x2a3a5a, gorro: 0x000000, charretera: 0x6a4a2a, letras: "#d4af37", extra: "civil", oculto: true },
   azul:     { nom: "Azul reglamentario", ico: "👮", camisa: 0x1b2a4a, pantalon: 0x141e33, gorro: 0x0f1d36, charretera: 0x5ec8f2, letras: "#e8e8e8", extra: null },
   celeste:  { nom: "Camisa celeste",     ico: "👔", camisa: 0x9ccfe8, pantalon: 0x141e33, gorro: 0x0f1d36, charretera: 0x0f1d36, letras: "#0f1d36", extra: null },
   gala:     { nom: "De gala",            ico: "🎖️", camisa: 0x0b1530, pantalon: 0x0b1530, gorro: 0xf5f5f5, charretera: 0xd4af37, letras: "#d4af37", extra: "medallas" },
@@ -1531,12 +1661,12 @@ const DIVISIONES = {
   comunicaciones:  { nom: "Comunicaciones",  ico: "📡", d: "Ve en el HUD dónde está cada ladrón con botín y a qué distancia." },
 };   // tienen ametralladora y pueden reventar puertas
 function nuevoJug(id, nombre, eq, bot, cl) {
-  const l = lugarLibre(eq === "poli" ? { x: DEPTO.cx, z: DEPTO.cz } : ZONAS.guarida, eq === "poli" ? 3.5 : 8);
+  const l = lugarLibre(cl === "halcon" && !bot ? { x: -104, z: 40 } : eq === "poli" ? { x: DEPTO.cx, z: DEPTO.cz } : ZONAS.guarida, eq === "poli" ? 3.5 : 8);   // el Grupo Halcón arranca en su base
   return { id, nombre, equipo: eq, clase: cl || eq, div: "patrulla", uni: "azul", bot, res: 100, x: l.x, z: l.z, rot: 0, preso: false, bolsa: false, mesh: null, tx: l.x, tz: l.z, atrapados: 0, robado: 0, visto: Date.now() };
 }
 
 // ================== RED ==================
-const SB = supabase.createClient("https://eluxvcixctwnzyysvoor.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsdXh2Y2l4Y3R3bnp5eXN2b29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMTk5NzAsImV4cCI6MjEwMzY5NTk3MH0.Gq29eHc-X1vEfbxM_9E5mlOynIJCh0pBbsSOPX923IQ");
+const SB = supabase.createClient("https://eluxvcixctwnzyysvoor.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsdXh2Y2l4Y3R3bnp5eXN2b29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMTk5NzAsImV4cCI6MjEwMzY5NTk3MH0.Gq29eHc-X1vEfbxM_9E5mlOynIJCh0pBbsSOPX923IQ", { realtime: { params: { eventsPerSecond: 25 } } });   // por defecto son 10 por segundo y se perdían mensajes
 const enviar = (ev, p) => { if (online && canal) canal.send({ type: "broadcast", event: ev, payload: p }); };
 function conectar(cod, host) {
   online = true; soyHost = host; codigo = cod;
@@ -1554,7 +1684,8 @@ function conectar(cod, host) {
     })
     .on("presence", { event: "join" }, () => { if (soyHost && jugando) enviar("empieza", { fin, botin, tarde: true }); })   // el que entra tarde arranca en la partida en curso
     .on("broadcast", { event: "empieza" }, ({ payload }) => { if (!soyHost && !jugando) { empezar(payload.fin); if (payload.botin) botin = +payload.botin || 0; } })
-    .on("broadcast", { event: "pos" }, ({ payload: p }) => recibirPos(p))
+    .on("broadcast", { event: "pos" }, ({ payload: p }) => { recibirPos(p); for (const n of p.npcs || []) recibirPos(n);
+      for (const d of p.danos || []) recibirDano(d.l, d.de, +d.d || 0, Math.min(4000, +d.at || 0)); })
     .on("broadcast", { event: "disparo" }, ({ payload: p }) => verDisparo(p))
     .on("broadcast", { event: "dano" }, ({ payload: p }) => recibirDano(p.ladron, p.de, p.dmg, Math.min(4000, +p.at || 0)))
     .on("broadcast", { event: "atrapa" }, ({ payload: p }) => atrapado(p.ladron, p.poli))
@@ -1573,6 +1704,7 @@ function conectar(cod, host) {
     .on("broadcast", { event: "dfin" }, ({ payload: p }) => finDisturbio(!!p.ok))
     .on("broadcast", { event: "caravana" }, ({ payload: p }) => salirCaravana(+p.inicio))
     .on("broadcast", { event: "cfin" }, ({ payload: p }) => finCaravana(!!p.ok))
+    .on("broadcast", { event: "maletin" }, ({ payload: p }) => robarMaletin(p.quien))
     .on("broadcast", { event: "heli" }, ({ payload: p }) => llamarHeli(p.de, p.obj, Math.min(+p.hasta, Date.now() + 30000), false))
     .on("broadcast", { event: "valla" }, ({ payload: p }) => { if (vallas.filter(v => String(v.id).startsWith(String(p.id).split(":")[0])).length < 3) ponerValla(+p.x, +p.z, p.eje ? 1 : 0, Math.min(+p.hasta, Date.now() + 50000), p.id, false); })
     .on("broadcast", { event: "refuerzos" }, ({ payload: p }) => refuerzos(p.de, +p.x, +p.z, false))
@@ -1603,7 +1735,7 @@ function sirena() { [700, 950, 700, 950].forEach((f, i) => setTimeout(() => beep
 function atrapado(idLadron, idPoli) {
   { const l = jug[idLadron]; if (l && !l.preso) { l.detenciones = (l.detenciones || 0) + 1; delete capturas[idLadron]; } }
   const l = jug[idLadron], p = jug[idPoli]; if (!l || l.preso) return;
-  l.preso = true; l.res = 100; if (l.bolsa) { l.bolsa = false; } l.paquete = false;
+  l.preso = true; l.res = 100; if (l.bolsa) { l.bolsa = false; } l.paquete = false; if (l.maletin) { l.maletin = false; feed("💼 La policía recuperó el maletín presidencial"); }
   if (p) p.atrapados++;
   const c = lugarLibre(ZONAS.carcel, 2.5); l.x = l.tx = c.x; l.z = l.tz = c.z;
   feed(`🚔 ${p ? p.nombre : "La poli"} atrapó a ${l.nombre}`);
@@ -1645,9 +1777,17 @@ function irrupcion(idQuien) {
   let n = 0; for (const p of PAQUETES) if (p.hasta < Date.now()) { p.hasta = Date.now() + 30000; n++; }
   if (n) feed(`🚔 La policía secuestró ${n} paquete${n > 1 ? "s" : ""} de contrabando`);
 }
+// Robo del maletín presidencial en la bóveda de la Casa de Gobierno: vale $3.000 al llevarlo al aguantadero y hace sonar la alarma
+function robarMaletin(idQuien) {
+  const q = jug[idQuien]; if (!q || q.preso || q.bolsa || q.paquete || Date.now() < GOB.listo) return;
+  q.bolsa = true; q.maletin = true; GOB.listo = Date.now() + 60000; capturas[q.id] = Date.now() + 15000;
+  feed(`🚨 ¡Robaron el maletín de la bóveda de la Casa de Gobierno! (${q.nombre})`);
+  if (q === yo) grande("💼 ¡MALETÍN! Llevalo al aguantadero ($3.000)", "#ffd23a"); else if (yo.equipo === "poli") grande("🚨 ¡ROBO EN LA CASA DE GOBIERNO!", "#ff4d4d");
+  for (let k = 0; k < 6; k++) setTimeout(() => beep(k % 2 ? 900 : 1200, .15, "square", .04), k * 220);
+}
 function entregar(idQuien) {
   const q = jug[idQuien]; if (!q || !q.bolsa) return;
-  const v = DIST.activo ? 1500 : 1000;
+  const v = q.maletin ? 3000 : DIST.activo ? 1500 : 1000; q.maletin = false;
   q.bolsa = false; q.robado += v; botin += v;
   feed(`💰 ${q.nombre} entregó $${v.toLocaleString("es-AR")}${DIST.activo ? " (🔥 disturbio)" : ""} (total $${botin.toLocaleString("es-AR")})`);
   if (q === yo) { grande(`💸 +$${v.toLocaleString("es-AR")}`, "#7dff8a"); beep(1300, .25, "triangle"); }
@@ -1785,14 +1925,16 @@ function apuntar(o, d, deEquipo, alc = ALCANCE) {
   const pared = paredEnMedio(o, d, dist);
   return pared !== null ? { s: null, dist: pared } : { s: mejor, dist };
 }
+const danosPend = [];   // daños hechos desde el último mensaje de posición (se mandan juntos para no saturar la conexión)
 function disparar(tirador, o, d, dano = DANO, alc = ALCANCE, aturde = 0, sonido = true) {
   const r = apuntar(o, d, tirador.equipo, alc);
   trazo(o, d, r.dist);
   if (tirador === yo) { fogonazo.visible = true; luzFogonazo.intensity = 3; setTimeout(() => { fogonazo.visible = false; luzFogonazo.intensity = 0; }, 45);
     armaVista.position.z = -.4; if (sonido) aturde ? beep(1800, .15, "sawtooth", .03) : beep(140 + Math.random() * 40, .05, "square", .05);
-    enviar("disparo", { de: tirador.id, o: [o.x, o.y, o.z].map(v => +v.toFixed(2)), d: [d.x, d.y, d.z].map(v => +v.toFixed(3)), l: +r.dist.toFixed(1) }); }
+    if (performance.now() - (disparar.ultEnvio || 0) > 200) { disparar.ultEnvio = performance.now(); enviar("disparo", { de: tirador.id, o: [o.x, o.y, o.z].map(v => +v.toFixed(2)), d: [d.x, d.y, d.z].map(v => +v.toFixed(3)), l: +r.dist.toFixed(1) }); } }
   else if (Math.hypot(o.x - yo.x, o.z - yo.z) < 40) beep(160, .04, "square", .015);
-  if (r.s) { enviar("dano", { ladron: r.s.id, de: tirador.id, dmg: dano, at: aturde }); recibirDano(r.s.id, tirador.id, dano, aturde); }
+  if (r.s) { if (online) { const q = danosPend.find(x => x.l === r.s.id && x.de === tirador.id); if (q) { q.d += dano; q.at = Math.max(q.at, aturde); } else danosPend.push({ l: r.s.id, de: tirador.id, d: dano, at: aturde }); }
+    recibirDano(r.s.id, tirador.id, dano, aturde); }
 }
 function verDisparo(p) { const o = new THREE.Vector3(...p.o), d = new THREE.Vector3(...p.d); trazo(o, d, p.l);
   if (Math.hypot(o.x - yo.x, o.z - yo.z) < 40) beep(160, .04, "square", .015); }
@@ -1914,7 +2056,7 @@ function abrirTaquillas() {
   document.exitPointerLock?.(); $("taquillas").style.display = "block";
   const pintar = () => {
     $("tq-div").innerHTML = Object.entries(DIVISIONES).map(([k, d]) => `<button data-div="${k}" class="${yo.div === k ? "on" : ""}">${d.ico} ${d.nom}<small>${d.d}</small></button>`).join("");
-    $("tq-uni").innerHTML = Object.entries(UNIFORMES).map(([k, u]) => `<button data-uni="${k}" class="${yo.uni === k ? "on" : ""}" style="border-left:8px solid #${u.camisa.toString(16).padStart(6, "0")}">${u.ico} ${u.nom}</button>`).join("");
+    $("tq-uni").innerHTML = Object.entries(UNIFORMES).filter(([, u]) => !u.oculto).map(([k, u]) => `<button data-uni="${k}" class="${yo.uni === k ? "on" : ""}" style="border-left:8px solid #${u.camisa.toString(16).padStart(6, "0")}">${u.ico} ${u.nom}</button>`).join("");
     $("tq-div").querySelectorAll("[data-div]").forEach(b => b.onclick = () => { yo.div = b.dataset.div; beep(900, .08, "triangle"); pintar(); });
     $("tq-uni").querySelectorAll("[data-uni]").forEach(b => b.onclick = () => { yo.uni = b.dataset.uni; beep(700, .08, "triangle"); pintar(); });
   };
@@ -1933,14 +2075,36 @@ function abrirArmeria() {
 // Edificio rosado con columnas. Cada tanto sale la caravana presidencial a recorrer la ciudad:
 // la policía la escolta; si un ladrón llega al auto sin policías cerca, la asaltan (+$2.000 para los ladrones).
 // Si llega bien, el Presidente agradece: todos los ladrones quedan marcados 20 s para la policía.
-const GOB = { x1: 22, x2: 34, z1: -2, z2: 6, alto: 8, cx: 28, cz: 2 };
+const GOB = { x1: 22, x2: 34, z1: -2, z2: 6, alto: 8, cx: 28, cz: 2, puerta1: 26.8, puerta2: 29.2, bovX: 28, bovZ: .4, listo: 0 };
 {
   const G = GOB, rosa = new THREE.MeshLambertMaterial({ color: 0xe9a3a8 }), blanco = new THREE.MeshLambertMaterial({ color: 0xf4efe6 });
   const texFrente = textura((c, w, h) => { c.fillStyle = "#e9a3a8"; c.fillRect(0, 0, w, h);
     for (let piso = 0; piso < 2; piso++) for (let i = 0; i < 9; i++) { const x = 14 + i * 27, y = 20 + piso * 60;
       c.fillStyle = "#f4efe6"; c.fillRect(x - 3, y - 3, 18, 40); c.fillStyle = "#ffd88a"; c.fillRect(x, y, 12, 34); c.fillStyle = "#f4efe6"; c.fillRect(x + 5, y, 2, 34); } }, 256, 128);
-  const cuerpo = new THREE.Mesh(new THREE.BoxGeometry(G.x2 - G.x1, G.alto, G.z2 - G.z1), [rosa, rosa, rosa, rosa, new THREE.MeshLambertMaterial({ map: texFrente, emissive: 0x332222 }), rosa]);
-  cuerpo.position.set(G.cx, G.alto / 2, G.cz); escena.add(cuerpo);
+  // Paredes huecas (se puede entrar por la puerta del frente)
+  const matFrente = new THREE.MeshLambertMaterial({ map: texFrente, emissive: 0x332222 }), g4 = .4;
+  const pared = (x1, z1, x2, z2, y1, y2, frente) => { const m = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1, y2 - y1, z2 - z1), frente ? [rosa, rosa, rosa, rosa, matFrente, rosa] : rosa);
+    m.position.set((x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2); escena.add(m); if (y1 < 1) edificios.push({ x1, z1, x2, z2, h: G.alto }); };
+  pared(G.x1, G.z1, G.x2, G.z1 + g4, 0, G.alto); pared(G.x1, G.z1, G.x1 + g4, G.z2, 0, G.alto); pared(G.x2 - g4, G.z1, G.x2, G.z2, 0, G.alto);
+  pared(G.x1, G.z2 - g4, G.puerta1, G.z2, 0, G.alto, true); pared(G.puerta2, G.z2 - g4, G.x2, G.z2, 0, G.alto, true); pared(G.puerta1, G.z2 - g4, G.puerta2, G.z2, 3.2, G.alto, true);
+  const techoG = new THREE.Mesh(new THREE.BoxGeometry(G.x2 - G.x1, .3, G.z2 - G.z1), rosa); techoG.position.set(G.cx, G.alto - .15, G.cz); escena.add(techoG);
+  // Adentro: piso de mármol, alfombra roja, escritorio presidencial, banderas, arañas de luz y la bóveda con el tesoro
+  const marmol = textura((c, w, h) => { for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { c.fillStyle = (i + j) % 2 ? "#f2efe8" : "#2a2a2a"; c.fillRect(i * 16, j * 16, 16, 16); } }, 128, 128);
+  marmol.wrapS = marmol.wrapT = THREE.RepeatWrapping; marmol.repeat.set(3, 2);
+  const pisoG = new THREE.Mesh(new THREE.PlaneGeometry(G.x2 - G.x1 - .8, G.z2 - G.z1 - .8), new THREE.MeshLambertMaterial({ map: marmol })); pisoG.rotation.x = -Math.PI / 2; pisoG.position.set(G.cx, .03, G.cz); escena.add(pisoG);
+  const alf = new THREE.Mesh(new THREE.PlaneGeometry(2, G.z2 - G.z1 - 1.2), new THREE.MeshLambertMaterial({ color: 0x9a1020 })); alf.rotation.x = -Math.PI / 2; alf.position.set(G.cx, .04, G.cz + .3); escena.add(alf);
+  const madera = new THREE.MeshLambertMaterial({ color: 0x4a2a14 });
+  const esc = new THREE.Mesh(new THREE.BoxGeometry(1, .8, 2.2), madera); esc.position.set(G.x1 + 2, .4, G.cz); escena.add(esc); edificios.push({ x1: G.x1 + 1.5, x2: G.x1 + 2.5, z1: G.cz - 1.1, z2: G.cz + 1.1, h: .8 });
+  const sillon = new THREE.Mesh(new THREE.BoxGeometry(.7, 1.4, .7), new THREE.MeshLambertMaterial({ color: 0x7a1020 })); sillon.position.set(G.x1 + 1, .7, G.cz); escena.add(sillon);
+  for (const z of [G.z1 + 1, G.z1 + 1.7]) { const m = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, 2.4), new THREE.MeshLambertMaterial({ color: 0xd4af37 })); m.position.set(G.x1 + .7, 1.2, z); escena.add(m);
+    const b = new THREE.Mesh(new THREE.PlaneGeometry(.7, .45), new THREE.MeshBasicMaterial({ map: textura((c, w, h) => { c.fillStyle = "#74acdf"; c.fillRect(0, 0, w, h); c.fillStyle = "#fff"; c.fillRect(0, h / 3, w, h / 3); }, 48, 32), side: THREE.DoubleSide })); b.position.set(G.x1 + 1.05, 2.1, z); escena.add(b); }
+  for (const x of [G.cx - 3, G.cx + 3]) { const a = new THREE.Mesh(new THREE.SphereGeometry(.45, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffe6a8 })); a.position.set(x, G.alto - 1.2, G.cz); escena.add(a); }
+  // Bóveda contra la pared del fondo: puerta redonda dorada y lingotes
+  const bov = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.6, .8), new THREE.MeshLambertMaterial({ color: 0x5a5f69 })); bov.position.set(G.bovX, 1.3, G.z1 + .8); escena.add(bov);
+  edificios.push({ x1: G.bovX - 1.3, x2: G.bovX + 1.3, z1: G.z1, z2: G.z1 + 1.2, h: 2.6 });
+  const rueda = new THREE.Mesh(new THREE.TorusGeometry(.6, .1, 8, 20), new THREE.MeshLambertMaterial({ color: 0xd4af37 })); rueda.position.set(G.bovX, 1.3, G.z1 + 1.22); escena.add(rueda); GOB.rueda = rueda;
+  for (let i = 0; i < 6; i++) { const l = new THREE.Mesh(new THREE.BoxGeometry(.4, .14, .2), new THREE.MeshLambertMaterial({ color: 0xffd23a, emissive: 0x553300 })); l.position.set(G.bovX - 1.1 + (i % 3) * .45, .08 + Math.floor(i / 3) * .15, G.z1 + 1.5); escena.add(l); }
+  const cBov = cartel("💼 BÓVEDA", "#5a3a1a"); cBov.scale.set(2.4, .6, 1); cBov.position.set(G.bovX, 3.2, G.z1 + 1.3); escena.add(cBov);
   const cornisa = new THREE.Mesh(new THREE.BoxGeometry(G.x2 - G.x1 + .6, .5, G.z2 - G.z1 + .6), blanco); cornisa.position.set(G.cx, G.alto + .25, G.cz); escena.add(cornisa);
   // Pórtico con columnas y frontón
   for (let i = 0; i < 6; i++) { const col = new THREE.Mesh(new THREE.CylinderGeometry(.22, .25, 6, 12), blanco); col.position.set(G.cx - 2.5 + i, 3, G.z2 + 1.3); escena.add(col); }
@@ -1956,7 +2120,7 @@ const GOB = { x1: 22, x2: 34, z1: -2, z2: 6, alto: 8, cx: 28, cz: 2 };
   // Rejas bajas del frente y plaza
   const plaza = new THREE.Mesh(new THREE.PlaneGeometry(16, 6), new THREE.MeshLambertMaterial({ color: 0xbdb5a6 })); plaza.rotation.x = -Math.PI / 2; plaza.position.set(G.cx, .03, G.z2 + 3); escena.add(plaza);
   const c = cartel("🏛️ CASA DE GOBIERNO", "#b0506a"); c.position.set(G.cx, G.alto + 6.5, G.cz); escena.add(c);
-  edificios.push({ x1: G.x1, x2: G.x2, z1: G.z1, z2: G.z2, h: G.alto }, { x1: G.cx - 3.5, x2: G.cx + 3.5, z1: G.z2, z2: G.z2 + 2.4, h: .3, arbol: true });
+  // (los escalones del frente ya no frenan: por ahí se entra)
 }
 // Recorrido de la caravana por las calles (ida y vuelta a la Casa de Gobierno)
 const RUTA = [[28, 16], [16, 16], [16, -32], [-32, -32], [-32, 16], [16, 16], [28, 16]];
@@ -2081,8 +2245,9 @@ function refuerzos(de, x, z, mio) {
 let refuerzosListo = 0;
 function pedirRefuerzos() { if (yo.equipo !== "poli" || Date.now() < refuerzosListo) return; refuerzosListo = Date.now() + 8000; refuerzos(yo.id, yo.x, yo.z, true); }
 addEventListener("keydown", e => { if (!jugando || e.repeat || $("compu").style.display === "block") return;
+  if (e.code === "KeyK" && yo.clase === "investigador") abrirCompu();
   if (e.code === "KeyX") pedirHeli(); if (e.code === "KeyV") tirarValla(); if (e.code === "KeyZ") pedirRefuerzos(); });
-$("b-heli").onclick = pedirHeli; $("b-valla").onclick = tirarValla; $("b-ref").onclick = pedirRefuerzos;
+$("b-heli").onclick = pedirHeli; $("b-inv").onclick = () => { if (yo.clase === "investigador") abrirCompu(); }; $("b-valla").onclick = tirarValla; $("b-ref").onclick = pedirRefuerzos;
 function actualizarPoliExtras(dt, t) {
   const ahora = Date.now();
   // Helicóptero
@@ -2182,6 +2347,8 @@ function pensarBot(b, dt) {
     else if (b.paquete) b.objetivo = ZONAS.muelle;
     else if (b.bolsa) b.objetivo = ZONAS.guarida;
     else if (CAR.activa && (b.asalta ??= Math.random() < .35)) b.objetivo = { x: CAR.x, z: CAR.z };
+    else if (Date.now() > GOB.listo && (b.vaGob ??= Math.random() < .3)) { b.objetivo = { x: GOB.bovX, z: GOB.bovZ };
+      if (Math.hypot(b.x - GOB.bovX, b.z - GOB.bovZ) < 1.6) { enviar("maletin", { quien: b.id }); robarMaletin(b.id); b.vaGob = undefined; } }
     else if (b.narco === undefined ? (b.narco = Math.random() < .5) : b.narco) b.objetivo = { x: 45, z: -45.5 };
     else if (presos && (b.rescata ??= Math.random() < .5)) b.objetivo = ZONAS.carcel;   // decide una vez (antes cambiaba de idea en cada cuadro y temblaba en el lugar)
     else b.objetivo = ZONAS.banco;
@@ -2271,14 +2438,14 @@ function empezar(finTs) {
   $("menu").classList.add("oculto"); $("sala").classList.add("oculto"); $("fin").classList.add("oculto");
   for (const s of Object.values(jug)) if (s.mesh) escena.remove(s.mesh);
   modoCam = 0;
-  jug = {}; botin = 0; BOLSAS.forEach(b => { b.hasta = 0; b.mesh.visible = true; });
+  jug = {}; botin = 0; GOB.listo = 0; BOLSAS.forEach(b => { b.hasta = 0; b.mesh.visible = true; });
   PAQUETES.forEach(p => p.hasta = 0); puerta.cerrada = true; puerta.hasta = 0;
   for (const k in capturas) delete capturas[k]; capturaListo = 0; resetPoliExtras(); resetCaravana(); crearCiviles(ES_TACTIL ? 10 : 16);
   quitarDisturbio(); DIST.prog = 0; DIST.prox = Date.now() + 35000;
   resetAutos(); miAuto = null; document.body.classList.toggle("poli", equipo === "poli");
   yo = jug[miId] = nuevoJug(miId, miNombre(), equipo, false, clase);
   equiparArma(ARMADO(clase) ? "fusil" : "ninguna"); recargando = 0; granadas = clase === "halcon" ? 3 : 0; nocturna(false);
-  document.body.classList.toggle("swat", clase === "swat"); document.body.classList.toggle("halcon", clase === "halcon"); document.body.classList.toggle("ladron", equipo === "ladron");
+  document.body.classList.toggle("swat", clase === "swat"); document.body.classList.toggle("invest", clase === "investigador"); document.body.classList.toggle("halcon", clase === "halcon"); document.body.classList.toggle("ladron", equipo === "ladron");
   yaw = equipo === "poli" ? Math.PI * .75 : -Math.PI * .75; pitch = 0;
   if (online && soyHost) {
     // Ladrones NPC en el online: los crea y los maneja el anfitrión, y manda su posición como si fueran jugadores
@@ -2349,10 +2516,22 @@ function loop(t) {
       } else pistaDepto = "";
     } else pistaDepto = "";
     // Vecinos: la policía puede pedirles documentos (si no hay un ladrón al lado para atrapar)
-    if (yo.equipo === "poli" && !miAuto && !yo.preso && !pistaDepto && !Object.values(jug).some(s => s.equipo === "ladron" && !s.preso && Math.hypot(s.x - yo.x, s.z - yo.z) < ATRAPA * 1.8)) {
+    if (!miAuto && !yo.preso && !pistaDepto && (yo.equipo === "ladron" || !Object.values(jug).some(s => s.equipo === "ladron" && !s.preso && Math.hypot(s.x - yo.x, s.z - yo.z) < ATRAPA * 1.8))) {
       let cc = null, dm = 2.2; for (const c of civiles) { const d = Math.hypot(c.x - yo.x, c.z - yo.z); if (d < dm) { dm = d; cc = c; } }
-      if (cc) { pistaDepto = `🪪 E: pedirle documentos a ${cc.nombre}`; if (accionPedida) { accionPedida = false; abrirControl(cc); } }
+      if (cc) { pistaDepto = yo.equipo === "poli" ? `🪪 E: pedirle documentos y hacerle preguntas a ${cc.nombre}` : `💬 E: hablar con ${cc.nombre}`; if (accionPedida) { accionPedida = false; abrirControl(cc); } }
     }
+    // Armería de la base Halcón (Grupo Halcón y SWAT)
+    if (yo.equipo === "poli" && !miAuto && !yo.preso && !pistaDepto && Math.hypot(yo.x - HALCON.armX, yo.z - HALCON.armZ - 5) < 1.8) {
+      pistaDepto = ARMADO(yo.clase) ? "🦅 E: armería Halcón (elegir arma, recargar y granadas)" : "🦅 La armería de la base es solo para Halcón y SWAT";
+      if (accionPedida && ARMADO(yo.clase)) { accionPedida = false; abrirArmeria(); balas = ARMA().carg || 0; recargando = 0; if (yo.clase === "halcon") granadas = 3; }
+    }
+    // Bóveda de la Casa de Gobierno (solo ladrones)
+    if (yo.equipo === "ladron" && !yo.preso && !pistaDepto && Math.hypot(yo.x - GOB.bovX, yo.z - GOB.bovZ) < 1.8) {
+      const e = Math.ceil((GOB.listo - Date.now()) / 1000);
+      pistaDepto = e > 0 ? `💼 La bóveda está vacía (vuelve a llenarse en ${e} s)` : yo.bolsa || yo.paquete ? "💼 Ya llevás algo: entregalo primero" : "💼 E: robar el maletín presidencial ($3.000)";
+      if (accionPedida && e <= 0 && !yo.bolsa && !yo.paquete) { accionPedida = false; enviar("maletin", { quien: yo.id }); robarMaletin(yo.id); }
+    }
+    if (GOB.rueda) GOB.rueda.rotation.z += dt * (Date.now() < GOB.listo ? 3 : .2);
     // Supermercado: cualquiera puede comprarle al señor Li
     if (!miAuto && !yo.preso && Math.hypot(yo.x - senorLi.position.x, yo.z - (senorLi.position.z + 2.6)) < 1.8) {
       pistaDepto = "🛒 E: comprarle al señor Li";
@@ -2416,7 +2595,7 @@ function loop(t) {
         if (online && Date.now() - s.visto > 8000) { feed(`🚪 Se fue ${s.nombre}`); escena.remove(s.mesh); delete jug[s.id]; continue; } }
       if (s.mesh) { const v = Math.hypot(s.x - (s._px ?? s.x), s.z - (s._pz ?? s.z)) / Math.max(dt, .001); s._px = s.x; s._pz = s.z; animarMuneco(s.mesh, s.preso ? 0 : v, t);
         s.mesh.visible = !(s.auto !== null && s.auto !== undefined) && Math.abs(s.x - camara.position.x) + Math.abs(s.z - camara.position.z) < 110;   // lejos no se dibuja s.mesh.position.set(s.x, 0, s.z); s.mesh.rotation.y = s.rot; s.mesh.userData.bolsa.visible = s.bolsa || !!s.paquete;
-        s.mesh.userData.marca.visible = yo.equipo === "poli" && s.equipo === "ladron" && !s.preso && ((yo.div === "investigaciones" && (s.bolsa || !!s.paquete)) || (capturas[s.id] || 0) > Date.now());
+        s.mesh.userData.marca.visible = yo.equipo === "poli" && s.equipo === "ladron" && !s.preso && (((yo.div === "investigaciones" || yo.clase === "investigador") && (s.bolsa || !!s.paquete)) || (capturas[s.id] || 0) > Date.now());
         s.mesh.position.y = 0; }
     }
     actualizarSwat(dt, t); actualizarLuces(t); actualizarGranadas(dt);
@@ -2454,9 +2633,10 @@ function loop(t) {
     $("equipos").innerHTML = `👮 ${Object.values(jug).filter(s => s.equipo === "poli").length} polis<br>🦹 ${L.filter(s => !s.preso).length} libres · ⛓️ ${L.filter(s => s.preso).length} presos`;
     $("b-accion").textContent = yo.equipo === "poli" ? "🚔" : "🔓";
     if (quedan <= 0 && (soyHost || !online)) { const g = botin >= META ? "ladron" : "poli"; enviar("fin", { gana: g }); terminar(g); }
-    if (online && soyHost && t - ultPosNPC > 110) { ultPosNPC = t;
-      for (const b of Object.values(jug)) if (b.bot) enviar("pos", { id: b.id, nombre: b.nombre, equipo: "ladron", clase: "ladron", res: Math.round(b.res), x: +b.x.toFixed(2), z: +b.z.toFixed(2), rot: +((b.rot || 0) - Math.PI).toFixed(2), preso: b.preso, bolsa: b.bolsa, paq: !!b.paquete, auto: null }); }
-    if (online && t - ultPos > 80) { ultPos = t; enviar("pos", { id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, uni: yo.uni, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, bolsa: yo.bolsa, paq: !!yo.paquete,
+    if (online && t - ultPos > 100) { ultPos = t;
+      const npcs = soyHost ? Object.values(jug).filter(b => b.bot).map(b => ({ id: b.id, nombre: b.nombre, equipo: "ladron", clase: "ladron", res: Math.round(b.res), x: +b.x.toFixed(2), z: +b.z.toFixed(2), rot: +((b.rot || 0) - Math.PI).toFixed(2), preso: b.preso, bolsa: b.bolsa, paq: !!b.paquete, auto: null })) : [];
+      const danos = danosPend.splice(0);
+      enviar("pos", { npcs, danos, id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, uni: yo.uni, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, bolsa: yo.bolsa, paq: !!yo.paquete,
       auto: miAuto ? miAuto.i : null, ah: miAuto ? +miAuto.h.toFixed(2) : 0, av: miAuto ? +miAuto.vel.toFixed(1) : 0, sir: miAuto ? miAuto.sirena : false, sp: miAuto ? (miAuto.patron || "alterno") : "" }); }
   } else { yaw += dt * .1; }
   // Mi propio muñeco (se ve en tercera persona o vista aérea)
@@ -2495,7 +2675,7 @@ function loop(t) {
 }
 // Junta en una sola malla todos los objetos fijos que comparten material (veredas, rayas, carteles pintados, aeropuerto...)
 function fusionarEstaticos() {
-  const dyn = new Set([SUPER.pata, AER.faro, puerta.mesh, conoLuz, ...AGU.fuegos, ...PAQUETES.map(p => p.mesh), ...balizasCarcel.map(b => b.b)]);
+  const dyn = new Set([GOB.rueda, SUPER.pata, AER.faro, puerta.mesh, conoLuz, ...AGU.fuegos, ...PAQUETES.map(p => p.mesh), ...balizasCarcel.map(b => b.b)]);
   const grupos = new Map();
   for (const m of [...escena.children]) {
     if (!m.isMesh || m.isInstancedMesh || m.children.length || dyn.has(m) || Array.isArray(m.material) || !m.visible) continue;
@@ -2601,9 +2781,43 @@ function abrirControl(c) {
   else res = `<div style="color:#7dffb0;font-weight:800">✔ Sin antecedentes. Todo en regla.</div>`;
   $("ctl-txt").innerHTML = `<div class="ficha"><div class="foto">🧑</div><div><div class="nom">${esc(c.nombre.toUpperCase())}</div>
     <div>DNI ${f.dni} · ${edad} años</div><div>Domicilio: ${f.dom}</div><div style="margin-top:6px">${res}</div></div></div>`;
+  if (yo.equipo === "ladron") { $("ctl-txt").innerHTML = `<div class="ficha"><div class="foto">🧑</div><div><div class="nom">${esc(c.nombre)}</div><div>Un vecino que pasaba por acá.</div></div></div>`; botones = `<button class="g" data-ctl="sigue">👋 Chau</button>`; }
+  $("ctl-titulo").textContent = yo.equipo === "poli" ? "🪪 Control de identidad" : "💬 Charla";
   $("ctl-botones").innerHTML = botones;
   $("ctl-botones").querySelectorAll("[data-ctl]").forEach(b => b.onclick = () => cerrarControl(b.dataset.ctl));
+  // Preguntas
+  const Q = yo.equipo === "poli" ? PREG_POLI : PREG_LADRON;
+  $("ctl-chat").innerHTML = ""; $("ctl-preg").innerHTML = Q.map((q, i) => `<button data-q="${i}">${q.t}</button>`).join("");
+  $("ctl-preg").querySelectorAll("[data-q]").forEach(b => b.onclick = () => { const q = Q[+b.dataset.q], resp = q.r(c);
+    $("ctl-chat").innerHTML += `<div class="yo">🗨️ ${q.t}</div><div class="el">💬 ${resp}</div>`; $("ctl-chat").scrollTop = 1e6; b.disabled = true; beep(800, .04, "sine"); });
 }
+// Respuestas de los vecinos. Investigaciones saca más: los testigos le dan el lugar exacto y nota a los nerviosos.
+const PTS = ["el norte", "el noreste", "el este", "el sureste", "el sur", "el suroeste", "el oeste", "el noroeste"];
+const haciaDonde = (desde, a) => PTS[((Math.round(Math.atan2(a.x - desde.x, -(a.z - desde.z)) / (Math.PI / 4)) % 8) + 8) % 8];
+const ladronMasCerca = c => { let o = null, d = 1e9; for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso) { const dd = Math.hypot(s.x - c.x, s.z - c.z); if (dd < d) { d = dd; o = s; } } return o; };
+const esInvest = () => yo.clase === "investigador" || yo.div === "investigaciones";
+const nervioso = c => c.tipo === "buscado" && esInvest() ? " <i style='color:#ff8a8a'>(🕵️ está nervioso: le tiembla la voz y no te mira a los ojos)</i>" : "";
+const azar = l => l[Math.floor(Math.random() * l.length)];
+const PREG_POLI = [
+  { t: "¿Vio algo raro por acá?", r: c => { const l = ladronMasCerca(c);
+    if ((c.tipo === "testigo" || (esInvest() && Math.random() < .5)) && l) { const d = Math.round(Math.hypot(l.x - c.x, l.z - c.z));
+      if (esInvest()) { capturas[l.id] = Date.now() + 12000; return `"Sí, oficial: vi a uno ${l.bolsa ? "con una bolsa " : ""}yendo para ${haciaDonde(c, l)}, a unos ${d} metros." <b style="color:#ffd400">📍 ${esc(l.nombre)} marcado 12 s</b>`; }
+      return `"Me pareció ver a alguien corriendo para ${haciaDonde(c, l)}…"`; }
+    if (c.tipo === "buscado") return `"¿Raro? No, nada… ¿por qué me pregunta?"` + nervioso(c);
+    return `"${azar(["No, todo tranquilo.", "Solo las sirenas, como siempre.", "Hubo lío por el banco hace un rato.", "Vi pasar un patrullero rapidísimo."])}"`; } },
+  { t: "¿A dónde va?", r: c => c.tipo === "buscado" ? `"Eh… por ahí, a lo de un amigo."` + nervioso(c) : `"${azar(["Al súper del señor Li.", "A Puerto Madero, a pasear.", "A tomar el colectivo.", "A mi casa, ya es tarde.", "Al banco, a hacer un trámite."])}"` },
+  { t: "¿Vive por acá?", r: c => c.tipo === "buscado" ? `"Sí, sí… por acá cerca."` + nervioso(c) : `"Sí, en ${fichaDe({ id: c.id }).dom}."` },
+  { t: "¿Conoce a algún ladrón de la zona?", r: c => { const l = ladronMasCerca(c);
+    if (c.tipo === "testigo" && l) return `"Dicen que uno que le dicen <b>${esc(l.nombre)}</b> anda robando por acá."`;
+    if (c.tipo === "buscado") return `"¡Yo no sé nada de nada, oficial!"` + nervioso(c);
+    return `"${azar(["No, oficial, yo soy laburante.", "Ni idea, perdone.", "No, pero cuídese."])}"`; } },
+];
+const PREG_LADRON = [
+  { t: "¿Vio policías por acá?", r: c => { let p = null, d = 1e9; for (const s of Object.values(jug)) if (s.equipo === "poli") { const dd = Math.hypot(s.x - c.x, s.z - c.z); if (dd < d) { d = dd; p = s; } }
+    return p && d < 60 ? `"Sí, hay uno para ${haciaDonde(c, p)}, a unos ${Math.round(d)} metros."` : `"No, por acá no anda nadie."`; } },
+  { t: "¿Qué hay para hacer por acá?", r: () => `"${azar(["El banco siempre está lleno de plata, je.", "Dicen que en la Casa de Gobierno hay una bóveda…", "En el muelle cargan cajas raras de noche.", "El súper del señor Li vende alfajores riquísimos."])}"` },
+  { t: "¿Me presta el celular?", r: () => `"${azar(["¡Ni en sueños!", "No tengo crédito, perdón.", "Uy, se me quedó sin batería."])}"` },
+];
 function cerrarControl(accion) {
   const c = civilControl; $("control").style.display = "none"; if (!document.body.classList.contains("tactil")) renderer.domElement.requestPointerLock?.();
   if (!c) return; civilControl = null; c.controlado = false; c.paradoHasta = Date.now() + 1500;
@@ -2649,7 +2863,7 @@ fusionarEstaticos();
 requestAnimationFrame(loop);
 
 // ================== MENÚ ==================
-document.querySelectorAll("[data-e]").forEach(b => b.onclick = () => { clase = b.dataset.e; equipo = ARMADO(clase) ? "poli" : clase; document.querySelectorAll("[data-e]").forEach(x => x.classList.toggle("on", x === b)); });
+document.querySelectorAll("[data-e]").forEach(b => b.onclick = () => { clase = b.dataset.e; equipo = clase === "ladron" ? "ladron" : "poli"; document.querySelectorAll("[data-e]").forEach(x => x.classList.toggle("on", x === b)); });
 const nuevoCodigo = () => Array.from({ length: 4 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join("");
 function nuevaRondaLibre() {
   if (!rondaEspera || Date.now() < rondaEspera) return; rondaEspera = 0;
