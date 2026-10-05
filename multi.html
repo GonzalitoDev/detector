@@ -94,7 +94,8 @@
 <script src="db.js"></script>
 <script src="voz.js"></script>
 <script>
-const SB = supabase.createClient("https://eluxvcixctwnzyysvoor.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsdXh2Y2l4Y3R3bnp5eXN2b29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMTk5NzAsImV4cCI6MjEwMzY5NTk3MH0.Gq29eHc-X1vEfbxM_9E5mlOynIJCh0pBbsSOPX923IQ", { realtime: { params: { eventsPerSecond: 25 } } });
+// Si la librería del online no carga (internet lento o bloqueada), la práctica igual tiene que andar
+const SB = typeof supabase === "undefined" ? null : supabase.createClient("https://eluxvcixctwnzyysvoor.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsdXh2Y2l4Y3R3bnp5eXN2b29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMTk5NzAsImV4cCI6MjEwMzY5NTk3MH0.Gq29eHc-X1vEfbxM_9E5mlOynIJCh0pBbsSOPX923IQ", { realtime: { params: { eventsPerSecond: 25 } } });
 const $ = id => document.getElementById(id);
 const rnd = ([a,b]) => a + Math.floor(Math.random()*(b-a+1));
 const espera = ms => new Promise(r => setTimeout(r, ms));
@@ -227,6 +228,7 @@ async function aplicar(N, acc) {
 
 function conectar(cod, rol) {
   codigo = cod; yo = rol;
+  if (!SB) { alert("No se pudo conectar al modo online. Revisá tu internet y recargá la página."); location.reload(); return; }
   canal = SB.channel("sala-" + cod, { config:{ broadcast:{ self:false }, presence:{ key:rol } } });
   Voz.preparar(canal, rol);
   Voz.nombre = id => S?.nombres?.[id] || (id === "goku" ? "Goku" : "El Gordo");
