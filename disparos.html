@@ -91,7 +91,7 @@
   <button id="volver">⬅ Volver</button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="vendor/supabase.min.js"></script>
 <script src="comun.js"></script>
 <script src="db.js"></script>
 <script src="voz.js"></script>
@@ -158,7 +158,7 @@ function conectar(cod, host) {
   codigo = cod; soyHost = host; online = true;
   $("menu").classList.add("oculto"); $("sala").classList.remove("oculto"); $("codigo").textContent = cod;
   $("arrancar").classList.toggle("oculto", !host); $("espera-txt").textContent = host ? "Cuando estén todos, tocá Empezar." : "Esperando que el creador empiece la partida...";
-  if (!SB) { alert("No se pudo conectar al modo online. Revisá tu internet y recargá la página."); location.reload(); return; }
+  if (!SB || !navigator.onLine) { alert("Para jugar online hace falta internet. Sin conexión podés jugar la práctica con bots."); location.reload(); return; }
   canal = SB.channel("tiro-" + cod, { config:{ broadcast:{ self:false }, presence:{ key:miId } } });
   Voz.preparar(canal, miId);
   Voz.nombre = id => jug[id]?.nombre || canal.presenceState()[id]?.[0]?.nombre;

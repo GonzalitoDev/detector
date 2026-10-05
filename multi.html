@@ -89,7 +89,7 @@
 </div>
 <div id="aviso"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="vendor/supabase.min.js"></script>
 <script src="comun.js"></script>
 <script src="db.js"></script>
 <script src="voz.js"></script>
@@ -228,7 +228,7 @@ async function aplicar(N, acc) {
 
 function conectar(cod, rol) {
   codigo = cod; yo = rol;
-  if (!SB) { alert("No se pudo conectar al modo online. Revisá tu internet y recargá la página."); location.reload(); return; }
+  if (!SB || !navigator.onLine) { alert("Para jugar online hace falta internet. Sin conexión podés jugar la práctica con bots."); location.reload(); return; }
   canal = SB.channel("sala-" + cod, { config:{ broadcast:{ self:false }, presence:{ key:rol } } });
   Voz.preparar(canal, rol);
   Voz.nombre = id => S?.nombres?.[id] || (id === "goku" ? "Goku" : "El Gordo");

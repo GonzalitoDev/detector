@@ -289,12 +289,12 @@
   <button class="g" id="volver">⬅ Volver</button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="vendor/supabase.min.js"></script>
 <script src="comun.js"></script>
 <script src="db.js"></script>
 <script src="voz.js"></script>
 <script type="module">
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import * as THREE from "./vendor/three.module.js";
 
 const $ = id => document.getElementById(id);
 const esc = t => String(t).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1673,7 +1673,7 @@ function conectar(cod, host) {
   online = true; soyHost = host; codigo = cod;
   $("menu").classList.add("oculto"); $("sala").classList.remove("oculto"); $("codigo").textContent = cod;
   $("arrancar").classList.toggle("oculto", !host); $("espera").textContent = host ? "Cuando estén todos, tocá Empezar." : "Esperando que el creador empiece...";
-  if (!SB) { alert("No se pudo conectar al modo online. Revisá tu internet y recargá la página."); location.reload(); return; }
+  if (!SB || !navigator.onLine) { alert("Para jugar online hace falta internet. Sin conexión podés jugar la práctica con bots."); location.reload(); return; }
   canal = SB.channel("polis-" + cod, { config: { broadcast: { self: false }, presence: { key: miId } } });
   Voz.preparar(canal, miId); Voz.nombre = id => jug[id]?.nombre;
   canal.on("presence", { event: "sync" }, () => {

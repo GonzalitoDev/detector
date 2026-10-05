@@ -13,3 +13,12 @@ const AJUSTES = (() => {
     resultado(juego, gano) { const r = this.record(juego); gano ? r.g++ : r.p++; guardar("record-" + juego, JSON.stringify(r)); },
   };
 })();
+
+// Instalable y sin internet: registra el service worker (guarda el sitio en el teléfono) y el manifiesto
+(() => {
+  try {
+    if (!document.querySelector('link[rel="manifest"]')) { const l = document.createElement("link"); l.rel = "manifest"; l.href = "manifest.json"; document.head.appendChild(l); }
+    if (!document.querySelector('meta[name="theme-color"]')) { const m = document.createElement("meta"); m.name = "theme-color"; m.content = "#1e4fd8"; document.head.appendChild(m); }
+    if ("serviceWorker" in navigator && location.protocol !== "file:") addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  } catch (e) {}
+})();
