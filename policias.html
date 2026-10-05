@@ -1568,6 +1568,7 @@ function conectar(cod, host) {
     .on("broadcast", { event: "megafono" }, ({ payload: p }) => megafono(p.x, p.z, String(p.msg).slice(0, 60), false))
     .on("broadcast", { event: "granada" }, ({ payload: p }) => lanzar(p.de, ...p.o, ...p.v))
     .on("broadcast", { event: "disturbio" }, ({ payload: p }) => crearDisturbio(+p.x, +p.z, +p.hasta))
+    .on("broadcast", { event: "dgoma" }, () => { if (soyHost && DIST.activo) DIST.prog += 1.2; })
     .on("broadcast", { event: "dprog" }, ({ payload: p }) => { DIST.prog = +p.p || 0; })
     .on("broadcast", { event: "dfin" }, ({ payload: p }) => finDisturbio(!!p.ok))
     .on("broadcast", { event: "caravana" }, ({ payload: p }) => salirCaravana(+p.inicio))
@@ -1726,6 +1727,10 @@ const ARMAS = {
   escopeta: { nom: "Escopeta",      ico: "💥", d: "6 cartuchos de 6 perdigones. Muy fuerte de cerca, no llega lejos.", carg: 6, cad: .85, dano: 6, perd: 6, alc: 18, disp: .08, rec: 2.4, largo: 1.35, color: 0x3a2a1a },
   taser:    { nom: "Táser",         ico: "⚡", d: "Una descarga que aturde al ladrón 3 segundos. Alcance corto.", carg: 1, cad: .5, dano: 0, aturde: 3000, alc: 9, disp: .006, rec: 2.5, largo: .5, color: 0xf2c200 },
   fusil:    { nom: "Fusil de asalto", ico: "🪖", d: "30 balas en ráfaga. Solo SWAT y Grupo Halcón.", carg: 30, cad: CADENCIA, dano: DANO, alc: ALCANCE, disp: .03, rec: 1.5, largo: 1, color: 0x151515, auto: true, soloArmado: true },
+  goma:     { nom: "Escopeta de goma", ico: "🟠", d: "Balas de goma: casi no lastiman, frenan un ratito al ladrón. En un disturbio, cada tiro ayuda a dispersarlo.", carg: 8, cad: .7, dano: 3, perd: 5, aturde: 700, alc: 22, disp: .09, rec: 2.2, largo: 1.3, color: 0xff7a1a, goma: true },
+  revolver: { nom: "Revólver .38", ico: "🔫", d: "6 tiros, más fuerte que la pistola pero más lento.", carg: 6, cad: .45, dano: 22, alc: 40, disp: .01, rec: 2, largo: .6, color: 0x4a4a4a },
+  subfusil: { nom: "Subfusil", ico: "💨", d: "25 balas, ráfaga muy rápida y de corto alcance. Solo SWAT y Grupo Halcón.", carg: 25, cad: .065, dano: 6, alc: 30, disp: .05, rec: 1.3, largo: .75, color: 0x222222, auto: true, soloArmado: true },
+  precision:{ nom: "Rifle de precisión", ico: "🎯", d: "5 tiros muy fuertes y precisos, de muy lejos. Solo SWAT y Grupo Halcón.", carg: 5, cad: 1.2, dano: 60, alc: 90, disp: .002, rec: 2.6, largo: 1.6, color: 0x3a4a2a, soloArmado: true },
 };
 let miArma = "ninguna";
 const ARMA = () => ARMAS[miArma] || ARMAS.ninguna, TENGO_ARMA = () => miArma !== "ninguna";
@@ -1822,7 +1827,10 @@ function actualizarSwat(dt, t) {
         const d = new THREE.Vector3(); camara.getWorldDirection(d);
         d.x += (Math.random() - .5) * A.disp; d.y += (Math.random() - .5) * A.disp; d.z += (Math.random() - .5) * A.disp; d.normalize();
         disparar(yo, o, d, A.dano, A.alc, A.aturde || 0, k === 0); }
-      pitch += A.perd ? .03 : .006;   // retroceso
+      pitch += A.perd ? .03 : A.dano >= 50 ? .05 : .006;   // retroceso
+      // Escopeta de goma en un disturbio: si apuntás a la gente, ayuda a dispersarlo
+      if (A.goma && DIST.activo) { const d0 = new THREE.Vector3(); camara.getWorldDirection(d0); const dx = DIST.x - o.x, dz = DIST.z - o.z, dd = Math.hypot(dx, dz);
+        if (dd < 24 && (dx * d0.x + dz * d0.z) / (dd || 1) > .75) { if (soyHost || !online) DIST.prog += 1.2; else enviar("dgoma", {}); feed("🟠 ¡Los manifestantes retroceden!"); } }
     }
   }
   $("municion").textContent = recargando ? "🔄 Recargando..." : `${A.ico} ${balas} / ${A.carg}`;
@@ -2216,7 +2224,10 @@ function lineaLibre(a, b, r = .5, eq = null) {
   for (let k = 1; k <= n; k++) { const f = k / n; if (choca(a.x + (b.x - a.x) * f, a.z + (b.z - a.z) * f, r, eq)) return false; }
   return true;
 }
-function buscarCamino(desde, hasta) {
+// Para los vecinos: la autopista no se camina, solo se cruza por los cruces de calles
+const CRUCES = []; for (let c = -CIUDAD.tam / 2 + CIUDAD.calle / 2; c < CIUDAD.tam / 2; c += CIUDAD.cuadra + CIUDAD.calle) CRUCES.push(c);
+const sobreAutopista = (x, z) => z > AUTOPISTA.z1 - .5 && z < AUTOPISTA.z2 + .5 && !CRUCES.some(c => Math.abs(x - c) < 3.2);
+function buscarCamino(desde, hasta, peaton = false) {
   const N = NAV; if (!N.libre) prepararNav();
   const celda = p => [Math.max(0, Math.min(N.W - 1, Math.floor((p.x - N.x0) / N.c))), Math.max(0, Math.min(N.H - 1, Math.floor((p.z - N.z0) / N.c)))];
   // Celda libre más cercana a la que se pueda llegar en línea recta (para no "arrancar" del otro lado de una pared)
@@ -2238,6 +2249,7 @@ function buscarCamino(desde, hasta) {
     const i = k % N.W, j = (k / N.W) | 0;
     for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { if (!di && !dj) continue;
       const a = i + di, b = j + dj; if (a < 0 || b < 0 || a >= N.W || b >= N.H) continue; const n = b * N.W + a; if (!N.libre[n] || cerrado[n]) continue;
+      if (peaton && sobreAutopista(N.x0 + (a + .5) * N.c, N.z0 + (b + .5) * N.c)) continue;
       if (di && dj && (!N.libre[j * N.W + a] || !N.libre[b * N.W + i])) continue;   // no cortar esquinas
       const dir = (dj + 1) * 3 + (di + 1) - ((dj + 1) * 3 + (di + 1) > 4 ? 1 : 0), pk = k * 8 + dir;
       if (!N.paso[pk]) { const x = N.x0 + (i + .5 + di / 2) * N.c, z = N.z0 + (j + .5 + dj / 2) * N.c; N.paso[pk] = choca(x, z, .45, "ladron") ? 2 : 1; }   // paredes más finas que la celda
@@ -2249,7 +2261,8 @@ function buscarCamino(desde, hasta) {
   pts.reverse(); pts.push({ x: hasta.x, z: hasta.z });
   // Suaviza: desde cada punto salta al más lejano que se vea en línea recta (con margen), así camina derecho por las calles
   const ruta = [pts[0]]; let i = 0;
-  while (i < pts.length - 1) { let j = pts.length - 1; while (j > i + 1 && !lineaLibre(pts[i], pts[j], .7, "ladron")) j--; ruta.push(pts[j]); i = j; }
+  const pisaAutopista = (a, b) => { if (!peaton) return false; const n = Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / .5); for (let k = 0; k <= n; k++) if (sobreAutopista(a.x + (b.x - a.x) * k / n, a.z + (b.z - a.z) * k / n)) return true; return false; };
+  while (i < pts.length - 1) { let j = pts.length - 1; while (j > i + 1 && (!lineaLibre(pts[i], pts[j], .7, "ladron") || pisaAutopista(pts[i], pts[j]))) j--; ruta.push(pts[j]); i = j; }
   return ruta;
 }
 
@@ -2393,7 +2406,7 @@ function loop(t) {
     if (yo.equipo === "poli" && yo.div === "comunicaciones") { const P = ["N","NE","E","SE","S","SO","O","NO"];
       const L = Object.values(jug).filter(s => s.equipo === "ladron" && !s.preso && (s.bolsa || s.paquete));
       $("radar").innerHTML = "📡 <b>Radio</b><br>" + (L.length ? L.map(s => { const a = Math.atan2(s.x - yo.x, -(s.z - yo.z)); return `🦹 ${esc(s.nombre)} ${s.paquete ? "📦" : "💰"} · ${Math.round(Math.hypot(s.x - yo.x, s.z - yo.z))} m ${P[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8]}`; }).join("<br>") : "Sin ladrones con botín"); }
-    actualizarAviones(t); actualizarCiviles(dt, t); for (const f of AGU.fuegos) f.scale.y = .8 + Math.random() * .5; nuevaRondaLibre(); actualizarDisturbio(dt, t); actualizarPoliExtras(dt, t); actualizarCaravana(dt, t);
+    actualizarAviones(t); actualizarCiviles(dt, t); actualizarPatrullas(dt, t); for (const f of AGU.fuegos) f.scale.y = .8 + Math.random() * .5; nuevaRondaLibre(); actualizarDisturbio(dt, t); actualizarPoliExtras(dt, t); actualizarCaravana(dt, t);
     $("rejas").style.display = yo.preso ? "block" : "none";
     // Otros
     for (const s of Object.values(jug)) {
@@ -2500,6 +2513,44 @@ function fusionarEstaticos() {
   }
   return antes - despues;
 }
+// ================== PATRULLAS DE LA CIUDAD (NPC) ==================
+// Patrulleros que recorren la ciudad solos. Su recorrido depende de la hora, así que en el online todos los ven igual.
+// Si un ladrón pasa cerca de una patrulla, lo "ven" y queda con pedido de captura (cada patrulla avisa como mucho cada 25 s).
+const RECORRIDOS = [
+  [[-56, -56], [16, -56], [16, -32], [-56, -32]],
+  [[-80, 16], [64, 16], [64, 64], [-80, 64]],
+  [[-32, -8], [-32, 40], [16, 40], [16, -8]],
+];
+const patrullas = RECORRIDOS.map((ruta, i) => {
+  const pts = [...ruta, ruta[0]], largos = pts.slice(1).map((p, k) => Math.hypot(p[0] - pts[k][0], p[1] - pts[k][1]));
+  const mesh = crearPatrullero("ciudad"); mesh.userData.cartel.visible = true;
+  return { pts, largos, total: largos.reduce((a, b) => a + b, 0), vel: 9, desfase: i * 23000, mesh, x: 0, z: 0, h: 0, aviso: 0, persigue: 0 };
+});
+function actualizarPatrullas(dt, t) {
+  const ahora = Date.now();
+  for (const P of patrullas) {
+    let d = ((ahora + P.desfase) / 1000 * P.vel) % P.total, k = 0;
+    while (d > P.largos[k]) { d -= P.largos[k]; k++; }
+    const a = P.pts[k], b = P.pts[k + 1], f = d / P.largos[k];
+    // Va por la mano derecha de la calle
+    const dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz), nx = -dz / l, nz = dx / l;
+    P.x = a[0] + dx * f - nx * 2; P.z = a[1] + dz * f - nz * 2;
+    const h = Math.atan2(dx, dz); P.h += Math.atan2(Math.sin(h - P.h), Math.cos(h - P.h)) * Math.min(1, dt * 4);
+    const m = P.mesh, lejos = Math.abs(P.x - camara.position.x) + Math.abs(P.z - camara.position.z) > 130;
+    m.visible = !lejos; if (lejos) continue;
+    m.position.set(P.x, 0, P.z); m.rotation.y = P.h;
+    if (m.userData.ruedas) for (const r of m.userData.ruedas) r.rotation.x += P.vel * dt / (m.userData.radio || .37);
+    const alerta = ahora < P.persigue, on = Math.floor(t / 180) % 2 === 0;
+    if (m.userData.rojo) { const cr = Math.floor(t / 900 + P.desfase) % 2 === 0;   // de recorrida: titilan despacio; si vio a alguien: rápido
+      m.userData.rojo.material.color.setHex((alerta ? on : cr) ? 0xff2020 : 0x550000); m.userData.azul.material.color.setHex((alerta ? !on : !cr) ? 0x2050ff : 0x000055); }
+    // ¿Ve a algún ladrón? (cada uno revisa a su jugador; el anfitrión o la práctica revisan a los NPC)
+    if (ahora > P.aviso) for (const s of Object.values(jug)) {
+      if (s.equipo !== "ladron" || s.preso || (s !== yo && !s.bot) || (s.bot && online && !soyHost)) continue;
+      if (Math.hypot(s.x - P.x, s.z - P.z) < 9) { P.aviso = ahora + 25000; P.persigue = ahora + 8000;
+        feed(`🚓 Una patrulla de la Ciudad vio a ${s.nombre}`); pedidoCaptura(s.id, null, true); break; }
+    }
+  }
+}
 // ================== VECINOS (NPC) ==================
 // Gente caminando por la ciudad. La policía los puede parar y pedirles documentos (E):
 // la mayoría está en regla, algunos tienen un pedido de captura (se los puede detener) y otros vieron a un ladrón (dan una pista).
@@ -2518,10 +2569,10 @@ function crearCivil(i) {
   escena.add(g);
   const tipo = Math.random() < .12 ? "buscado" : Math.random() < .25 ? "testigo" : "normal";
   const nom = NOMBRES_CIV[i % NOMBRES_CIV.length];
-  const p = lugarLibre(null); g.position.set(p.x, 0, p.z);
+  const p = destinoCivil(); g.position.set(p.x, 0, p.z);
   return { id: "civ" + i + "-" + Math.floor(Math.random() * 1e6), nombre: nom, tipo, mesh: g, piernas, brazos, x: p.x, z: p.z, rot: 0, ruta: null, paradoHasta: 0, controlado: false, vel: 1.6 + Math.random() * .8 };
 }
-function destinoCivil() { for (let k = 0; k < 40; k++) { const x = (Math.random() - .5) * (CIUDAD.tam - 10), z = (Math.random() - .5) * (CIUDAD.tam - 10); if (!choca(x, z, .7)) return { x, z }; } return { x: 0, z: -20 }; }
+function destinoCivil() { for (let k = 0; k < 40; k++) { const x = (Math.random() - .5) * (CIUDAD.tam - 10), z = (Math.random() - .5) * (CIUDAD.tam - 10); if (!choca(x, z, .7) && !sobreAutopista(x, z)) return { x, z }; } return { x: 0, z: 0 }; }
 function crearCiviles(n) { for (const c of civiles) escena.remove(c.mesh); civiles.length = 0; for (let i = 0; i < n; i++) civiles.push(crearCivil(i)); }
 function actualizarCiviles(dt, t) {
   const ahora = Date.now();
@@ -2529,7 +2580,7 @@ function actualizarCiviles(dt, t) {
     const lejos = Math.abs(c.x - camara.position.x) + Math.abs(c.z - camara.position.z) > 110;
     c.mesh.visible = !lejos;
     if (c.controlado || ahora < c.paradoHasta) { c.piernas.forEach(p => p.rotation.x *= .8); c.brazos.forEach(a => a.rotation.x *= .8); continue; }
-    if (!c.ruta || !c.ruta.length) { c.ruta = buscarCamino(c, destinoCivil()) || []; if (!c.ruta.length) { c.paradoHasta = ahora + 2000; continue; } }
+    if (!c.ruta || !c.ruta.length) { c.ruta = buscarCamino(c, destinoCivil(), true) || []; if (!c.ruta.length) { c.paradoHasta = ahora + 2000; continue; } }
     const o = c.ruta[0], dx = o.x - c.x, dz = o.z - c.z, d = Math.hypot(dx, dz);
     if (d < .6) { c.ruta.shift(); if (!c.ruta.length) c.paradoHasta = ahora + 1500 + Math.random() * 4000; continue; }
     const v = Math.min(d, c.vel * dt), nx = c.x + dx / d * v, nz = c.z + dz / d * v;
