@@ -92,6 +92,7 @@
 <script src="vendor/supabase.min.js"></script>
 <script src="comun.js"></script>
 <script src="db.js"></script>
+<script src="admin.js"></script>
 <script src="voz.js"></script>
 <script>
 // Si la librería del online no carga (internet lento o bloqueada), la práctica igual tiene que andar
@@ -282,6 +283,20 @@ $("revancha").onclick = () => {
 // Link directo a una sala
 const sala = new URLSearchParams(location.search).get("sala");
 if (sala) { $("cod").value = sala; $("unirse").click(); }
+
+// ===== Menú admin (Gonza): cambia el estado y lo manda como una jugada más =====
+function jugadaAdmin(texto, cambiar) { if (!S || !canal) return; const N = structuredClone(S); cambiar(N); N.n++;
+  const acc = { quien: yo, texto: "🛠️ Admin: " + texto, golpes: [] }; canal.send({ type: "broadcast", event: "jugada", payload: { estado: N, acc } }); aplicar(N, acc); }
+AdminGonza.instalar({ acciones: () => { if (!S) return []; const r = yo === "goku" ? "gordo" : "goku"; return [
+  { g: "🙋 Vos", t: "❤️ Vida llena", f: () => jugadaAdmin("vida llena", N => { N.hp[yo] = 100; }) },
+  { g: "🙋 Vos", t: "⚡ Ki al 100", f: () => jugadaAdmin("ki al 100", N => { N.ki[yo] = 100; }) },
+  { g: "🙋 Vos", t: "👉 Tomar el turno", f: () => jugadaAdmin("toma el turno", N => { N.turno = yo; }) },
+  { g: "🥊 Rival", t: "🪶 Rival con 1 de vida", f: () => jugadaAdmin("rival a 1 de vida", N => { N.hp[r] = 1; }) },
+  { g: "🥊 Rival", t: "😵 Aturdir al rival", f: () => jugadaAdmin("rival aturdido", N => { N.ef[r].atur = true; }) },
+  { g: "🏁 Pelea", t: "🏆 Ganar ya", c: "#1e7a3a", cierra: true, f: () => jugadaAdmin("¡gana!", N => { N.hp[r] = 0; N.fin = yo; }) },
+  { g: "📢 Anuncio", input: "adg-msg", t: "Mensaje para el rival" },
+  { g: "📢 Anuncio", t: "Enviar", c: "#a87a00", f: () => { const m = AdminGonza.valor("adg-msg"); if (m) { globo(yo, "📢 " + m); canal.send({ type: "broadcast", event: "burla", payload: { quien: yo, t: "📢 " + m } }); } } },
+]; } });
 </script>
 </body>
 </html>

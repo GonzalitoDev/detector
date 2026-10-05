@@ -94,6 +94,7 @@
 <script src="vendor/supabase.min.js"></script>
 <script src="comun.js"></script>
 <script src="db.js"></script>
+<script src="admin.js"></script>
 <script src="voz.js"></script>
 <script>
 // ===================== DATOS =====================
@@ -172,6 +173,7 @@ function conectar(cod, host) {
     .on("broadcast", { event:"golpe" }, ({ payload:p }) => recibirGolpe(p))
     .on("broadcast", { event:"muerte" }, ({ payload:p }) => recibirMuerte(p))
     .on("broadcast", { event:"fin" }, ({ payload:p }) => terminar(p.ganador))
+    .on("broadcast", { event:"admin" }, ({ payload:p }) => accionAdmin(p))
     .subscribe(async st => { if (st === "SUBSCRIBED") await canal.track({ nombre: miNombre(), pj: miPj, arma: miArma, host }); });
 }
 const esc = t => String(t).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -406,6 +408,29 @@ $("volver").onclick = () => { $("fin").classList.add("oculto");
 tienda();
 const sala = new URLSearchParams(location.search).get("sala");
 if (sala) { $("cod").value = sala; $("unirse").click(); }
+
+// ===== Menú admin (Gonza) =====
+let adminRapido = false;
+function accionAdmin(p) {
+  if (!p || !/^gonza/i.test(jug[p.de]?.nombre || "")) return;
+  if (p.acc === "anuncio") { grande("📢 " + String(p.msg).slice(0, 80)); feed(`📢 ${jug[p.de].nombre}: ${String(p.msg).slice(0, 80)}`); }
+  else if (p.acc === "kick" && p.id === miId) { alert("🚪 El admin te sacó de la partida"); location.reload(); }
+}
+function mandarAdmin(p) { p.de = miId; enviar("admin", p); accionAdmin(p); }
+AdminGonza.instalar({ acciones: () => { const L = [
+  { g: "🪙 Monedas", t: "+500 🪙", c: "#1e7a3a", f: () => { ganarMonedas(500); feed("🛠️ +500 monedas"); } },
+  { g: "🪙 Monedas", t: "🔓 Desbloquear todo", f: () => { tengo = [...new Set([...tengo, ...PERSONAJES.map(p => p.id), ...ARMAS.map(a => a.id)])]; G.guardar("tengo", tengo); feed("🛠️ Todo desbloqueado"); } } ];
+  if (!jugando || !yo) return L;
+  L.push(
+  { g: "🙋 Vos", t: "❤️ Vida llena", f: () => { yo.hp = yo.max; enviar("golpe", { id: yo.id, hp: yo.hp }); } },
+  { g: "🙋 Vos", t: adminRapido ? "🐢 Velocidad normal" : "⚡ Súper velocidad", f: () => { adminRapido = !adminRapido; yo.vel = PJ(yo.pj).vel * (adminRapido ? 2 : 1); } },
+  { g: "🙋 Vos", t: "🎯 +5 bajas", f: () => { yo.kills = Math.min(9, yo.kills + 5); } },
+  { g: "🏁 Partida", t: "🏆 Ganar ya", c: "#1e7a3a", cierra: true, f: () => { enviar("fin", { ganador: miId }); terminar(miId); } });
+  if (!online) L.push({ g: "🏁 Partida", t: "💥 Bajar a todos los bots", f: () => { for (const b of Object.values(jug)) if (b.bot && b.vivo) morir(b, miId); } });
+  else { L.push({ g: "📢 Anuncio", input: "adg-msg", t: "Mensaje para todos" },
+    { g: "📢 Anuncio", t: "Enviar", c: "#a87a00", f: () => { const m = AdminGonza.valor("adg-msg"); if (m) mandarAdmin({ acc: "anuncio", msg: m }); } });
+    for (const s of Object.values(jug)) if (s !== yo) L.push({ g: "👥 Jugadores", t: `🚪 Sacar a ${s.nombre}`, c: "#8a2a2a", f: () => mandarAdmin({ acc: "kick", id: s.id }) }); }
+  return L; } });
 </script>
 </body>
 </html>

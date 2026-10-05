@@ -115,6 +115,7 @@
 
 <script src="comun.js"></script>
 <script src="db.js"></script>
+<script src="admin.js"></script>
 <script>
 const MOVES = {
   punio:  { ki:0,   dmg:[8,15],  txt:"Goku le encaja una piña voladora" },
@@ -383,6 +384,17 @@ function fin() {
 document.querySelectorAll("button[data-m]").forEach(b => b.onclick = () => turno(b.dataset.m));
 $("btn-roshi").onclick = consejoRoshi;
 reset();
+
+// ===== Menú admin (Gonza) =====
+AdminGonza.instalar({ acciones: () => !s ? [] : [
+  { g: "🥋 Goku", t: "❤️ Vida llena", f: () => { s.goku = 100; render(); log("🛠️ Admin: Goku se curó"); } },
+  { g: "🥋 Goku", t: "⚡ Ki al 100", f: () => { s.ki = 100; render(); } },
+  { g: "🥋 Goku", t: "💛 Super Saiyajin", f: () => { s.ssj = true; $("av-goku").classList.add("ssj"); render(); } },
+  { g: "🫃 El Gordo", t: "🪶 Dejarlo con 1 de vida", f: () => { s.gordo = 1; render(); } },
+  { g: "🫃 El Gordo", t: "❤️ Curar al Gordo", f: () => { s.gordo = 130; render(); } },
+  { g: "🏁 Pelea", t: "🏆 Ganar ya", c: "#1e7a3a", cierra: true, f: () => { s.gordo = 0; render(); fin(); } },
+  { g: "🏁 Pelea", t: "🔁 Reiniciar", cierra: true, f: () => reset() },
+] });
 </script>
 </body>
 </html>
