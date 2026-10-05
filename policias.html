@@ -1568,6 +1568,7 @@ function conectar(cod, host) {
     .on("broadcast", { event: "megafono" }, ({ payload: p }) => megafono(p.x, p.z, String(p.msg).slice(0, 60), false))
     .on("broadcast", { event: "granada" }, ({ payload: p }) => lanzar(p.de, ...p.o, ...p.v))
     .on("broadcast", { event: "disturbio" }, ({ payload: p }) => crearDisturbio(+p.x, +p.z, +p.hasta))
+    .on("broadcast", { event: "dgoma" }, () => { if (soyHost && DIST.activo) DIST.prog += 1.2; })
     .on("broadcast", { event: "dprog" }, ({ payload: p }) => { DIST.prog = +p.p || 0; })
     .on("broadcast", { event: "dfin" }, ({ payload: p }) => finDisturbio(!!p.ok))
     .on("broadcast", { event: "caravana" }, ({ payload: p }) => salirCaravana(+p.inicio))
@@ -1726,6 +1727,10 @@ const ARMAS = {
   escopeta: { nom: "Escopeta",      ico: "💥", d: "6 cartuchos de 6 perdigones. Muy fuerte de cerca, no llega lejos.", carg: 6, cad: .85, dano: 6, perd: 6, alc: 18, disp: .08, rec: 2.4, largo: 1.35, color: 0x3a2a1a },
   taser:    { nom: "Táser",         ico: "⚡", d: "Una descarga que aturde al ladrón 3 segundos. Alcance corto.", carg: 1, cad: .5, dano: 0, aturde: 3000, alc: 9, disp: .006, rec: 2.5, largo: .5, color: 0xf2c200 },
   fusil:    { nom: "Fusil de asalto", ico: "🪖", d: "30 balas en ráfaga. Solo SWAT y Grupo Halcón.", carg: 30, cad: CADENCIA, dano: DANO, alc: ALCANCE, disp: .03, rec: 1.5, largo: 1, color: 0x151515, auto: true, soloArmado: true },
+  goma:     { nom: "Escopeta de goma", ico: "🟠", d: "Balas de goma: casi no lastiman, frenan un ratito al ladrón. En un disturbio, cada tiro ayuda a dispersarlo.", carg: 8, cad: .7, dano: 3, perd: 5, aturde: 700, alc: 22, disp: .09, rec: 2.2, largo: 1.3, color: 0xff7a1a, goma: true },
+  revolver: { nom: "Revólver .38", ico: "🔫", d: "6 tiros, más fuerte que la pistola pero más lento.", carg: 6, cad: .45, dano: 22, alc: 40, disp: .01, rec: 2, largo: .6, color: 0x4a4a4a },
+  subfusil: { nom: "Subfusil", ico: "💨", d: "25 balas, ráfaga muy rápida y de corto alcance. Solo SWAT y Grupo Halcón.", carg: 25, cad: .065, dano: 6, alc: 30, disp: .05, rec: 1.3, largo: .75, color: 0x222222, auto: true, soloArmado: true },
+  precision:{ nom: "Rifle de precisión", ico: "🎯", d: "5 tiros muy fuertes y precisos, de muy lejos. Solo SWAT y Grupo Halcón.", carg: 5, cad: 1.2, dano: 60, alc: 90, disp: .002, rec: 2.6, largo: 1.6, color: 0x3a4a2a, soloArmado: true },
 };
 let miArma = "ninguna";
 const ARMA = () => ARMAS[miArma] || ARMAS.ninguna, TENGO_ARMA = () => miArma !== "ninguna";
@@ -1822,7 +1827,10 @@ function actualizarSwat(dt, t) {
         const d = new THREE.Vector3(); camara.getWorldDirection(d);
         d.x += (Math.random() - .5) * A.disp; d.y += (Math.random() - .5) * A.disp; d.z += (Math.random() - .5) * A.disp; d.normalize();
         disparar(yo, o, d, A.dano, A.alc, A.aturde || 0, k === 0); }
-      pitch += A.perd ? .03 : .006;   // retroceso
+      pitch += A.perd ? .03 : A.dano >= 50 ? .05 : .006;   // retroceso
+      // Escopeta de goma en un disturbio: si apuntás a la gente, ayuda a dispersarlo
+      if (A.goma && DIST.activo) { const d0 = new THREE.Vector3(); camara.getWorldDirection(d0); const dx = DIST.x - o.x, dz = DIST.z - o.z, dd = Math.hypot(dx, dz);
+        if (dd < 24 && (dx * d0.x + dz * d0.z) / (dd || 1) > .75) { if (soyHost || !online) DIST.prog += 1.2; else enviar("dgoma", {}); feed("🟠 ¡Los manifestantes retroceden!"); } }
     }
   }
   $("municion").textContent = recargando ? "🔄 Recargando..." : `${A.ico} ${balas} / ${A.carg}`;
