@@ -1597,7 +1597,7 @@ function nuevoJug(id, nombre, eq, bot, cl) {
 }
 
 // ================== RED ==================
-const SB = supabase.createClient("https://eluxvcixctwnzyysvoor.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsdXh2Y2l4Y3R3bnp5eXN2b29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMTk5NzAsImV4cCI6MjEwMzY5NTk3MH0.Gq29eHc-X1vEfbxM_9E5mlOynIJCh0pBbsSOPX923IQ");
+const SB = supabase.createClient("https://eluxvcixctwnzyysvoor.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsdXh2Y2l4Y3R3bnp5eXN2b29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMTk5NzAsImV4cCI6MjEwMzY5NTk3MH0.Gq29eHc-X1vEfbxM_9E5mlOynIJCh0pBbsSOPX923IQ", { realtime: { params: { eventsPerSecond: 25 } } });   // por defecto son 10 por segundo y se perdían mensajes
 const enviar = (ev, p) => { if (online && canal) canal.send({ type: "broadcast", event: ev, payload: p }); };
 function conectar(cod, host) {
   online = true; soyHost = host; codigo = cod;
@@ -1615,7 +1615,8 @@ function conectar(cod, host) {
     })
     .on("presence", { event: "join" }, () => { if (soyHost && jugando) enviar("empieza", { fin, botin, tarde: true }); })   // el que entra tarde arranca en la partida en curso
     .on("broadcast", { event: "empieza" }, ({ payload }) => { if (!soyHost && !jugando) { empezar(payload.fin); if (payload.botin) botin = +payload.botin || 0; } })
-    .on("broadcast", { event: "pos" }, ({ payload: p }) => recibirPos(p))
+    .on("broadcast", { event: "pos" }, ({ payload: p }) => { recibirPos(p); for (const n of p.npcs || []) recibirPos(n);
+      for (const d of p.danos || []) recibirDano(d.l, d.de, +d.d || 0, Math.min(4000, +d.at || 0)); })
     .on("broadcast", { event: "disparo" }, ({ payload: p }) => verDisparo(p))
     .on("broadcast", { event: "dano" }, ({ payload: p }) => recibirDano(p.ladron, p.de, p.dmg, Math.min(4000, +p.at || 0)))
     .on("broadcast", { event: "atrapa" }, ({ payload: p }) => atrapado(p.ladron, p.poli))
@@ -1846,14 +1847,16 @@ function apuntar(o, d, deEquipo, alc = ALCANCE) {
   const pared = paredEnMedio(o, d, dist);
   return pared !== null ? { s: null, dist: pared } : { s: mejor, dist };
 }
+const danosPend = [];   // daños hechos desde el último mensaje de posición (se mandan juntos para no saturar la conexión)
 function disparar(tirador, o, d, dano = DANO, alc = ALCANCE, aturde = 0, sonido = true) {
   const r = apuntar(o, d, tirador.equipo, alc);
   trazo(o, d, r.dist);
   if (tirador === yo) { fogonazo.visible = true; luzFogonazo.intensity = 3; setTimeout(() => { fogonazo.visible = false; luzFogonazo.intensity = 0; }, 45);
     armaVista.position.z = -.4; if (sonido) aturde ? beep(1800, .15, "sawtooth", .03) : beep(140 + Math.random() * 40, .05, "square", .05);
-    enviar("disparo", { de: tirador.id, o: [o.x, o.y, o.z].map(v => +v.toFixed(2)), d: [d.x, d.y, d.z].map(v => +v.toFixed(3)), l: +r.dist.toFixed(1) }); }
+    if (performance.now() - (disparar.ultEnvio || 0) > 200) { disparar.ultEnvio = performance.now(); enviar("disparo", { de: tirador.id, o: [o.x, o.y, o.z].map(v => +v.toFixed(2)), d: [d.x, d.y, d.z].map(v => +v.toFixed(3)), l: +r.dist.toFixed(1) }); } }
   else if (Math.hypot(o.x - yo.x, o.z - yo.z) < 40) beep(160, .04, "square", .015);
-  if (r.s) { enviar("dano", { ladron: r.s.id, de: tirador.id, dmg: dano, at: aturde }); recibirDano(r.s.id, tirador.id, dano, aturde); }
+  if (r.s) { if (online) { const q = danosPend.find(x => x.l === r.s.id && x.de === tirador.id); if (q) { q.d += dano; q.at = Math.max(q.at, aturde); } else danosPend.push({ l: r.s.id, de: tirador.id, d: dano, at: aturde }); }
+    recibirDano(r.s.id, tirador.id, dano, aturde); }
 }
 function verDisparo(p) { const o = new THREE.Vector3(...p.o), d = new THREE.Vector3(...p.d); trazo(o, d, p.l);
   if (Math.hypot(o.x - yo.x, o.z - yo.z) < 40) beep(160, .04, "square", .015); }
@@ -2515,9 +2518,10 @@ function loop(t) {
     $("equipos").innerHTML = `👮 ${Object.values(jug).filter(s => s.equipo === "poli").length} polis<br>🦹 ${L.filter(s => !s.preso).length} libres · ⛓️ ${L.filter(s => s.preso).length} presos`;
     $("b-accion").textContent = yo.equipo === "poli" ? "🚔" : "🔓";
     if (quedan <= 0 && (soyHost || !online)) { const g = botin >= META ? "ladron" : "poli"; enviar("fin", { gana: g }); terminar(g); }
-    if (online && soyHost && t - ultPosNPC > 110) { ultPosNPC = t;
-      for (const b of Object.values(jug)) if (b.bot) enviar("pos", { id: b.id, nombre: b.nombre, equipo: "ladron", clase: "ladron", res: Math.round(b.res), x: +b.x.toFixed(2), z: +b.z.toFixed(2), rot: +((b.rot || 0) - Math.PI).toFixed(2), preso: b.preso, bolsa: b.bolsa, paq: !!b.paquete, auto: null }); }
-    if (online && t - ultPos > 80) { ultPos = t; enviar("pos", { id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, uni: yo.uni, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, bolsa: yo.bolsa, paq: !!yo.paquete,
+    if (online && t - ultPos > 100) { ultPos = t;
+      const npcs = soyHost ? Object.values(jug).filter(b => b.bot).map(b => ({ id: b.id, nombre: b.nombre, equipo: "ladron", clase: "ladron", res: Math.round(b.res), x: +b.x.toFixed(2), z: +b.z.toFixed(2), rot: +((b.rot || 0) - Math.PI).toFixed(2), preso: b.preso, bolsa: b.bolsa, paq: !!b.paquete, auto: null })) : [];
+      const danos = danosPend.splice(0);
+      enviar("pos", { npcs, danos, id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, uni: yo.uni, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, bolsa: yo.bolsa, paq: !!yo.paquete,
       auto: miAuto ? miAuto.i : null, ah: miAuto ? +miAuto.h.toFixed(2) : 0, av: miAuto ? +miAuto.vel.toFixed(1) : 0, sir: miAuto ? miAuto.sirena : false, sp: miAuto ? (miAuto.patron || "alterno") : "" }); }
   } else { yaw += dt * .1; }
   // Mi propio muñeco (se ve en tercera persona o vista aérea)
