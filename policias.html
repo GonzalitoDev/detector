@@ -34,6 +34,11 @@
   #control .foto { width:64px; height:76px; flex:none; border-radius:6px; background:#0d3a5e; display:flex; align-items:center; justify-content:center; font-size:38px; }
   #control .nom { font-weight:900; font-size:16px; color:#fff; }
   #ctl-botones button { flex:1; }
+  #ctl-chat { max-height:180px; overflow:auto; margin-top:8px; font-size:14px; line-height:1.4; }
+  #ctl-chat .yo { color:#9fd0ff; margin-top:6px; } #ctl-chat .el { background:#021526; border-radius:8px; padding:6px 8px; margin-top:2px; }
+  #ctl-preg { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  #ctl-preg button { flex:1 1 45%; padding:8px; border-radius:10px; border:1px solid #5ec8f2; background:#16325a; color:#fff; font-weight:700; cursor:pointer; font-size:13px; }
+  #ctl-preg button:disabled { opacity:.4; }
   #compu .ficha { display:flex; gap:12px; background:#021526; border:1px solid #5ec8f244; border-radius:10px; padding:10px; margin-bottom:8px; font-size:13px; line-height:1.5; }
   #compu .foto { width:64px; height:76px; flex:none; border-radius:6px; background:#0d3a5e; display:flex; align-items:center; justify-content:center; font-size:38px; }
   #compu .nom { font-weight:900; font-size:15px; color:#fff; }
@@ -43,6 +48,7 @@
   body.poli #poli-extras { display:block; }
   #b-poli { position:fixed; right:12px; bottom:190px; z-index:5; display:none; flex-direction:column; gap:8px; }
   body.tactil.poli #b-poli { display:flex; }
+  #b-inv { display:none; } body.invest #b-inv { display:inline-block; }
   #b-poli button { width:52px; height:52px; border-radius:50%; border:0; font-size:24px; background:#1e4fd8cc; }
   /* ===== Celular / tablet (Android): botones adaptados ===== */
   body.tactil { --b: clamp(46px, 13vmin, 64px); --g: clamp(6px, 2vmin, 10px); }
@@ -105,6 +111,7 @@
   .equipo button { flex:1; min-width:180px; padding:18px; border-radius:16px; border:3px solid transparent; font-size:18px; font-weight:900; cursor:pointer; color:#fff; }
   .equipo .poli { background:linear-gradient(160deg,#1e4fd8,#0b2a7a); }
   .equipo .ladron { background:linear-gradient(160deg,#444,#111); }
+  .equipo .invest { background:linear-gradient(160deg,#5a4a3a,#2a2018); }
   .equipo .swat { background:linear-gradient(160deg,#2b2f24,#0c0e09); }
   .equipo .halcon { background:linear-gradient(160deg,#1a1a1a,#000); border-color:#5a5a5a; }
   body.halcon #municion { display:block; }
@@ -167,8 +174,10 @@
 </div>
 <div id="control" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
   <div style="max-width:520px;margin:0 auto;background:#0f1d36;border:2px solid #5ec8f2;border-radius:16px;padding:16px">
-    <h2 style="margin:0 0 8px;text-align:center">🪪 Control de identidad</h2>
+    <h2 id="ctl-titulo" style="margin:0 0 8px;text-align:center">🪪 Control de identidad</h2>
     <div id="ctl-txt"></div>
+    <div id="ctl-chat"></div>
+    <div id="ctl-preg"></div>
     <div id="ctl-botones" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"></div>
     <button id="control-x" style="margin-top:10px;width:100%;padding:8px;border:0;border-radius:10px;background:#ffffff22;color:#fff;font-weight:800">Cerrar</button>
   </div>
@@ -217,7 +226,7 @@
   </div>
 </div>
 <div id="megafono"></div>
-<div id="b-extra"><button id="b-luz">🔦</button><button id="b-rec">🔄</button></div><div id="girar">📱↻<div>Girá el celular para jugar mejor</div><button id="girar-ok" style="padding:10px 18px;border:0;border-radius:10px;font-weight:800;background:#ffd400">Jugar igual</button></div><button id="b-salir">🚪 Terminar</button><div id="disturbio"></div><div id="caravana"></div><div id="poli-extras"></div><div id="b-poli"><button id="b-heli">🚁</button><button id="b-valla">🚧</button><button id="b-ref">📻</button></div><div id="radar"></div><div id="mira"></div><div id="pista"></div><div id="grande"></div><div id="feed"></div>
+<div id="b-extra"><button id="b-luz">🔦</button><button id="b-rec">🔄</button></div><div id="girar">📱↻<div>Girá el celular para jugar mejor</div><button id="girar-ok" style="padding:10px 18px;border:0;border-radius:10px;font-weight:800;background:#ffd400">Jugar igual</button></div><button id="b-salir">🚪 Terminar</button><div id="disturbio"></div><div id="caravana"></div><div id="poli-extras"></div><div id="b-poli"><button id="b-inv">🕵️</button><button id="b-heli">🚁</button><button id="b-valla">🚧</button><button id="b-ref">📻</button></div><div id="radar"></div><div id="mira"></div><div id="pista"></div><div id="grande"></div><div id="feed"></div>
 <div id="sirena"></div><div id="rejas"></div>
 <div class="stick" id="stick"><b></b></div><button id="b-accion">🚔</button><button id="b-auto">🚓</button><button id="b-cam">🎥</button>
 <div id="velocimetro"></div>
@@ -240,6 +249,7 @@
       <button class="poli on" data-e="poli">👮 POLICÍA<small>Atrapá a los ladrones: acercate y hacé click, o pasalos por arriba con el 🚓 patrullero. Cuando están todos presos, ganás.</small></button>
       <button class="swat" data-e="swat">🪖 SWAT<small>Equipo especial con ametralladora: disparale a los ladrones hasta que se rindan (sin sangre, se quedan sin resistencia y van presos). Click para disparar, R para recargar. Es el único que puede reventar la puerta de la casa narco (E).</small></button>
       <button class="halcon" data-e="halcon">🦅 GRUPO HALCÓN<small>Fuerza de élite: ametralladora, 3 granadas aturdidoras (G) que dejan quietos a los ladrones, visión nocturna (N) y puede reventar la puerta de la casa narco.</small></button>
+      <button class="invest" data-e="investigador">🕵️ INVESTIGACIONES<small>Grupo de Investigaciones: andan de civil, sacan más información a los vecinos cuando les preguntan, ven marcados a los ladrones con botín y llevan el RENAPER en el celular (tecla K o botón 🕵️).</small></button>
       <button class="ladron" data-e="ladron">🦹 LADRÓN<small>Robá bolsas de plata 💰 del banco y llevalas a la guarida. También podés sacar contrabando 📦 de la casa narco y llevarlo al muelle 🚤 ($2.000). Juntá $10.000 antes de que termine el tiempo.</small></button>
     </div>
   </div>
@@ -1466,7 +1476,7 @@ function texTexto(txt, fondo, letra) { const k = txt + fondo + letra; return _te
   c.fillStyle = fondo; c.fillRect(0, 0, w, h); c.fillStyle = letra; c.font = "bold 44px system-ui"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(txt, w / 2, h / 2 + 2); }, 256, 64)); }
 const texRayas = textura((c, w, h) => { for (let y = 0; y < h; y += 16) { c.fillStyle = (y / 16) % 2 ? "#f2f2f2" : "#151515"; c.fillRect(0, y, w, 16); } }, 64, 64);
 function crearMuneco(equipo, nombre, clase, div, uni) {
-  const U = equipo === "poli" && !ARMADO(clase) ? (UNIFORMES[uni] || UNIFORMES.azul) : null;
+  const U = equipo === "poli" && !ARMADO(clase) ? (clase === "investigador" ? UNIFORMES.civil : (UNIFORMES[uni] || UNIFORMES.azul)) : null;
   const swat = ARMADO(clase), halcon = clase === "halcon", ladron = equipo === "ladron";
   const L = c => new THREE.MeshLambertMaterial({ color: c }), B = c => new THREE.MeshBasicMaterial({ color: c });
   const caja = (w, h, d, mat, x, y, z, padre) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); (padre || g).add(m); return m; };
@@ -1506,7 +1516,8 @@ function crearMuneco(equipo, nombre, clase, div, uni) {
     if (U.extra === "medallas") { for (let i = 0; i < 3; i++) caja(.05, .06, .02, B([0xffd400, 0xc0c0c0, 0xcd7f32][i]), -.18 + i * .06, 1.45, .16); caja(.5, .03, .31, B(0xd4af37), 0, 1.58, 0); }
     if (U.extra === "cuello") { const cu = new THREE.Mesh(new THREE.TorusGeometry(.13, .05, 8, 14), L(0x2a2a2a)); cu.rotation.x = Math.PI / 2; cu.position.y = 1.64; g.add(cu); caja(.58, .3, .32, L(0x151515), 0, 1.07, 0); }
     // Gorra / sombrero / casco
-    if (U.extra === "sombrero") { const ala = new THREE.Mesh(new THREE.CylinderGeometry(.42, .42, .03, 18), L(U.gorro)); ala.position.y = 2.03; g.add(ala);
+    if (U.extra === "civil") { caja(.58, .2, .32, L(0x5a3a1a), 0, 1.5, 0); }   // campera de civil, sin gorra (la placa va en el cinturón)
+    else if (U.extra === "sombrero") { const ala = new THREE.Mesh(new THREE.CylinderGeometry(.42, .42, .03, 18), L(U.gorro)); ala.position.y = 2.03; g.add(ala);
       const copa = new THREE.Mesh(new THREE.CylinderGeometry(.18, .21, .2, 14), L(U.gorro)); copa.position.y = 2.14; g.add(copa); }
     else if (U.extra === "casco") { const ca = new THREE.Mesh(new THREE.SphereGeometry(.25, 16, 10, 0, Math.PI * 2, 0, Math.PI / 1.8), L(U.gorro)); ca.position.y = 1.9; g.add(ca);
       caja(.3, .08, .05, B(0x223344), 0, 1.93, .22); }
@@ -1567,10 +1578,11 @@ function animarMuneco(m, vel, t) {
 const miId = Math.random().toString(36).slice(2, 9);
 let clase = "poli", equipo = "poli", jug = {}, yo = null, jugando = false, online = false, soyHost = false, canal = null, codigo = "", fin = 0, botin = 0, inicioT = 0;
 const miNombre = () => (DB.nombre || (clase === "halcon" ? "Halcón" : clase === "swat" ? "SWAT" : equipo === "poli" ? "Poli" : "Ladrón")).slice(0, 14);
-const ICONO = c => c === "halcon" ? "🦅" : c === "swat" ? "🪖" : c === "poli" ? "👮" : "🦹";
+const ICONO = c => c === "halcon" ? "🦅" : c === "swat" ? "🪖" : c === "investigador" ? "🕵️" : c === "poli" ? "👮" : "🦹";
 const ARMADO = c => c === "swat" || c === "halcon";
 // Uniformes de la policía (se eligen en las taquillas)
 const UNIFORMES = {
+  civil:    { nom: "De civil (Investigaciones)", ico: "🕵️", camisa: 0x6a4a2a, pantalon: 0x2a3a5a, gorro: 0x000000, charretera: 0x6a4a2a, letras: "#d4af37", extra: "civil", oculto: true },
   azul:     { nom: "Azul reglamentario", ico: "👮", camisa: 0x1b2a4a, pantalon: 0x141e33, gorro: 0x0f1d36, charretera: 0x5ec8f2, letras: "#e8e8e8", extra: null },
   celeste:  { nom: "Camisa celeste",     ico: "👔", camisa: 0x9ccfe8, pantalon: 0x141e33, gorro: 0x0f1d36, charretera: 0x0f1d36, letras: "#0f1d36", extra: null },
   gala:     { nom: "De gala",            ico: "🎖️", camisa: 0x0b1530, pantalon: 0x0b1530, gorro: 0xf5f5f5, charretera: 0xd4af37, letras: "#d4af37", extra: "medallas" },
@@ -1987,7 +1999,7 @@ function abrirTaquillas() {
   document.exitPointerLock?.(); $("taquillas").style.display = "block";
   const pintar = () => {
     $("tq-div").innerHTML = Object.entries(DIVISIONES).map(([k, d]) => `<button data-div="${k}" class="${yo.div === k ? "on" : ""}">${d.ico} ${d.nom}<small>${d.d}</small></button>`).join("");
-    $("tq-uni").innerHTML = Object.entries(UNIFORMES).map(([k, u]) => `<button data-uni="${k}" class="${yo.uni === k ? "on" : ""}" style="border-left:8px solid #${u.camisa.toString(16).padStart(6, "0")}">${u.ico} ${u.nom}</button>`).join("");
+    $("tq-uni").innerHTML = Object.entries(UNIFORMES).filter(([, u]) => !u.oculto).map(([k, u]) => `<button data-uni="${k}" class="${yo.uni === k ? "on" : ""}" style="border-left:8px solid #${u.camisa.toString(16).padStart(6, "0")}">${u.ico} ${u.nom}</button>`).join("");
     $("tq-div").querySelectorAll("[data-div]").forEach(b => b.onclick = () => { yo.div = b.dataset.div; beep(900, .08, "triangle"); pintar(); });
     $("tq-uni").querySelectorAll("[data-uni]").forEach(b => b.onclick = () => { yo.uni = b.dataset.uni; beep(700, .08, "triangle"); pintar(); });
   };
@@ -2176,8 +2188,9 @@ function refuerzos(de, x, z, mio) {
 let refuerzosListo = 0;
 function pedirRefuerzos() { if (yo.equipo !== "poli" || Date.now() < refuerzosListo) return; refuerzosListo = Date.now() + 8000; refuerzos(yo.id, yo.x, yo.z, true); }
 addEventListener("keydown", e => { if (!jugando || e.repeat || $("compu").style.display === "block") return;
+  if (e.code === "KeyK" && yo.clase === "investigador") abrirCompu();
   if (e.code === "KeyX") pedirHeli(); if (e.code === "KeyV") tirarValla(); if (e.code === "KeyZ") pedirRefuerzos(); });
-$("b-heli").onclick = pedirHeli; $("b-valla").onclick = tirarValla; $("b-ref").onclick = pedirRefuerzos;
+$("b-heli").onclick = pedirHeli; $("b-inv").onclick = () => { if (yo.clase === "investigador") abrirCompu(); }; $("b-valla").onclick = tirarValla; $("b-ref").onclick = pedirRefuerzos;
 function actualizarPoliExtras(dt, t) {
   const ahora = Date.now();
   // Helicóptero
@@ -2375,7 +2388,7 @@ function empezar(finTs) {
   resetAutos(); miAuto = null; document.body.classList.toggle("poli", equipo === "poli");
   yo = jug[miId] = nuevoJug(miId, miNombre(), equipo, false, clase);
   equiparArma(ARMADO(clase) ? "fusil" : "ninguna"); recargando = 0; granadas = clase === "halcon" ? 3 : 0; nocturna(false);
-  document.body.classList.toggle("swat", clase === "swat"); document.body.classList.toggle("halcon", clase === "halcon"); document.body.classList.toggle("ladron", equipo === "ladron");
+  document.body.classList.toggle("swat", clase === "swat"); document.body.classList.toggle("invest", clase === "investigador"); document.body.classList.toggle("halcon", clase === "halcon"); document.body.classList.toggle("ladron", equipo === "ladron");
   yaw = equipo === "poli" ? Math.PI * .75 : -Math.PI * .75; pitch = 0;
   if (online && soyHost) {
     // Ladrones NPC en el online: los crea y los maneja el anfitrión, y manda su posición como si fueran jugadores
@@ -2446,9 +2459,9 @@ function loop(t) {
       } else pistaDepto = "";
     } else pistaDepto = "";
     // Vecinos: la policía puede pedirles documentos (si no hay un ladrón al lado para atrapar)
-    if (yo.equipo === "poli" && !miAuto && !yo.preso && !pistaDepto && !Object.values(jug).some(s => s.equipo === "ladron" && !s.preso && Math.hypot(s.x - yo.x, s.z - yo.z) < ATRAPA * 1.8)) {
+    if (!miAuto && !yo.preso && !pistaDepto && (yo.equipo === "ladron" || !Object.values(jug).some(s => s.equipo === "ladron" && !s.preso && Math.hypot(s.x - yo.x, s.z - yo.z) < ATRAPA * 1.8))) {
       let cc = null, dm = 2.2; for (const c of civiles) { const d = Math.hypot(c.x - yo.x, c.z - yo.z); if (d < dm) { dm = d; cc = c; } }
-      if (cc) { pistaDepto = `🪪 E: pedirle documentos a ${cc.nombre}`; if (accionPedida) { accionPedida = false; abrirControl(cc); } }
+      if (cc) { pistaDepto = yo.equipo === "poli" ? `🪪 E: pedirle documentos y hacerle preguntas a ${cc.nombre}` : `💬 E: hablar con ${cc.nombre}`; if (accionPedida) { accionPedida = false; abrirControl(cc); } }
     }
     // Bóveda de la Casa de Gobierno (solo ladrones)
     if (yo.equipo === "ladron" && !yo.preso && !pistaDepto && Math.hypot(yo.x - GOB.bovX, yo.z - GOB.bovZ) < 1.8) {
@@ -2520,7 +2533,7 @@ function loop(t) {
         if (online && Date.now() - s.visto > 8000) { feed(`🚪 Se fue ${s.nombre}`); escena.remove(s.mesh); delete jug[s.id]; continue; } }
       if (s.mesh) { const v = Math.hypot(s.x - (s._px ?? s.x), s.z - (s._pz ?? s.z)) / Math.max(dt, .001); s._px = s.x; s._pz = s.z; animarMuneco(s.mesh, s.preso ? 0 : v, t);
         s.mesh.visible = !(s.auto !== null && s.auto !== undefined) && Math.abs(s.x - camara.position.x) + Math.abs(s.z - camara.position.z) < 110;   // lejos no se dibuja s.mesh.position.set(s.x, 0, s.z); s.mesh.rotation.y = s.rot; s.mesh.userData.bolsa.visible = s.bolsa || !!s.paquete;
-        s.mesh.userData.marca.visible = yo.equipo === "poli" && s.equipo === "ladron" && !s.preso && ((yo.div === "investigaciones" && (s.bolsa || !!s.paquete)) || (capturas[s.id] || 0) > Date.now());
+        s.mesh.userData.marca.visible = yo.equipo === "poli" && s.equipo === "ladron" && !s.preso && (((yo.div === "investigaciones" || yo.clase === "investigador") && (s.bolsa || !!s.paquete)) || (capturas[s.id] || 0) > Date.now());
         s.mesh.position.y = 0; }
     }
     actualizarSwat(dt, t); actualizarLuces(t); actualizarGranadas(dt);
@@ -2706,9 +2719,43 @@ function abrirControl(c) {
   else res = `<div style="color:#7dffb0;font-weight:800">✔ Sin antecedentes. Todo en regla.</div>`;
   $("ctl-txt").innerHTML = `<div class="ficha"><div class="foto">🧑</div><div><div class="nom">${esc(c.nombre.toUpperCase())}</div>
     <div>DNI ${f.dni} · ${edad} años</div><div>Domicilio: ${f.dom}</div><div style="margin-top:6px">${res}</div></div></div>`;
+  if (yo.equipo === "ladron") { $("ctl-txt").innerHTML = `<div class="ficha"><div class="foto">🧑</div><div><div class="nom">${esc(c.nombre)}</div><div>Un vecino que pasaba por acá.</div></div></div>`; botones = `<button class="g" data-ctl="sigue">👋 Chau</button>`; }
+  $("ctl-titulo").textContent = yo.equipo === "poli" ? "🪪 Control de identidad" : "💬 Charla";
   $("ctl-botones").innerHTML = botones;
   $("ctl-botones").querySelectorAll("[data-ctl]").forEach(b => b.onclick = () => cerrarControl(b.dataset.ctl));
+  // Preguntas
+  const Q = yo.equipo === "poli" ? PREG_POLI : PREG_LADRON;
+  $("ctl-chat").innerHTML = ""; $("ctl-preg").innerHTML = Q.map((q, i) => `<button data-q="${i}">${q.t}</button>`).join("");
+  $("ctl-preg").querySelectorAll("[data-q]").forEach(b => b.onclick = () => { const q = Q[+b.dataset.q], resp = q.r(c);
+    $("ctl-chat").innerHTML += `<div class="yo">🗨️ ${q.t}</div><div class="el">💬 ${resp}</div>`; $("ctl-chat").scrollTop = 1e6; b.disabled = true; beep(800, .04, "sine"); });
 }
+// Respuestas de los vecinos. Investigaciones saca más: los testigos le dan el lugar exacto y nota a los nerviosos.
+const PTS = ["el norte", "el noreste", "el este", "el sureste", "el sur", "el suroeste", "el oeste", "el noroeste"];
+const haciaDonde = (desde, a) => PTS[((Math.round(Math.atan2(a.x - desde.x, -(a.z - desde.z)) / (Math.PI / 4)) % 8) + 8) % 8];
+const ladronMasCerca = c => { let o = null, d = 1e9; for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso) { const dd = Math.hypot(s.x - c.x, s.z - c.z); if (dd < d) { d = dd; o = s; } } return o; };
+const esInvest = () => yo.clase === "investigador" || yo.div === "investigaciones";
+const nervioso = c => c.tipo === "buscado" && esInvest() ? " <i style='color:#ff8a8a'>(🕵️ está nervioso: le tiembla la voz y no te mira a los ojos)</i>" : "";
+const azar = l => l[Math.floor(Math.random() * l.length)];
+const PREG_POLI = [
+  { t: "¿Vio algo raro por acá?", r: c => { const l = ladronMasCerca(c);
+    if ((c.tipo === "testigo" || (esInvest() && Math.random() < .5)) && l) { const d = Math.round(Math.hypot(l.x - c.x, l.z - c.z));
+      if (esInvest()) { capturas[l.id] = Date.now() + 12000; return `"Sí, oficial: vi a uno ${l.bolsa ? "con una bolsa " : ""}yendo para ${haciaDonde(c, l)}, a unos ${d} metros." <b style="color:#ffd400">📍 ${esc(l.nombre)} marcado 12 s</b>`; }
+      return `"Me pareció ver a alguien corriendo para ${haciaDonde(c, l)}…"`; }
+    if (c.tipo === "buscado") return `"¿Raro? No, nada… ¿por qué me pregunta?"` + nervioso(c);
+    return `"${azar(["No, todo tranquilo.", "Solo las sirenas, como siempre.", "Hubo lío por el banco hace un rato.", "Vi pasar un patrullero rapidísimo."])}"`; } },
+  { t: "¿A dónde va?", r: c => c.tipo === "buscado" ? `"Eh… por ahí, a lo de un amigo."` + nervioso(c) : `"${azar(["Al súper del señor Li.", "A Puerto Madero, a pasear.", "A tomar el colectivo.", "A mi casa, ya es tarde.", "Al banco, a hacer un trámite."])}"` },
+  { t: "¿Vive por acá?", r: c => c.tipo === "buscado" ? `"Sí, sí… por acá cerca."` + nervioso(c) : `"Sí, en ${fichaDe({ id: c.id }).dom}."` },
+  { t: "¿Conoce a algún ladrón de la zona?", r: c => { const l = ladronMasCerca(c);
+    if (c.tipo === "testigo" && l) return `"Dicen que uno que le dicen <b>${esc(l.nombre)}</b> anda robando por acá."`;
+    if (c.tipo === "buscado") return `"¡Yo no sé nada de nada, oficial!"` + nervioso(c);
+    return `"${azar(["No, oficial, yo soy laburante.", "Ni idea, perdone.", "No, pero cuídese."])}"`; } },
+];
+const PREG_LADRON = [
+  { t: "¿Vio policías por acá?", r: c => { let p = null, d = 1e9; for (const s of Object.values(jug)) if (s.equipo === "poli") { const dd = Math.hypot(s.x - c.x, s.z - c.z); if (dd < d) { d = dd; p = s; } }
+    return p && d < 60 ? `"Sí, hay uno para ${haciaDonde(c, p)}, a unos ${Math.round(d)} metros."` : `"No, por acá no anda nadie."`; } },
+  { t: "¿Qué hay para hacer por acá?", r: () => `"${azar(["El banco siempre está lleno de plata, je.", "Dicen que en la Casa de Gobierno hay una bóveda…", "En el muelle cargan cajas raras de noche.", "El súper del señor Li vende alfajores riquísimos."])}"` },
+  { t: "¿Me presta el celular?", r: () => `"${azar(["¡Ni en sueños!", "No tengo crédito, perdón.", "Uy, se me quedó sin batería."])}"` },
+];
 function cerrarControl(accion) {
   const c = civilControl; $("control").style.display = "none"; if (!document.body.classList.contains("tactil")) renderer.domElement.requestPointerLock?.();
   if (!c) return; civilControl = null; c.controlado = false; c.paradoHasta = Date.now() + 1500;
@@ -2754,7 +2801,7 @@ fusionarEstaticos();
 requestAnimationFrame(loop);
 
 // ================== MENÚ ==================
-document.querySelectorAll("[data-e]").forEach(b => b.onclick = () => { clase = b.dataset.e; equipo = ARMADO(clase) ? "poli" : clase; document.querySelectorAll("[data-e]").forEach(x => x.classList.toggle("on", x === b)); });
+document.querySelectorAll("[data-e]").forEach(b => b.onclick = () => { clase = b.dataset.e; equipo = clase === "ladron" ? "ladron" : "poli"; document.querySelectorAll("[data-e]").forEach(x => x.classList.toggle("on", x === b)); });
 const nuevoCodigo = () => Array.from({ length: 4 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join("");
 function nuevaRondaLibre() {
   if (!rondaEspera || Date.now() < rondaEspera) return; rondaEspera = 0;
