@@ -327,7 +327,8 @@ function generarCiudad() {
     }
 }
 // Terrenos reservados: ahí no se construye nada de la ciudad (departamento de policía y casa narco), con 2 m de vereda alrededor
-const RESERVADOS = [ { x1: -84, x2: 84, z1: -28, z2: -12 },   // fila de manzanas libre para la autopista
+const RESERVADOS = [ { x1: -28, x2: -12, z1: 44, z2: 60 },   // manzana del Hotel Plaza
+ { x1: -84, x2: 84, z1: -28, z2: -12 },   // fila de manzanas libre para la autopista
   { x1: -52, x2: -36, z1: -4, z2: 12 }, { x1: -76, x2: -60, z1: -4, z2: 12 }, { x1: 20, x2: 36, z1: -4, z2: 12 }, { x1: 39, x2: 49, z1: -48, z2: -40 } ];
 function poner(e) { if (!RESERVADOS.some(R => e.x1 < R.x2 + 2 && e.x2 > R.x1 - 2 && e.z1 < R.z2 + 2 && e.z2 > R.z1 - 2)) edificios.push(e); }
 generarCiudad();
@@ -2519,13 +2520,21 @@ function loop(t) {
     } else pistaDepto = "";
     // Vecinos: la policía puede pedirles documentos (si no hay un ladrón al lado para atrapar)
     if (!miAuto && !yo.preso && !pistaDepto && (yo.equipo === "ladron" || !Object.values(jug).some(s => s.equipo === "ladron" && !s.preso && Math.hypot(s.x - yo.x, s.z - yo.z) < ATRAPA * 1.8))) {
-      let cc = null, dm = 2.2; for (const c of civiles) { const d = Math.hypot(c.x - yo.x, c.z - yo.z); if (d < dm) { dm = d; cc = c; } }
+      let cc = null, dm = 2.2; for (const c of civiles) { if (c.durmiendo) continue; const d = Math.hypot(c.x - yo.x, c.z - yo.z); if (d < dm) { dm = d; cc = c; } }
       if (cc) { pistaDepto = yo.equipo === "poli" ? `🪪 E: pedirle documentos y hacerle preguntas a ${cc.nombre}` : `💬 E: hablar con ${cc.nombre}`; if (accionPedida) { accionPedida = false; abrirControl(cc); } }
     }
     // Armería de la base Halcón (Grupo Halcón y SWAT)
     if (yo.equipo === "poli" && !miAuto && !yo.preso && !pistaDepto && Math.hypot(yo.x - HALCON.armX, yo.z - HALCON.armZ - 5) < 1.8) {
       pistaDepto = ARMADO(yo.clase) ? "🦅 E: armería Halcón (elegir arma, recargar y granadas)" : "🦅 La armería de la base es solo para Halcón y SWAT";
       if (accionPedida && ARMADO(yo.clase)) { accionPedida = false; abrirArmeria(); balas = ARMA().carg || 0; recargando = 0; if (yo.clase === "halcon") granadas = 3; }
+    }
+    // Hotel: recepción y camas para descansar
+    if (!miAuto && !yo.preso && !pistaDepto) {
+      if (Math.hypot(yo.x - HOTEL.recep.x, yo.z - HOTEL.recep.z) < 1.6) { pistaDepto = "🛎️ E: hablar con la recepción";
+        if (accionPedida) { accionPedida = false; const libres = HOTEL.camas.filter(k => !k.ocupada).length; grande(libres ? `🛎️ "¡Bienvenido al Hotel Plaza! Hay ${libres} cama${libres > 1 ? "s" : ""} libre${libres > 1 ? "s" : ""}, pase nomás."` : "🛎️ \"Lo siento, está todo ocupado.\"", "#ffd88a"); beep(1800, .2, "sine", .04); } }
+      else for (const k of HOTEL.camas) if (Math.hypot(yo.x - k.puerta, yo.z - 49.6) < 1.4 || Math.hypot(yo.x - k.x, yo.z - k.z) < 1.6) {
+        pistaDepto = k.ocupada ? "💤 Esta cama está ocupada (shh…)" : "😴 E: dormir en la cama (recuperás resistencia y después corrés más rápido)";
+        if (accionPedida && !k.ocupada) { accionPedida = false; dormirJugador(k); } break; }
     }
     // Bóveda de la Casa de Gobierno (solo ladrones)
     if (yo.equipo === "ladron" && !yo.preso && !pistaDepto && Math.hypot(yo.x - GOB.bovX, yo.z - GOB.bovZ) < 1.8) {
@@ -2546,7 +2555,7 @@ function loop(t) {
     if (autoPedido) { if (miAuto) bajarAuto(); else if (autoCerca) subirAuto(autoCerca); }
     autoPedido = false;
     if (miAuto) manejar(miAuto, dt);
-    else if (!yo.preso && Date.now() >= aturdidoHasta) {
+    else if (!yo.preso && Date.now() >= aturdidoHasta && Date.now() >= dormirHasta) {
       const f = (teclas.KeyW || teclas.ArrowUp ? 1 : 0) - (teclas.KeyS || teclas.ArrowDown ? 1 : 0) - joy.y;
       const r = (teclas.KeyD || teclas.ArrowRight ? 1 : 0) - (teclas.KeyA || teclas.ArrowLeft ? 1 : 0) + joy.x;
       const corre = teclas.ShiftLeft || teclas.ShiftRight || Math.hypot(joy.x, joy.y) > .9;
@@ -2677,7 +2686,7 @@ function loop(t) {
 }
 // Junta en una sola malla todos los objetos fijos que comparten material (veredas, rayas, carteles pintados, aeropuerto...)
 function fusionarEstaticos() {
-  const dyn = new Set([GOB.rueda, SUPER.pata, AER.faro, puerta.mesh, conoLuz, ...AGU.fuegos, ...PAQUETES.map(p => p.mesh), ...balizasCarcel.map(b => b.b)]);
+  const dyn = new Set([...HOTEL.camas.map(k => k.zz), GOB.rueda, SUPER.pata, AER.faro, puerta.mesh, conoLuz, ...AGU.fuegos, ...PAQUETES.map(p => p.mesh), ...balizasCarcel.map(b => b.b)]);
   const grupos = new Map();
   for (const m of [...escena.children]) {
     if (!m.isMesh || m.isInstancedMesh || m.children.length || dyn.has(m) || Array.isArray(m.material) || !m.visible) continue;
@@ -2733,6 +2742,58 @@ function actualizarPatrullas(dt, t) {
     }
   }
 }
+// ================== HOTEL PLAZA ==================
+// Hotel de 4 pisos donde se puede entrar: hall con recepción y 3 habitaciones con cama en planta baja.
+// Los vecinos a veces van a dormir (se acuestan en una cama libre un rato) y los jugadores también pueden descansar.
+const HOTEL = { x1: -27, x2: -13, z1: 46, z2: 58, alto: 4, puerta: -20, recep: { x: -24, z: 55.6 },
+  camas: [{ x: -24.6, z: 47.6, puerta: -24 }, { x: -20, z: 47.6, puerta: -20 }, { x: -15.4, z: 47.6, puerta: -16 }].map(c => ({ ...c, ocupada: null })) };
+{
+  const H = HOTEL, L = c => new THREE.MeshLambertMaterial({ color: c }), crema = L(0xe8dcc0), g = .4;
+  const pared = (x1, z1, x2, z2, h = H.alto, mat = crema, y0 = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1, h, z2 - z1), mat); m.position.set((x1 + x2) / 2, y0 + h / 2, (z1 + z2) / 2); escena.add(m); if (y0 < 1) edificios.push({ x1, z1, x2, z2, h }); };
+  // Exterior de planta baja (puerta al sur, hacia la calle)
+  pared(H.x1, H.z1, H.x2, H.z1 + g); pared(H.x1, H.z1, H.x1 + g, H.z2); pared(H.x2 - g, H.z1, H.x2, H.z2);
+  pared(H.x1, H.z2 - g, H.puerta - 1.2, H.z2); pared(H.puerta + 1.2, H.z2 - g, H.x2, H.z2);
+  // Pasillo de habitaciones: tabique con 3 puertas (alineadas con la grilla de caminos) y divisiones entre cuartos
+  const zt = 50.8; let xa = H.x1 + g;
+  for (const c of H.camas) { pared(xa, zt, c.puerta - 1, zt + .4); xa = c.puerta + 1; } pared(xa, zt, H.x2 - g, zt + .4);
+  for (const x of [-22.5, -17.7]) pared(x - .15, H.z1 + g, x + .15, zt);
+  // Pisos de arriba (solo se ven) con ventanas, cartel luminoso
+  const texV = textura((c, w, h) => { c.fillStyle = "#c9b48a"; c.fillRect(0, 0, w, h); for (let p = 0; p < 3; p++) for (let i = 0; i < 7; i++) { c.fillStyle = (i + p) % 3 ? "#ffe2a0" : "#3a4a5a"; c.fillRect(6 + i * 18, 6 + p * 20, 11, 13); } }, 128, 64);
+  const arriba = new THREE.Mesh(new THREE.BoxGeometry(H.x2 - H.x1, 9, H.z2 - H.z1), new THREE.MeshLambertMaterial({ map: texV, emissiveMap: texV, emissive: 0x554433 })); arriba.position.set((H.x1 + H.x2) / 2, H.alto + 4.5, (H.z1 + H.z2) / 2); escena.add(arriba);
+  const marq = new THREE.Mesh(new THREE.BoxGeometry(4, .25, 2), L(0x7a1020)); marq.position.set(H.puerta, 3.2, H.z2 + 1); escena.add(marq);
+  const texC = textura((c, w, h) => { c.fillStyle = "#7a1020"; c.fillRect(0, 0, w, h); c.fillStyle = "#ffd88a"; c.font = "bold 58px serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("★ HOTEL PLAZA ★", w / 2, h / 2 + 4); }, 640, 96);
+  const cart = new THREE.Mesh(new THREE.PlaneGeometry(8, 1.2), new THREE.MeshBasicMaterial({ map: texC })); cart.position.set(H.puerta, H.alto + .9, H.z2 + .05); escena.add(cart);
+  // Adentro: alfombra, recepción con campanita, sillones, plantas y las camas
+  const alf = new THREE.Mesh(new THREE.PlaneGeometry(H.x2 - H.x1 - .8, H.z2 - zt - .8), L(0x6a1a2a)); alf.rotation.x = -Math.PI / 2; alf.position.set((H.x1 + H.x2) / 2, .03, (zt + H.z2) / 2 + .2); escena.add(alf);
+  const piso = new THREE.Mesh(new THREE.PlaneGeometry(H.x2 - H.x1 - .8, zt - H.z1 - .4), L(0x8a6a4a)); piso.rotation.x = -Math.PI / 2; piso.position.set((H.x1 + H.x2) / 2, .025, (H.z1 + zt) / 2); escena.add(piso);
+  const mostr = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.1, .8), L(0x4a2a14)); mostr.position.set(H.recep.x, .55, 54.4); escena.add(mostr); edificios.push({ x1: H.recep.x - 1.3, x2: H.recep.x + 1.3, z1: 54, z2: 54.8, h: 1.1 });
+  const campana = new THREE.Mesh(new THREE.SphereGeometry(.1, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), L(0xd4af37)); campana.position.set(H.recep.x + .8, 1.1, 54.4); escena.add(campana);
+  const recep = new THREE.Group(); recep.position.set(H.recep.x, 0, 53.3); escena.add(recep);
+  { const cu = new THREE.Mesh(new THREE.BoxGeometry(.48, .64, .26), L(0x1a1a3a)); cu.position.y = 1.24; recep.add(cu); const pi = new THREE.Mesh(new THREE.BoxGeometry(.4, .9, .22), L(0x1a1a1a)); pi.position.y = .45; recep.add(pi);
+    const ca = new THREE.Mesh(new THREE.SphereGeometry(.18, 10, 8), L(0xc68642)); ca.position.y = 1.78; recep.add(ca); const mo = new THREE.Mesh(new THREE.BoxGeometry(.12, .06, .02), L(0x7a1020)); mo.position.set(0, 1.5, .14); recep.add(mo);
+    const n = cartel("Recepción", "#7a1020"); n.scale.set(2, .5, 1); n.position.y = 2.4; recep.add(n); }
+  for (const x of [-16, -14.2]) { const so = new THREE.Mesh(new THREE.BoxGeometry(1.4, .6, .8), L(0x2a4a6a)); so.position.set(x, .3, 56.6); escena.add(so); }
+  edificios.push({ x1: -16.7, x2: -13.5, z1: 56.2, z2: 57, h: .6 });
+  for (const c of H.camas) {
+    const cama = new THREE.Group(); cama.position.set(c.x, 0, c.z); escena.add(cama);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(1.3, .45, 2.1), L(0x5a3a1a)); base.position.y = .22; cama.add(base);
+    const colchon = new THREE.Mesh(new THREE.BoxGeometry(1.2, .15, 2), L(0xf4f4f4)); colchon.position.y = .52; cama.add(colchon);
+    const frazada = new THREE.Mesh(new THREE.BoxGeometry(1.22, .06, 1.3), L(0x2a5a9a)); frazada.position.set(0, .62, .3); cama.add(frazada);
+    const alm = new THREE.Mesh(new THREE.BoxGeometry(.8, .12, .35), L(0xffffff)); alm.position.set(0, .64, -.75); cama.add(alm);
+    const mesita = new THREE.Mesh(new THREE.BoxGeometry(.5, .55, .5), L(0x5a3a1a)); mesita.position.set(.95, .27, -.7); cama.add(mesita);
+    const vel = new THREE.Mesh(new THREE.SphereGeometry(.1, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffe2a0 })); vel.position.set(.95, .65, -.7); cama.add(vel);
+    edificios.push({ x1: c.x - .65, x2: c.x + .65, z1: c.z - 1.05, z2: c.z + 1.05, h: .6, arbol: true });
+    const zz = new THREE.Sprite(new THREE.SpriteMaterial({ map: textura((g2, w, h) => { g2.fillStyle = "#ffffff"; g2.font = "bold 40px sans-serif"; g2.textAlign = "center"; g2.fillText("💤", w / 2, h * .7); }, 64, 64), depthTest: false }));
+    zz.scale.set(.8, .8, 1); zz.position.set(c.x, 1.6, c.z); zz.visible = false; escena.add(zz); c.zz = zz;
+  }
+  const cH = cartel("🏨 HOTEL PLAZA", "#7a1020"); cH.scale.set(7, 1.75, 1); cH.position.set((H.x1 + H.x2) / 2, H.alto + 11, (H.z1 + H.z2) / 2); escena.add(cH);
+}
+// Jugador: descansar en una cama libre del hotel
+let dormirHasta = 0;
+function dormirJugador(c) {
+  c.ocupada = "yo"; dormirHasta = Date.now() + 4000; grande("😴 Zzz… descansando", "#9fd0ff"); $("golpe").style.background = "#000"; $("golpe").style.opacity = .6;
+  setTimeout(() => { c.ocupada = null; yo.res = 100; aturdidoHasta = 0; rapidoHasta = Date.now() + 15000; $("golpe").style.opacity = 0; $("golpe").style.background = ""; grande("☀️ ¡Descansado! Corrés más rápido un rato", "#ffd400"); }, 4000);
+}
 // ================== VECINOS (NPC) ==================
 // Gente caminando por la ciudad. La policía los puede parar y pedirles documentos (E):
 // la mayoría está en regla, algunos tienen un pedido de captura (se los puede detener) y otros vieron a un ladrón (dan una pista).
@@ -2755,16 +2816,26 @@ function crearCivil(i) {
   return { id: "civ" + i + "-" + Math.floor(Math.random() * 1e6), nombre: nom, tipo, mesh: g, piernas, brazos, x: p.x, z: p.z, rot: 0, ruta: null, paradoHasta: 0, controlado: false, vel: 1.6 + Math.random() * .8 };
 }
 function destinoCivil() { for (let k = 0; k < 40; k++) { const x = (Math.random() - .5) * (CIUDAD.tam - 10), z = (Math.random() - .5) * (CIUDAD.tam - 10); if (!choca(x, z, .7) && !sobreAutopista(x, z)) return { x, z }; } return { x: 0, z: 0 }; }
-function crearCiviles(n) { for (const c of civiles) escena.remove(c.mesh); civiles.length = 0; for (let i = 0; i < n; i++) civiles.push(crearCivil(i)); }
+function crearCiviles(n) { for (const c of civiles) escena.remove(c.mesh); civiles.length = 0; HOTEL.camas.forEach(k => { k.ocupada = null; k.zz.visible = false; }); for (let i = 0; i < n; i++) civiles.push(crearCivil(i)); }
 function actualizarCiviles(dt, t) {
   const ahora = Date.now();
   for (const c of civiles) {
     const lejos = Math.abs(c.x - camara.position.x) + Math.abs(c.z - camara.position.z) > 110;
     c.mesh.visible = !lejos;
+    if (c.durmiendo) {   // acostado en la cama del hotel
+      if (ahora > c.durmiendo) { c.durmiendo = 0; c.cama.ocupada = null; c.cama.zz.visible = false; c.x = c.cama.puerta; c.z = 49.6; c.mesh.rotation.set(0, Math.PI, 0); c.mesh.position.set(c.x, 0, c.z); c.cama = null; c.ruta = null; }
+      else { c.cama.zz.visible = true; c.cama.zz.position.y = 1.5 + Math.sin(t / 500) * .15; continue; }
+    }
     if (c.controlado || ahora < c.paradoHasta) { c.piernas.forEach(p => p.rotation.x *= .8); c.brazos.forEach(a => a.rotation.x *= .8); continue; }
-    if (!c.ruta || !c.ruta.length) { c.ruta = buscarCamino(c, destinoCivil(), true) || []; if (!c.ruta.length) { c.paradoHasta = ahora + 2000; continue; } }
+    if (!c.ruta || !c.ruta.length) {
+      const libre = Math.random() < .15 && HOTEL.camas.find(k => !k.ocupada);   // a veces se va a dormir
+      if (libre) { libre.ocupada = c.id; c.vaCama = libre; c.ruta = buscarCamino(c, { x: libre.puerta, z: 49.6 }, true) || []; if (!c.ruta.length) { libre.ocupada = null; c.vaCama = null; } }
+      else c.ruta = buscarCamino(c, destinoCivil(), true) || []; if (!c.ruta.length) { c.paradoHasta = ahora + 2000; continue; } }
     const o = c.ruta[0], dx = o.x - c.x, dz = o.z - c.z, d = Math.hypot(dx, dz);
-    if (d < .6) { c.ruta.shift(); if (!c.ruta.length) c.paradoHasta = ahora + 1500 + Math.random() * 4000; continue; }
+    if (d < .6) { c.ruta.shift();
+      if (!c.ruta.length && c.vaCama) { const k = c.vaCama; c.vaCama = null; c.cama = k; c.durmiendo = ahora + 30000 + Math.random() * 40000;   // se acuesta
+        c.x = k.x; c.z = k.z; c.mesh.position.set(k.x, .7, k.z + .9); c.mesh.rotation.set(-Math.PI / 2, 0, 0); c.piernas.forEach(p => p.rotation.x = 0); c.brazos.forEach(a => a.rotation.x = 0); continue; }
+      if (!c.ruta.length) c.paradoHasta = ahora + 1500 + Math.random() * 4000; continue; }
     const v = Math.min(d, c.vel * dt), nx = c.x + dx / d * v, nz = c.z + dz / d * v;
     if (!choca(nx, nz, .35, "ladron")) { c.x = nx; c.z = nz; } else c.ruta = null;
     c.rot = Math.atan2(dx, dz);
