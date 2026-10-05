@@ -342,6 +342,8 @@ const PM = { x1: 32, x2: 176, z1: -206, puerta1: 60, puerta2: 68, aguaZ1: -152, 
 // Supermercado, afuera de la ciudad hacia el norte (se entra por la calle x = -8)
 const SUPER = { x1: -44, x2: 28, z1: -132, puerta1: -12, puerta2: -4, ex1: -20, ex2: 4, ez1: -116, ez2: -100, entrada1: -10.5, entrada2: -5.5 };
 const AGU = { x1: 14, x2: 86, z1: 82, z2: 138, puerta1: 36, puerta2: 44 };
+// Base del Grupo Halcón: afuera de la ciudad, al suroeste (se entra por la calle z = 40)
+const HALCON = { x1: -150, x2: -86, z1: 6, z2: 74, puerta1: 36, puerta2: 44, ex1: -130, ex2: -112, ez1: 30, ez2: 50, armX: -113.6, armZ: 40 };
 // Puerto, afuera de la ciudad hacia el oeste (se entra por la calle z = -32); más allá de x = -118 es agua
 const PUERTO = { x1: -150, x2: -84, z1: -62, z2: -2, puerta1: -36, puerta2: -12, agua: -118, muelleZ1: -35, muelleZ2: -29, muelleX: -138 };
 function choca(x, z, r = RADIO, eq = null) {
@@ -355,9 +357,10 @@ function choca(x, z, r = RADIO, eq = null) {
   const enPM = z < -mitad + 1 && x > PM.x1 + r && x < PM.x2 - r && z > PM.z1 + r &&
     !(z > PM.aguaZ1 - r && z < PM.aguaZ2 + r && !PM.puentes.some(([a, b]) => x > a + r && x < b - r));   // al dique no se entra, salvo por los puentes
   if (Math.abs(z + mitad) < r + .3 && x > -mitad && x < mitad && !(x > SUPER.puerta1 + r && x < SUPER.puerta2 - r) && !(x > PM.puerta1 + r && x < PM.puerta2 - r)) return true;   // paredón norte con portones al súper y a Puerto Madero
-  if (!enCiudad && !enAer && !enPuerto && !enAgu && !enSuper && !enPM) return true;
+  const enHalcon = x < -mitad + 1 && x > HALCON.x1 + r && z > HALCON.z1 + r && z < HALCON.z2 - r;
+  if (!enCiudad && !enAer && !enPuerto && !enAgu && !enSuper && !enPM && !enHalcon) return true;
   if (Math.abs(z - mitad) < r + .3 && x > -mitad && x < mitad && !(x > AGU.puerta1 + r && x < AGU.puerta2 - r)) return true;   // paredón sur con portón al aguantadero
-  if (Math.abs(x + mitad) < r + .3 && !(z > PUERTO.puerta1 + r && z < PUERTO.puerta2 - r)) return true;   // paredón oeste con portón al puerto
+  if (Math.abs(x + mitad) < r + .3 && !(z > PUERTO.puerta1 + r && z < PUERTO.puerta2 - r) && !(z > HALCON.puerta1 + r && z < HALCON.puerta2 - r)) return true;   // paredón oeste con portones al puerto y a la base Halcón
   if (Math.abs(x - mitad) < r + .3 && !(z > AER.puerta1 + r && z < AER.puerta2 - r) && !(z > AUTOPISTA.z1 + r && z < AUTOPISTA.z2 - r)) return true;   // paredón con portón hacia el aeropuerto
   if (puerta.cerrada && eq !== "ladron" && x + r > CASA.x1 - .3 && x - r < CASA.x1 + .3 && z + r > CASA.puertaZ1 && z - r < CASA.puertaZ2) return true;
   return cercanos(x, z).some(e => x + r > e.x1 && x - r < e.x2 && z + r > e.z1 && z - r < e.z2);
@@ -508,8 +511,8 @@ const coloresEd = [0x8a8fa3, 0xa38a7a, 0x7a8fa3, 0x9a9a9a, 0xb0a080, 0x6f7f8f];
     for (const [a, b] of cortes) borde.push([(a + b) / 2, 1.2, -mitad - .3, 0, (b - a) / T, 1, 1]); }
   { const s1 = AGU.puerta1 + mitad, s2 = mitad - AGU.puerta2;   // lado sur: dos tramos con el portón del aguantadero
     borde.push([-mitad + s1 / 2, 1.2, mitad + .3, 0, s1 / (CIUDAD.tam + 1), 1, 1], [mitad - s2 / 2, 1.2, mitad + .3, 0, s2 / (CIUDAD.tam + 1), 1, 1]); }
-  { const m1 = PUERTO.puerta1 + mitad, m2 = mitad - PUERTO.puerta2;   // lado oeste: dos tramos con el portón del puerto
-    borde.push([-mitad - .3, 1.2, -mitad + m1 / 2, Math.PI / 2, m1 / (CIUDAD.tam + 1), 1, 1], [-mitad - .3, 1.2, mitad - m2 / 2, Math.PI / 2, m2 / (CIUDAD.tam + 1), 1, 1]); }
+  { const T = CIUDAD.tam + 1, cortes = [[-mitad, PUERTO.puerta1], [PUERTO.puerta2, HALCON.puerta1], [HALCON.puerta2, mitad]];   // lado oeste: portones al puerto y a la base Halcón
+    for (const [a, b] of cortes) borde.push([-mitad - .3, 1.2, (a + b) / 2, Math.PI / 2, (b - a) / T, 1, 1]); }
   { const T = CIUDAD.tam + 1, cortes = [[-mitad, AUTOPISTA.z1], [AUTOPISTA.z2, AER.puerta1], [AER.puerta2, mitad]];   // lado este: autopista y portón del aeropuerto
     for (const [a, b] of cortes) borde.push([mitad + .3, 1.2, (a + b) / 2, Math.PI / 2, (b - a) / T, 1, 1]); }
   instancias(new THREE.BoxGeometry(CIUDAD.tam + 1, 2.4, .6), new THREE.MeshLambertMaterial({ color: 0x4a4d55 }), borde);
@@ -517,6 +520,7 @@ const coloresEd = [0x8a8fa3, 0xa38a7a, 0x7a8fa3, 0x9a9a9a, 0xb0a080, 0x6f7f8f];
   for (let i = 0; i < 70; i++) { const a = i / 70 * Math.PI * 2 + az() * .05, r = mitad + 14 + az() * 30, h = 15 + az() * 45, w = 6 + az() * 8;
     if (Math.cos(a) > .35) continue;   // del lado del aeropuerto no hay edificios
     if (Math.cos(a) < -.6 && Math.sin(a) < .3) continue;   // ni del lado del puerto
+    if (Math.cos(a) < -.5 && Math.sin(a) > 0) continue;   // ni del lado de la base Halcón
     if (Math.sin(a) > .55 && Math.cos(a) > -.25) continue;   // ni del lado del aguantadero
     if (Math.sin(a) < -.6 && Math.cos(a) > -.55 && Math.cos(a) < .4) continue;   // ni del lado del supermercado
     if (Math.sin(a) < -.3 && Math.cos(a) > .2) continue;   // ni del lado de Puerto Madero
@@ -1002,6 +1006,59 @@ $("su-ok").onclick = () => { $("super").style.display = "none"; if (!document.bo
     edificios.push({ x1: x - .45, x2: x + .45, z1: z - .45, z2: z + .45, h: 1, arbol: true }); }
   // Pila de plata robada al lado de la zona
   for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(new THREE.SphereGeometry(.45, 8, 6), new THREE.MeshLambertMaterial({ color: 0x2e9e4f })); b.scale.set(1, .8, 1); b.position.set(45.5 + (i % 3) * .7, .35 + Math.floor(i / 3) * .55, 95 + (i % 2) * .3); escena.add(b); }
+}
+// ================== BASE DEL GRUPO HALCÓN ==================
+// Predio negro afuera de la ciudad: cuartel con armería propia, helipuerto con helicóptero negro, polígono de tiro,
+// pista de obstáculos y camionetas negras. Solo el Grupo Halcón (y el SWAT) recargan acá.
+{
+  const H = HALCON, mitad = CIUDAD.tam / 2, L = c => new THREE.MeshLambertMaterial({ color: c }), negro = L(0x141414), gris = L(0x3a3d44);
+  const plano = (x1, z1, x2, z2, c, y) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(x2 - x1, z2 - z1), L(c)); m.rotation.x = -Math.PI / 2; m.position.set((x1 + x2) / 2, y, (z1 + z2) / 2); escena.add(m); };
+  plano(H.x1, H.z1, -mitad, H.z2, 0x3a3f2a, .01);                         // pasto seco
+  plano(-108, H.puerta1, -mitad, H.puerta2, 0x2b2d33, .015);              // camino de entrada
+  plano(-112, 22, -88, 58, 0x34363c, .015);                               // playón
+  // Cuartel: paredes negras con la puerta hacia el playón (mirando a la ciudad)
+  const alto = 5, g = .4;
+  const paredes = [[H.ex1, H.ez1, H.ex2, H.ez1 + g], [H.ex1, H.ez2 - g, H.ex2, H.ez2], [H.ex1, H.ez1, H.ex1 + g, H.ez2], [H.ex2 - g, H.ez1, H.ex2, 38.6], [H.ex2 - g, 41.4, H.ex2, H.ez2]];
+  for (const [x1, z1, x2, z2] of paredes) { const m = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1, alto, z2 - z1), negro); m.position.set((x1 + x2) / 2, alto / 2, (z1 + z2) / 2); escena.add(m); edificios.push({ x1, z1, x2, z2, h: alto }); }
+  const dintel = new THREE.Mesh(new THREE.BoxGeometry(g, alto - 3, 2.8), negro); dintel.position.set(H.ex2 - g / 2, 3 + (alto - 3) / 2, 40); escena.add(dintel);
+  const techo = new THREE.Mesh(new THREE.BoxGeometry(H.ex2 - H.ex1 + .6, .4, H.ez2 - H.ez1 + .6), L(0x0a0a0a)); techo.position.set((H.ex1 + H.ex2) / 2, alto + .2, (H.ez1 + H.ez2) / 2); escena.add(techo);
+  const franja = new THREE.Mesh(new THREE.BoxGeometry(.05, .4, H.ez2 - H.ez1), new THREE.MeshBasicMaterial({ color: 0x3dff6a })); franja.position.set(H.ex2 + .03, 3.6, (H.ez1 + H.ez2) / 2); escena.add(franja);
+  const pisoC = new THREE.Mesh(new THREE.PlaneGeometry(H.ex2 - H.ex1, H.ez2 - H.ez1), L(0x2a2a2a)); pisoC.rotation.x = -Math.PI / 2; pisoC.position.set((H.ex1 + H.ex2) / 2, .02, (H.ez1 + H.ez2) / 2); escena.add(pisoC);
+  // Cartel con el halcón (diseño propio)
+  const texH = textura((c, w, h) => { c.fillStyle = "#0a0a0a"; c.fillRect(0, 0, w, h); c.fillStyle = "#3dff6a"; c.fillRect(0, h - 10, w, 10);
+    c.fillStyle = "#e8e8e8"; c.textAlign = "left"; c.textBaseline = "middle"; c.font = "bold 64px system-ui"; c.fillText("🦅 GRUPO HALCÓN", 30, h / 2 - 18); c.font = "bold 28px system-ui"; c.fillStyle = "#9a9a9a"; c.fillText("BASE DE OPERACIONES ESPECIALES", 34, h / 2 + 40); }, 1024, 192);
+  const cart = new THREE.Mesh(new THREE.PlaneGeometry(12, 2.25), new THREE.MeshBasicMaterial({ map: texH })); cart.position.set(H.ex2 + .06, 3.9, 40); cart.rotation.y = Math.PI / 2; escena.add(cart);
+  // Armería adentro (al lado de la puerta) y bancos/lockers
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.1, 3.2), L(0x2d2d2d)); arm.position.set(H.ex2 - 1.2, .55, 45); escena.add(arm); edificios.push({ x1: H.ex2 - 1.8, x2: H.ex2 - .6, z1: 43.4, z2: 46.6, h: 1.1 });
+  for (let i = 0; i < 6; i++) { const lk = new THREE.Mesh(new THREE.BoxGeometry(.6, 2, .5), L(0x1e2a1e)); lk.position.set(H.ex1 + 1 + i * .7, 1, H.ez1 + .7); escena.add(lk); }
+  edificios.push({ x1: H.ex1 + .6, x2: H.ex1 + 5.1, z1: H.ez1 + .4, z2: H.ez1 + 1, h: 2 });
+  const cA = cartel("🔫 ARMERÍA HALCÓN", "#0a0a0a"); cA.scale.set(3.2, .8, 1); cA.position.set(H.ex2 - 1.2, 2.3, 45); escena.add(cA);
+  // Helipuerto con helicóptero negro
+  plano(-140, 56, -124, 72, 0x2a2a2a, .02);
+  const hT = new THREE.Mesh(new THREE.RingGeometry(5, 5.6, 32), new THREE.MeshBasicMaterial({ color: 0xffd400 })); hT.rotation.x = -Math.PI / 2; hT.position.set(-132, .03, 64); escena.add(hT);
+  const hL = textura((c, w, h) => { c.fillStyle = "#ffd400"; c.font = "bold 110px system-ui"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("H", w / 2, h / 2 + 6); }, 128, 128);
+  const hM = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), new THREE.MeshBasicMaterial({ map: hL, transparent: true })); hM.rotation.x = -Math.PI / 2; hM.position.set(-132, .035, 64); escena.add(hM);
+  const heliN = new THREE.Group(); heliN.position.set(-132, 0, 64); escena.add(heliN);
+  { const cu = new THREE.Mesh(new THREE.SphereGeometry(1.3, 14, 10), negro); cu.scale.set(1, .8, 1.6); cu.position.y = 1.6; heliN.add(cu);
+    const co = new THREE.Mesh(new THREE.BoxGeometry(.35, .35, 3.8), negro); co.position.set(0, 1.9, -3.2); heliN.add(co);
+    for (const x of [-.8, .8]) { const p = new THREE.Mesh(new THREE.BoxGeometry(.1, .1, 2.6), gris); p.position.set(x, .25, 0); heliN.add(p); }
+    for (const ry of [0, Math.PI / 2]) { const pa = new THREE.Mesh(new THREE.BoxGeometry(7, .05, .25), gris); pa.rotation.y = ry; pa.position.y = 2.8; heliN.add(pa); }
+    const v = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8, 0, Math.PI * 2, 0, 1.1), new THREE.MeshLambertMaterial({ color: 0x3dff6a, transparent: true, opacity: .4 })); v.rotation.x = Math.PI / 2.4; v.position.set(0, 1.8, 1); heliN.add(v); }
+  edificios.push({ x1: -133.4, x2: -130.6, z1: 61.5, z2: 66.5, h: 3, arbol: true });
+  // Polígono de tiro: siluetas de cartón y bolsas de arena
+  for (let i = 0; i < 5; i++) { const z = 14 + i * 3; const s = new THREE.Mesh(new THREE.PlaneGeometry(.8, 1.7), new THREE.MeshLambertMaterial({ map: textura((c, w, h) => { c.fillStyle = "#e8e0c8"; c.fillRect(0, 0, w, h); c.fillStyle = "#1a1a1a"; c.beginPath(); c.arc(w / 2, h * .2, w * .18, 0, 7); c.fill(); c.fillRect(w * .25, h * .32, w * .5, h * .6); c.strokeStyle = "#d02020"; c.lineWidth = 3; for (const rr of [8, 16, 24]) { c.beginPath(); c.arc(w / 2, h * .55, rr, 0, 7); c.stroke(); } }, 64, 128), side: THREE.DoubleSide }));
+    s.position.set(-145, .85, z); s.rotation.y = Math.PI / 2; escena.add(s); }
+  const arena = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 16), L(0x8a7a50)); arena.position.set(-138, .5, 20); escena.add(arena); edificios.push({ x1: -138.5, x2: -137.5, z1: 12, z2: 28, h: 1, arbol: true });
+  // Pista de obstáculos: vallas bajas y neumáticos
+  for (let i = 0; i < 4; i++) { const v = new THREE.Mesh(new THREE.BoxGeometry(3, .9, .2), L(0x6a4a2a)); v.position.set(-104 + i * 4, .45, 66); escena.add(v); edificios.push({ x1: -105.5 + i * 4, x2: -102.5 + i * 4, z1: 65.9, z2: 66.1, h: .9, arbol: true }); }
+  for (let i = 0; i < 6; i++) { const n = new THREE.Mesh(new THREE.TorusGeometry(.4, .14, 6, 12), negro); n.rotation.x = Math.PI / 2; n.position.set(-104 + (i % 3) * 1.1, .14, 70 + Math.floor(i / 3) * 1.1); escena.add(n); }
+  // Camionetas negras estacionadas (de adorno)
+  for (const z of [26, 30, 50, 54]) { const c = crearCamioneta("GRUPO HALCÓN"); c.position.set(-98, 0, z); c.rotation.y = -Math.PI / 2; edificios.push({ x1: -100.6, x2: -95.4, z1: z - 1.2, z2: z + 1.2, h: 2.2, arbol: true }); }
+  // Torre de vigilancia y alambrado
+  const torre = new THREE.Mesh(new THREE.BoxGeometry(2, 7, 2), negro); torre.position.set(-146, 3.5, 10); escena.add(torre); edificios.push({ x1: -147, x2: -145, z1: 9, z2: 11, h: 7 });
+  const foco = new THREE.Mesh(new THREE.BoxGeometry(.6, .4, .4), new THREE.MeshBasicMaterial({ color: 0xffffe0 })); foco.position.set(-145, 7.2, 10.8); escena.add(foco);
+  const cE = cartel("🦅 BASE HALCÓN ←", "#0a0a0a"); cE.scale.set(6, 1.5, 1); cE.position.set(-mitad + 2, 5, H.puerta2 + 2); escena.add(cE);
+  const cG = cartel("🦅 GRUPO HALCÓN", "#0a0a0a"); cG.scale.set(7, 1.75, 1); cG.position.set((H.ex1 + H.ex2) / 2, alto + 3, 40); escena.add(cG);
 }
 // ================== PUERTO (muelle) ==================
 {
@@ -1604,7 +1661,7 @@ const DIVISIONES = {
   comunicaciones:  { nom: "Comunicaciones",  ico: "📡", d: "Ve en el HUD dónde está cada ladrón con botín y a qué distancia." },
 };   // tienen ametralladora y pueden reventar puertas
 function nuevoJug(id, nombre, eq, bot, cl) {
-  const l = lugarLibre(eq === "poli" ? { x: DEPTO.cx, z: DEPTO.cz } : ZONAS.guarida, eq === "poli" ? 3.5 : 8);
+  const l = lugarLibre(cl === "halcon" && !bot ? { x: -104, z: 40 } : eq === "poli" ? { x: DEPTO.cx, z: DEPTO.cz } : ZONAS.guarida, eq === "poli" ? 3.5 : 8);   // el Grupo Halcón arranca en su base
   return { id, nombre, equipo: eq, clase: cl || eq, div: "patrulla", uni: "azul", bot, res: 100, x: l.x, z: l.z, rot: 0, preso: false, bolsa: false, mesh: null, tx: l.x, tz: l.z, atrapados: 0, robado: 0, visto: Date.now() };
 }
 
@@ -2462,6 +2519,11 @@ function loop(t) {
     if (!miAuto && !yo.preso && !pistaDepto && (yo.equipo === "ladron" || !Object.values(jug).some(s => s.equipo === "ladron" && !s.preso && Math.hypot(s.x - yo.x, s.z - yo.z) < ATRAPA * 1.8))) {
       let cc = null, dm = 2.2; for (const c of civiles) { const d = Math.hypot(c.x - yo.x, c.z - yo.z); if (d < dm) { dm = d; cc = c; } }
       if (cc) { pistaDepto = yo.equipo === "poli" ? `🪪 E: pedirle documentos y hacerle preguntas a ${cc.nombre}` : `💬 E: hablar con ${cc.nombre}`; if (accionPedida) { accionPedida = false; abrirControl(cc); } }
+    }
+    // Armería de la base Halcón (Grupo Halcón y SWAT)
+    if (yo.equipo === "poli" && !miAuto && !yo.preso && !pistaDepto && Math.hypot(yo.x - HALCON.armX, yo.z - HALCON.armZ - 5) < 1.8) {
+      pistaDepto = ARMADO(yo.clase) ? "🦅 E: armería Halcón (elegir arma, recargar y granadas)" : "🦅 La armería de la base es solo para Halcón y SWAT";
+      if (accionPedida && ARMADO(yo.clase)) { accionPedida = false; abrirArmeria(); balas = ARMA().carg || 0; recargando = 0; if (yo.clase === "halcon") granadas = 3; }
     }
     // Bóveda de la Casa de Gobierno (solo ladrones)
     if (yo.equipo === "ladron" && !yo.preso && !pistaDepto && Math.hypot(yo.x - GOB.bovX, yo.z - GOB.bovZ) < 1.8) {
