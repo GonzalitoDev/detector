@@ -1769,19 +1769,38 @@ function conectar(cod, host) {
     .on("broadcast", { event: "auto" }, ({ payload: p }) => { const a = autos[p.i]; if (!a) return;
       if (p.sube) { if (a === miAuto && a.conductor === yo.id && p.quien < yo.id) { bajarAuto(); feed("🚓 Otro poli agarró ese patrullero"); } if (a !== miAuto) a.conductor = p.quien; }
       else if (a.conductor === p.quien) { a.conductor = null; a.vel = 0; a.x = a.tx = p.x; a.z = a.tz = p.z; a.h = a.th = p.h; a.sirena = !!p.sir; a.balizas = !!p.sir; a.patron = p.sp || "alterno"; } })
-    .subscribe(async st => { if (st === "SUBSCRIBED") await canal.track({ nombre: miNombre(), equipo, clase, host }); });
+    .subscribe(async st => { if (st === "CHANNEL_ERROR" || st === "TIMED_OUT") feed("📡 Conexión inestable, reintentando..."); if (st === "SUBSCRIBED") await canal.track({ nombre: miNombre(), equipo, clase, host }); });
 }
 function recibirPos(p) {
   let s = jug[p.id];
   if (!s) { if (!jugando) return; s = jug[p.id] = nuevoJug(p.id, p.nombre, p.equipo, false, p.clase); s.div = p.div || "patrulla"; s.uni = p.uni || "azul"; s.mesh = crearMuneco(p.equipo, p.nombre, p.clase, s.div, s.uni); feed(`👋 Entró ${p.nombre}`); }
   if ((p.div && p.div !== s.div) || (p.uni && p.uni !== s.uni)) { s.div = p.div || s.div; s.uni = p.uni || s.uni; escena.remove(s.mesh); s.mesh = crearMuneco(s.equipo, s.nombre, s.clase, s.div, s.uni); }
+  // Tiempo real: con dos mensajes seguidos se calcula hacia dónde va y a qué velocidad, y entre mensaje y mensaje se lo adelanta (predicción)
+  { const ahora = performance.now(), d = (ahora - (s._rt || 0)) / 1000;
+    if (Math.hypot(p.x - s.tx, p.z - s.tz) > 12) { s.x = p.x; s.z = p.z; s.vx = s.vz = 0; }   // teletransporte o reaparición: sin deslizarse por el mapa
+    else if (d > .03 && d < 1) { const lim = v => Math.max(-35, Math.min(35, v)); s.vx = lim((p.x - s.tx) / d); s.vz = lim((p.z - s.tz) / d); }
+    else if (d >= 1) s.vx = s.vz = 0;
+    s._rt = ahora; }
   s.tx = p.x; s.tz = p.z; s.rot = p.rot + Math.PI;   // la cámara mira hacia -z y el muñeco hacia +z
   // (antes esta parte había quedado adentro del comentario: no se actualizaba preso/bolsa/auto y los jugadores "se iban" a los 8 s)
   if (p.res !== undefined) s.res = p.res; s.preso = !!p.preso; s.bolsa = !!p.bolsa; s.paquete = !!p.paq; s.visto = Date.now(); s.auto = p.auto ?? null; s.esposado = s.preso ? (p.esp || null) : null;
   autoRemoto(s, p.pc, p);
-  if (s.auto !== null && autos[s.auto] && autos[s.auto] !== miAuto) { const a = autos[s.auto]; a.conductor = p.id; a.tx = p.x; a.tz = p.z; a.th = p.ah; a.sirena = p.sir; a.patron = p.sp || "alterno"; a.vel = p.av; }
+  if (s.auto !== null && autos[s.auto] && autos[s.auto] !== miAuto) { const a = autos[s.auto]; a.conductor = p.id; { const ahora = performance.now(), d = (ahora - (a._rt || 0)) / 1000;
+    if (d > .03 && d < 1) { a.vx = Math.max(-60, Math.min(60, (p.x - a.tx) / d)); a.vz = Math.max(-60, Math.min(60, (p.z - a.tz) / d)); } else a.vx = a.vz = 0; a._rt = ahora; }
+    a.tx = p.x; a.tz = p.z; a.th = p.ah; a.sirena = p.sir; a.patron = p.sp || "alterno"; a.vel = p.av; }
 }
 
+function enviarPos() {
+      const npcs = soyHost ? Object.values(jug).filter(b => b.bot).map(b => ({ id: b.id, nombre: b.nombre, equipo: "ladron", clase: "ladron", res: Math.round(b.res), x: +b.x.toFixed(2), z: +b.z.toFixed(2), rot: +((b.rot || 0) - Math.PI).toFixed(2), preso: b.preso, esp: b.esposado || null, bolsa: b.bolsa, paq: !!b.paquete, auto: null })) : [];
+      const danos = danosPend.splice(0);
+      enviar("pos", { npcs, danos, id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, uni: yo.uni, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, esp: yo.esposado || null, bolsa: yo.bolsa, paq: !!yo.paquete,
+      auto: miAuto && !miAuto.propio ? miAuto.i : null, pc: miAuto && miAuto.propio ? { m: miAuto.modeloId, c: miAuto.color, n: miAuto.neon || 0 } : null, ah: miAuto ? +miAuto.h.toFixed(2) : 0, av: miAuto ? +miAuto.vel.toFixed(1) : 0, sir: miAuto ? miAuto.sirena : false, sp: miAuto ? (miAuto.patron || "alterno") : "" });
+}
+// Si la pestaña queda en segundo plano el juego se pausa, pero igual avisamos que seguimos (antes a los 8 s te daban por ido)
+setInterval(() => { if (online && jugando && yo && document.hidden) enviarPos(); }, 1000);
+// Estado de la conexión en pantalla
+addEventListener("offline", () => { if (online) grande("📡 Sin internet: reconectando...", "#ff6a6a"); });
+addEventListener("online", () => { if (online) { feed("📡 Volvió la conexión"); if (jugando) enviarPos(); } });
 // ================== REGLAS ==================
 function feed(t) { const d = document.createElement("div"); d.textContent = t; $("feed").prepend(d); setTimeout(() => d.remove(), 5000); }
 function grande(t, c = "#ffd400") { const g = $("grande"); g.textContent = t; g.style.color = c; g.classList.remove("ver"); void g.offsetWidth; g.classList.add("ver"); }
@@ -2706,8 +2725,9 @@ function loop(t) {
     for (const s of Object.values(jug)) {
       if (s === yo) continue;
       if (s.bot) pensarBot(s, dt);
-      else { s.x += (s.tx - s.x) * Math.min(1, dt * 10); s.z += (s.tz - s.z) * Math.min(1, dt * 10);
-        if (online && Date.now() - s.visto > 8000) { feed(`🚪 Se fue ${s.nombre}`); escena.remove(s.mesh); delete jug[s.id]; continue; } }
+      else { const ade = Math.min(.25, (performance.now() - (s._rt || 0)) / 1000), px = s.tx + (s.vx || 0) * ade, pz = s.tz + (s.vz || 0) * ade;
+        s.x += (px - s.x) * Math.min(1, dt * 14); s.z += (pz - s.z) * Math.min(1, dt * 14);
+        if (online && Date.now() - s.visto > 15000) { feed(`🚪 Se fue ${s.nombre}`); escena.remove(s.mesh); delete jug[s.id]; continue; } }
       if (s.mesh) { const v = Math.hypot(s.x - (s._px ?? s.x), s.z - (s._pz ?? s.z)) / Math.max(dt, .001); s._px = s.x; s._pz = s.z; animarMuneco(s.mesh, s.preso ? 0 : v, t);
         s.mesh.visible = !(s.auto !== null && s.auto !== undefined) && !s.enPropio && Math.abs(s.x - camara.position.x) + Math.abs(s.z - camara.position.z) < 110 && !(s.esposado && poliEnAuto(jug[s.esposado]));   // lejos no se dibuja
         s.mesh.position.set(s.x, 0, s.z); s.mesh.rotation.y = s.rot; s.mesh.userData.bolsa.visible = s.bolsa || !!s.paquete;
@@ -2729,7 +2749,8 @@ function loop(t) {
       if (a !== miAuto && a.conductor) {
         const d = jug[a.conductor];
         if (!d || (!d.bot && d !== yo && d.auto !== a.i)) { if (!d || Date.now() - d.visto > 3000) a.conductor = null; }
-        a.x += (a.tx - a.x) * Math.min(1, dt * 10); a.z += (a.tz - a.z) * Math.min(1, dt * 10);
+        { const ade = a._rt ? Math.min(.25, (performance.now() - a._rt) / 1000) : 0, px = a.tx + (a.vx || 0) * ade, pz = a.tz + (a.vz || 0) * ade;
+          a.x += (px - a.x) * Math.min(1, dt * 14); a.z += (pz - a.z) * Math.min(1, dt * 14); }
         a.h += Math.atan2(Math.sin(a.th - a.h), Math.cos(a.th - a.h)) * Math.min(1, dt * 10);
       }
       a.mesh.visible = a === miAuto || Math.abs(a.x - camara.position.x) + Math.abs(a.z - camara.position.z) < 120;
@@ -2750,11 +2771,7 @@ function loop(t) {
     $("equipos").innerHTML = `👮 ${Object.values(jug).filter(s => s.equipo === "poli").length} polis<br>🦹 ${L.filter(s => !s.preso).length} libres · ⛓️ ${L.filter(s => s.preso).length} presos`;
     $("b-accion").textContent = yo.equipo === "poli" ? "🚔" : "🔓";
     if (quedan <= 0 && (soyHost || !online)) { const g = botin >= META ? "ladron" : "poli"; enviar("fin", { gana: g }); terminar(g); }
-    if (online && t - ultPos > 100) { ultPos = t;
-      const npcs = soyHost ? Object.values(jug).filter(b => b.bot).map(b => ({ id: b.id, nombre: b.nombre, equipo: "ladron", clase: "ladron", res: Math.round(b.res), x: +b.x.toFixed(2), z: +b.z.toFixed(2), rot: +((b.rot || 0) - Math.PI).toFixed(2), preso: b.preso, esp: b.esposado || null, bolsa: b.bolsa, paq: !!b.paquete, auto: null })) : [];
-      const danos = danosPend.splice(0);
-      enviar("pos", { npcs, danos, id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, uni: yo.uni, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, esp: yo.esposado || null, bolsa: yo.bolsa, paq: !!yo.paquete,
-      auto: miAuto && !miAuto.propio ? miAuto.i : null, pc: miAuto && miAuto.propio ? { m: miAuto.modeloId, c: miAuto.color, n: miAuto.neon || 0 } : null, ah: miAuto ? +miAuto.h.toFixed(2) : 0, av: miAuto ? +miAuto.vel.toFixed(1) : 0, sir: miAuto ? miAuto.sirena : false, sp: miAuto ? (miAuto.patron || "alterno") : "" }); }
+    if (online && t - ultPos > 100) { ultPos = t; enviarPos(); }
   } else { yaw += dt * .1; }
   // Mi propio muñeco (se ve en tercera persona o vista aérea)
   if (yo) {
