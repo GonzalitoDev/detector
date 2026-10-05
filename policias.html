@@ -190,6 +190,14 @@
     <button id="control-x" style="margin-top:10px;width:100%;padding:8px;border:0;border-radius:10px;background:#ffffff22;color:#fff;font-weight:800">Cerrar</button>
   </div>
 </div>
+<div id="admin" style="display:none;position:fixed;inset:0;z-index:21;background:#000c;overflow:auto;padding:16px">
+  <div style="max-width:560px;margin:0 auto;background:#1a0f2e;border:2px solid #ffd400;border-radius:16px;padding:16px">
+    <h2 style="margin:0 0 8px;text-align:center">🛠️ Menú admin · Gonza</h2>
+    <div id="ad-cuerpo"></div>
+    <button id="ad-x" style="margin-top:10px;width:100%;padding:8px;border:0;border-radius:10px;background:#ffffff22;color:#fff;font-weight:800">Cerrar</button>
+  </div>
+</div>
+<button id="b-admin" style="display:none;position:fixed;left:50%;transform:translateX(-50%);top:8px;z-index:6;border:0;border-radius:12px;padding:6px 12px;background:#ffd400;color:#000;font-weight:900">🛠️ Admin</button>
 <div id="conce" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
   <div style="max-width:620px;margin:0 auto;background:#0f1d36;border:2px solid #5ec8f2;border-radius:16px;padding:16px">
     <h2 style="margin:0 0 4px;text-align:center">🚗 Concesionaria Gonzalito</h2>
@@ -1733,6 +1741,7 @@ function conectar(cod, host) {
     .on("broadcast", { event: "disparo" }, ({ payload: p }) => verDisparo(p))
     .on("broadcast", { event: "dano" }, ({ payload: p }) => recibirDano(p.ladron, p.de, p.dmg, Math.min(4000, +p.at || 0)))
     .on("broadcast", { event: "atrapa" }, ({ payload: p }) => atrapado(p.ladron, p.poli))
+    .on("broadcast", { event: "admin" }, ({ payload: p }) => accionAdmin(p))
     .on("broadcast", { event: "libera" }, ({ payload: p }) => liberar(p.quien))
     .on("broadcast", { event: "entregaPreso" }, ({ payload: p }) => { const s = jug[p.id]; if (s && p.poli === "") { s.esposado = null; return; } entregarPreso(p.id, p.poli); })
     .on("broadcast", { event: "suelta" }, ({ payload: p }) => soltarEsposado(p.id, p.quien))
@@ -2637,7 +2646,7 @@ function loop(t) {
       const f = (teclas.KeyW || teclas.ArrowUp ? 1 : 0) - (teclas.KeyS || teclas.ArrowDown ? 1 : 0) - joy.y;
       const r = (teclas.KeyD || teclas.ArrowRight ? 1 : 0) - (teclas.KeyA || teclas.ArrowLeft ? 1 : 0) + joy.x;
       const corre = teclas.ShiftLeft || teclas.ShiftRight || Math.hypot(joy.x, joy.y) > .9;
-      const vel = (yo.equipo === "poli" ? 6.5 : 6.2) * (corre ? 1.5 : 1) * (yo.div === "motorizada" ? 1.1 : 1) * (Date.now() < rapidoHasta ? 1.25 : 1);
+      const vel = (yo.equipo === "poli" ? 6.5 : 6.2) * (corre ? 1.5 : 1) * (yo.div === "motorizada" ? 1.1 : 1) * (Date.now() < rapidoHasta ? 1.25 : 1) * (ADMIN.rapido ? 2 : 1);
       mover(yo, -Math.sin(yaw) * f + Math.cos(yaw) * r, -Math.cos(yaw) * f - Math.sin(yaw) * r, vel, dt);
     } else if (teclas.KeyW || joy.y) { yo.x += (Math.random() - .5) * .02; }
     // Cerca de alguien / de algo
@@ -2676,6 +2685,7 @@ function loop(t) {
     } else pista = yo.esposado ? "🔗 Estás esposado: te llevan a la cárcel. Un compañero te puede soltar en el camino." : "⛓️ Estás preso. Esperá que un compañero te libere.";
     if (!pista && autoCerca && autoCerca.propio) pista = "🔑 F: subirte a tu auto";
     accionPedida = false;
+    $("b-admin").style.display = esGonza() ? "block" : "none";
     $("pista").textContent = pistaDepto || pista; $("mira").classList.toggle("cerca", !!objetivo);
     $("radar").style.display = yo.equipo === "poli" && yo.div === "comunicaciones" ? "block" : "none";
     if (yo.equipo === "poli" && yo.div === "comunicaciones") { const P = ["N","NE","E","SE","S","SO","O","NO"];
@@ -2898,6 +2908,56 @@ function autoRemoto(s, pc, p) {
 }
 // ---- Concesionaria ----
 let pestañaConce = "normales";
+// ================== MENÚ ADMIN (solo Gonza, con PIN) ==================
+// Se abre con la tecla P (a pie) o el botón 🛠️. La primera vez Gonza elige un PIN que queda guardado en este dispositivo.
+const ADMIN = { ok: false, rapido: false };
+const esGonza = () => /^gonza$/i.test((miNombre() || "").trim());
+async function hashPin(p) { try { const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("polis:" + p)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); } catch (e) { return "x" + p; } }
+async function abrirAdmin() {
+  if (!esGonza() || !jugando) return; document.exitPointerLock?.();
+  if (!ADMIN.ok) { let guardado = null; try { guardado = localStorage.getItem("polis-admin-pin"); } catch (e) {}
+    const p = prompt(guardado ? "🔐 PIN de admin:" : "🔐 Elegí un PIN de admin (lo vas a usar siempre):"); if (!p) return;
+    const h = await hashPin(p);
+    if (!guardado) { try { localStorage.setItem("polis-admin-pin", h); } catch (e) {} }
+    else if (h !== guardado) { grande("❌ PIN incorrecto", "#ff6a6a"); return; }
+    ADMIN.ok = true; }
+  $("admin").style.display = "block"; pintarAdmin(); }
+const LUGARES = [["🚔 Cárcel", ZONAS.carcel], ["🏦 Banco", ZONAS.banco], ["🏚️ Guarida", ZONAS.guarida], ["💊 Casa narco", ZONAS.narco], ["🚤 Muelle", ZONAS.muelle],
+  ["🏨 Hotel", { x: -20, z: 61 }], ["🚗 Conce", { x: 96, z: 72 }], ["🦅 Halcón", { x: -84, z: 42 }]];
+function pintarAdmin() {
+  const otros = Object.values(jug).filter(s => s !== yo && !s.bot), bt = (a, t, c = "#ffffff22") => `<button data-ad="${a}" style="margin:3px;padding:8px 10px;border:0;border-radius:10px;background:${c};color:#fff;font-weight:800">${t}</button>`;
+  $("ad-cuerpo").innerHTML = `<b>💵 Plata y vos</b><br>${bt("plata", "+$10.000", "#1e7a3a")}${bt("vida", "❤️ Curarme")}${bt("rapido", ADMIN.rapido ? "🐢 Velocidad normal" : "⚡ Súper velocidad")}
+    <br><b>📍 Teletransporte</b><br>${LUGARES.map((l, i) => bt("tp" + i, l[0])).join("")}
+    <br><b>🎮 Partida ${online ? (soyHost ? "(sos el host)" : "") : "(práctica)"}</b><br>${bt("presos", "⛓️ Encarcelar a todos los ladrones")}${bt("libres", "🔓 Liberar a todos")}${bt("dist", "🔥 Empezar disturbio")}${bt("tiempo", "⏱️ +5 minutos")}${bt("finpoli", "🏁 Terminar: gana la poli", "#2a4fa8")}${bt("finlad", "🏁 Terminar: ganan los ladrones", "#8a2a2a")}
+    <br><b>📢 Anuncio para todos</b><br><input id="ad-msg" maxlength="80" placeholder="Escribí un mensaje" style="width:70%;padding:8px;border-radius:8px;border:0">${bt("anuncio", "Enviar", "#a87a00")}
+    ${online ? `<br><b>👥 Jugadores</b><br>${otros.length ? otros.map(s => `${esc(s.nombre)} ${bt("kick:" + esc(s.id), "🚪 Sacar", "#8a2a2a")}`).join("<br>") : "No hay otros jugadores"}` : ""}`;
+}
+// Lo que ve y hace cada jugador cuando el admin manda algo (en práctica se aplica solo local)
+function accionAdmin(p) {
+  const de = jug[p.de]; if (!de || !/^gonza$/i.test(de.nombre || "")) return;
+  if (p.acc === "anuncio") { grande("📢 " + String(p.msg || "").slice(0, 80), "#ffd400"); feed(`📢 ${de.nombre}: ${String(p.msg || "").slice(0, 80)}`); beep(880, .2, "triangle"); }
+  else if (p.acc === "presos") { for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso) { s.preso = true; s.bolsa = false; s.paquete = false; if (s === yo || s.bot) alaCelda(s); } feed("🛠️ El admin metió presos a todos los ladrones"); revisarFin(); }
+  else if (p.acc === "libres") { for (const s of Object.values(jug)) if (s.equipo === "ladron" && s.preso) { s.preso = false; s.esposado = null; s.res = 100; } feed("🛠️ El admin liberó a todos"); }
+  else if (p.acc === "tiempo") { if (isFinite(fin)) fin += 300000; feed("🛠️ El admin sumó 5 minutos"); }
+  else if (p.acc === "fin") terminar(p.gana === "ladron" ? "ladron" : "poli");
+  else if (p.acc === "kick" && p.id === yo.id) { alert("🚪 El admin te sacó de la partida"); location.reload(); }
+}
+function mandarAdmin(p) { p.de = yo.id; enviar("admin", p); accionAdmin(p); }
+$("ad-x").onclick = () => { $("admin").style.display = "none"; };
+$("b-admin").onclick = abrirAdmin;
+addEventListener("keydown", e => { if (e.code === "KeyP" && !e.repeat && !miAuto && esGonza() && jugando && document.activeElement?.tagName !== "INPUT") abrirAdmin(); });
+function clickAdmin(e) { const a = e.target.dataset?.ad; if (!a) return;
+  if (a === "plata") { ganar(10000, "admin"); }
+  else if (a === "vida") { yo.res = 100; aturdidoHasta = 0; grande("❤️ ¡Curado!", "#7dff8a"); }
+  else if (a === "rapido") { ADMIN.rapido = !ADMIN.rapido; }
+  else if (a.startsWith("tp")) { if (miAuto) bajarAuto(); const l = lugarLibre(LUGARES[+a.slice(2)][1], 8); yo.x = l.x; yo.z = l.z; $("admin").style.display = "none"; return; }
+  else if (a === "dist") { const ex = esquinaDisturbio(), hasta = Date.now() + DIST_DUR; crearDisturbio(ex.x, ex.z, hasta); enviar("disturbio", { x: ex.x, z: ex.z, hasta }); }
+  else if (a === "finpoli" || a === "finlad") { $("admin").style.display = "none"; mandarAdmin({ acc: "fin", gana: a === "finlad" ? "ladron" : "poli" }); return; }
+  else if (a === "anuncio") { const m = $("ad-msg").value.trim(); if (m) mandarAdmin({ acc: "anuncio", msg: m }); }
+  else if (a.startsWith("kick:")) mandarAdmin({ acc: "kick", id: a.slice(5) });
+  else mandarAdmin({ acc: a });
+  pintarAdmin(); }
+$("ad-cuerpo").onclick = clickAdmin;
 function abrirConce() { document.exitPointerLock?.(); $("conce").style.display = "block"; pintarConce(); }
 function pintarConce() {
   const gar = BILLE.garage, plata = BILLE.plata;
