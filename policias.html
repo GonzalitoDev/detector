@@ -1635,6 +1635,7 @@ function conectar(cod, host) {
     .on("broadcast", { event: "dfin" }, ({ payload: p }) => finDisturbio(!!p.ok))
     .on("broadcast", { event: "caravana" }, ({ payload: p }) => salirCaravana(+p.inicio))
     .on("broadcast", { event: "cfin" }, ({ payload: p }) => finCaravana(!!p.ok))
+    .on("broadcast", { event: "maletin" }, ({ payload: p }) => robarMaletin(p.quien))
     .on("broadcast", { event: "heli" }, ({ payload: p }) => llamarHeli(p.de, p.obj, Math.min(+p.hasta, Date.now() + 30000), false))
     .on("broadcast", { event: "valla" }, ({ payload: p }) => { if (vallas.filter(v => String(v.id).startsWith(String(p.id).split(":")[0])).length < 3) ponerValla(+p.x, +p.z, p.eje ? 1 : 0, Math.min(+p.hasta, Date.now() + 50000), p.id, false); })
     .on("broadcast", { event: "refuerzos" }, ({ payload: p }) => refuerzos(p.de, +p.x, +p.z, false))
@@ -1665,7 +1666,7 @@ function sirena() { [700, 950, 700, 950].forEach((f, i) => setTimeout(() => beep
 function atrapado(idLadron, idPoli) {
   { const l = jug[idLadron]; if (l && !l.preso) { l.detenciones = (l.detenciones || 0) + 1; delete capturas[idLadron]; } }
   const l = jug[idLadron], p = jug[idPoli]; if (!l || l.preso) return;
-  l.preso = true; l.res = 100; if (l.bolsa) { l.bolsa = false; } l.paquete = false;
+  l.preso = true; l.res = 100; if (l.bolsa) { l.bolsa = false; } l.paquete = false; if (l.maletin) { l.maletin = false; feed("💼 La policía recuperó el maletín presidencial"); }
   if (p) p.atrapados++;
   const c = lugarLibre(ZONAS.carcel, 2.5); l.x = l.tx = c.x; l.z = l.tz = c.z;
   feed(`🚔 ${p ? p.nombre : "La poli"} atrapó a ${l.nombre}`);
@@ -1707,9 +1708,17 @@ function irrupcion(idQuien) {
   let n = 0; for (const p of PAQUETES) if (p.hasta < Date.now()) { p.hasta = Date.now() + 30000; n++; }
   if (n) feed(`🚔 La policía secuestró ${n} paquete${n > 1 ? "s" : ""} de contrabando`);
 }
+// Robo del maletín presidencial en la bóveda de la Casa de Gobierno: vale $3.000 al llevarlo al aguantadero y hace sonar la alarma
+function robarMaletin(idQuien) {
+  const q = jug[idQuien]; if (!q || q.preso || q.bolsa || q.paquete || Date.now() < GOB.listo) return;
+  q.bolsa = true; q.maletin = true; GOB.listo = Date.now() + 60000; capturas[q.id] = Date.now() + 15000;
+  feed(`🚨 ¡Robaron el maletín de la bóveda de la Casa de Gobierno! (${q.nombre})`);
+  if (q === yo) grande("💼 ¡MALETÍN! Llevalo al aguantadero ($3.000)", "#ffd23a"); else if (yo.equipo === "poli") grande("🚨 ¡ROBO EN LA CASA DE GOBIERNO!", "#ff4d4d");
+  for (let k = 0; k < 6; k++) setTimeout(() => beep(k % 2 ? 900 : 1200, .15, "square", .04), k * 220);
+}
 function entregar(idQuien) {
   const q = jug[idQuien]; if (!q || !q.bolsa) return;
-  const v = DIST.activo ? 1500 : 1000;
+  const v = q.maletin ? 3000 : DIST.activo ? 1500 : 1000; q.maletin = false;
   q.bolsa = false; q.robado += v; botin += v;
   feed(`💰 ${q.nombre} entregó $${v.toLocaleString("es-AR")}${DIST.activo ? " (🔥 disturbio)" : ""} (total $${botin.toLocaleString("es-AR")})`);
   if (q === yo) { grande(`💸 +$${v.toLocaleString("es-AR")}`, "#7dff8a"); beep(1300, .25, "triangle"); }
@@ -1997,14 +2006,36 @@ function abrirArmeria() {
 // Edificio rosado con columnas. Cada tanto sale la caravana presidencial a recorrer la ciudad:
 // la policía la escolta; si un ladrón llega al auto sin policías cerca, la asaltan (+$2.000 para los ladrones).
 // Si llega bien, el Presidente agradece: todos los ladrones quedan marcados 20 s para la policía.
-const GOB = { x1: 22, x2: 34, z1: -2, z2: 6, alto: 8, cx: 28, cz: 2 };
+const GOB = { x1: 22, x2: 34, z1: -2, z2: 6, alto: 8, cx: 28, cz: 2, puerta1: 26.8, puerta2: 29.2, bovX: 28, bovZ: .4, listo: 0 };
 {
   const G = GOB, rosa = new THREE.MeshLambertMaterial({ color: 0xe9a3a8 }), blanco = new THREE.MeshLambertMaterial({ color: 0xf4efe6 });
   const texFrente = textura((c, w, h) => { c.fillStyle = "#e9a3a8"; c.fillRect(0, 0, w, h);
     for (let piso = 0; piso < 2; piso++) for (let i = 0; i < 9; i++) { const x = 14 + i * 27, y = 20 + piso * 60;
       c.fillStyle = "#f4efe6"; c.fillRect(x - 3, y - 3, 18, 40); c.fillStyle = "#ffd88a"; c.fillRect(x, y, 12, 34); c.fillStyle = "#f4efe6"; c.fillRect(x + 5, y, 2, 34); } }, 256, 128);
-  const cuerpo = new THREE.Mesh(new THREE.BoxGeometry(G.x2 - G.x1, G.alto, G.z2 - G.z1), [rosa, rosa, rosa, rosa, new THREE.MeshLambertMaterial({ map: texFrente, emissive: 0x332222 }), rosa]);
-  cuerpo.position.set(G.cx, G.alto / 2, G.cz); escena.add(cuerpo);
+  // Paredes huecas (se puede entrar por la puerta del frente)
+  const matFrente = new THREE.MeshLambertMaterial({ map: texFrente, emissive: 0x332222 }), g4 = .4;
+  const pared = (x1, z1, x2, z2, y1, y2, frente) => { const m = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1, y2 - y1, z2 - z1), frente ? [rosa, rosa, rosa, rosa, matFrente, rosa] : rosa);
+    m.position.set((x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2); escena.add(m); if (y1 < 1) edificios.push({ x1, z1, x2, z2, h: G.alto }); };
+  pared(G.x1, G.z1, G.x2, G.z1 + g4, 0, G.alto); pared(G.x1, G.z1, G.x1 + g4, G.z2, 0, G.alto); pared(G.x2 - g4, G.z1, G.x2, G.z2, 0, G.alto);
+  pared(G.x1, G.z2 - g4, G.puerta1, G.z2, 0, G.alto, true); pared(G.puerta2, G.z2 - g4, G.x2, G.z2, 0, G.alto, true); pared(G.puerta1, G.z2 - g4, G.puerta2, G.z2, 3.2, G.alto, true);
+  const techoG = new THREE.Mesh(new THREE.BoxGeometry(G.x2 - G.x1, .3, G.z2 - G.z1), rosa); techoG.position.set(G.cx, G.alto - .15, G.cz); escena.add(techoG);
+  // Adentro: piso de mármol, alfombra roja, escritorio presidencial, banderas, arañas de luz y la bóveda con el tesoro
+  const marmol = textura((c, w, h) => { for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { c.fillStyle = (i + j) % 2 ? "#f2efe8" : "#2a2a2a"; c.fillRect(i * 16, j * 16, 16, 16); } }, 128, 128);
+  marmol.wrapS = marmol.wrapT = THREE.RepeatWrapping; marmol.repeat.set(3, 2);
+  const pisoG = new THREE.Mesh(new THREE.PlaneGeometry(G.x2 - G.x1 - .8, G.z2 - G.z1 - .8), new THREE.MeshLambertMaterial({ map: marmol })); pisoG.rotation.x = -Math.PI / 2; pisoG.position.set(G.cx, .03, G.cz); escena.add(pisoG);
+  const alf = new THREE.Mesh(new THREE.PlaneGeometry(2, G.z2 - G.z1 - 1.2), new THREE.MeshLambertMaterial({ color: 0x9a1020 })); alf.rotation.x = -Math.PI / 2; alf.position.set(G.cx, .04, G.cz + .3); escena.add(alf);
+  const madera = new THREE.MeshLambertMaterial({ color: 0x4a2a14 });
+  const esc = new THREE.Mesh(new THREE.BoxGeometry(1, .8, 2.2), madera); esc.position.set(G.x1 + 2, .4, G.cz); escena.add(esc); edificios.push({ x1: G.x1 + 1.5, x2: G.x1 + 2.5, z1: G.cz - 1.1, z2: G.cz + 1.1, h: .8 });
+  const sillon = new THREE.Mesh(new THREE.BoxGeometry(.7, 1.4, .7), new THREE.MeshLambertMaterial({ color: 0x7a1020 })); sillon.position.set(G.x1 + 1, .7, G.cz); escena.add(sillon);
+  for (const z of [G.z1 + 1, G.z1 + 1.7]) { const m = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, 2.4), new THREE.MeshLambertMaterial({ color: 0xd4af37 })); m.position.set(G.x1 + .7, 1.2, z); escena.add(m);
+    const b = new THREE.Mesh(new THREE.PlaneGeometry(.7, .45), new THREE.MeshBasicMaterial({ map: textura((c, w, h) => { c.fillStyle = "#74acdf"; c.fillRect(0, 0, w, h); c.fillStyle = "#fff"; c.fillRect(0, h / 3, w, h / 3); }, 48, 32), side: THREE.DoubleSide })); b.position.set(G.x1 + 1.05, 2.1, z); escena.add(b); }
+  for (const x of [G.cx - 3, G.cx + 3]) { const a = new THREE.Mesh(new THREE.SphereGeometry(.45, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffe6a8 })); a.position.set(x, G.alto - 1.2, G.cz); escena.add(a); }
+  // Bóveda contra la pared del fondo: puerta redonda dorada y lingotes
+  const bov = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.6, .8), new THREE.MeshLambertMaterial({ color: 0x5a5f69 })); bov.position.set(G.bovX, 1.3, G.z1 + .8); escena.add(bov);
+  edificios.push({ x1: G.bovX - 1.3, x2: G.bovX + 1.3, z1: G.z1, z2: G.z1 + 1.2, h: 2.6 });
+  const rueda = new THREE.Mesh(new THREE.TorusGeometry(.6, .1, 8, 20), new THREE.MeshLambertMaterial({ color: 0xd4af37 })); rueda.position.set(G.bovX, 1.3, G.z1 + 1.22); escena.add(rueda); GOB.rueda = rueda;
+  for (let i = 0; i < 6; i++) { const l = new THREE.Mesh(new THREE.BoxGeometry(.4, .14, .2), new THREE.MeshLambertMaterial({ color: 0xffd23a, emissive: 0x553300 })); l.position.set(G.bovX - 1.1 + (i % 3) * .45, .08 + Math.floor(i / 3) * .15, G.z1 + 1.5); escena.add(l); }
+  const cBov = cartel("💼 BÓVEDA", "#5a3a1a"); cBov.scale.set(2.4, .6, 1); cBov.position.set(G.bovX, 3.2, G.z1 + 1.3); escena.add(cBov);
   const cornisa = new THREE.Mesh(new THREE.BoxGeometry(G.x2 - G.x1 + .6, .5, G.z2 - G.z1 + .6), blanco); cornisa.position.set(G.cx, G.alto + .25, G.cz); escena.add(cornisa);
   // Pórtico con columnas y frontón
   for (let i = 0; i < 6; i++) { const col = new THREE.Mesh(new THREE.CylinderGeometry(.22, .25, 6, 12), blanco); col.position.set(G.cx - 2.5 + i, 3, G.z2 + 1.3); escena.add(col); }
@@ -2020,7 +2051,7 @@ const GOB = { x1: 22, x2: 34, z1: -2, z2: 6, alto: 8, cx: 28, cz: 2 };
   // Rejas bajas del frente y plaza
   const plaza = new THREE.Mesh(new THREE.PlaneGeometry(16, 6), new THREE.MeshLambertMaterial({ color: 0xbdb5a6 })); plaza.rotation.x = -Math.PI / 2; plaza.position.set(G.cx, .03, G.z2 + 3); escena.add(plaza);
   const c = cartel("🏛️ CASA DE GOBIERNO", "#b0506a"); c.position.set(G.cx, G.alto + 6.5, G.cz); escena.add(c);
-  edificios.push({ x1: G.x1, x2: G.x2, z1: G.z1, z2: G.z2, h: G.alto }, { x1: G.cx - 3.5, x2: G.cx + 3.5, z1: G.z2, z2: G.z2 + 2.4, h: .3, arbol: true });
+  // (los escalones del frente ya no frenan: por ahí se entra)
 }
 // Recorrido de la caravana por las calles (ida y vuelta a la Casa de Gobierno)
 const RUTA = [[28, 16], [16, 16], [16, -32], [-32, -32], [-32, 16], [16, 16], [28, 16]];
@@ -2246,6 +2277,8 @@ function pensarBot(b, dt) {
     else if (b.paquete) b.objetivo = ZONAS.muelle;
     else if (b.bolsa) b.objetivo = ZONAS.guarida;
     else if (CAR.activa && (b.asalta ??= Math.random() < .35)) b.objetivo = { x: CAR.x, z: CAR.z };
+    else if (Date.now() > GOB.listo && (b.vaGob ??= Math.random() < .3)) { b.objetivo = { x: GOB.bovX, z: GOB.bovZ };
+      if (Math.hypot(b.x - GOB.bovX, b.z - GOB.bovZ) < 1.6) { enviar("maletin", { quien: b.id }); robarMaletin(b.id); b.vaGob = undefined; } }
     else if (b.narco === undefined ? (b.narco = Math.random() < .5) : b.narco) b.objetivo = { x: 45, z: -45.5 };
     else if (presos && (b.rescata ??= Math.random() < .5)) b.objetivo = ZONAS.carcel;   // decide una vez (antes cambiaba de idea en cada cuadro y temblaba en el lugar)
     else b.objetivo = ZONAS.banco;
@@ -2335,7 +2368,7 @@ function empezar(finTs) {
   $("menu").classList.add("oculto"); $("sala").classList.add("oculto"); $("fin").classList.add("oculto");
   for (const s of Object.values(jug)) if (s.mesh) escena.remove(s.mesh);
   modoCam = 0;
-  jug = {}; botin = 0; BOLSAS.forEach(b => { b.hasta = 0; b.mesh.visible = true; });
+  jug = {}; botin = 0; GOB.listo = 0; BOLSAS.forEach(b => { b.hasta = 0; b.mesh.visible = true; });
   PAQUETES.forEach(p => p.hasta = 0); puerta.cerrada = true; puerta.hasta = 0;
   for (const k in capturas) delete capturas[k]; capturaListo = 0; resetPoliExtras(); resetCaravana(); crearCiviles(ES_TACTIL ? 10 : 16);
   quitarDisturbio(); DIST.prog = 0; DIST.prox = Date.now() + 35000;
@@ -2417,6 +2450,13 @@ function loop(t) {
       let cc = null, dm = 2.2; for (const c of civiles) { const d = Math.hypot(c.x - yo.x, c.z - yo.z); if (d < dm) { dm = d; cc = c; } }
       if (cc) { pistaDepto = `🪪 E: pedirle documentos a ${cc.nombre}`; if (accionPedida) { accionPedida = false; abrirControl(cc); } }
     }
+    // Bóveda de la Casa de Gobierno (solo ladrones)
+    if (yo.equipo === "ladron" && !yo.preso && !pistaDepto && Math.hypot(yo.x - GOB.bovX, yo.z - GOB.bovZ) < 1.8) {
+      const e = Math.ceil((GOB.listo - Date.now()) / 1000);
+      pistaDepto = e > 0 ? `💼 La bóveda está vacía (vuelve a llenarse en ${e} s)` : yo.bolsa || yo.paquete ? "💼 Ya llevás algo: entregalo primero" : "💼 E: robar el maletín presidencial ($3.000)";
+      if (accionPedida && e <= 0 && !yo.bolsa && !yo.paquete) { accionPedida = false; enviar("maletin", { quien: yo.id }); robarMaletin(yo.id); }
+    }
+    if (GOB.rueda) GOB.rueda.rotation.z += dt * (Date.now() < GOB.listo ? 3 : .2);
     // Supermercado: cualquiera puede comprarle al señor Li
     if (!miAuto && !yo.preso && Math.hypot(yo.x - senorLi.position.x, yo.z - (senorLi.position.z + 2.6)) < 1.8) {
       pistaDepto = "🛒 E: comprarle al señor Li";
@@ -2560,7 +2600,7 @@ function loop(t) {
 }
 // Junta en una sola malla todos los objetos fijos que comparten material (veredas, rayas, carteles pintados, aeropuerto...)
 function fusionarEstaticos() {
-  const dyn = new Set([SUPER.pata, AER.faro, puerta.mesh, conoLuz, ...AGU.fuegos, ...PAQUETES.map(p => p.mesh), ...balizasCarcel.map(b => b.b)]);
+  const dyn = new Set([GOB.rueda, SUPER.pata, AER.faro, puerta.mesh, conoLuz, ...AGU.fuegos, ...PAQUETES.map(p => p.mesh), ...balizasCarcel.map(b => b.b)]);
   const grupos = new Map();
   for (const m of [...escena.children]) {
     if (!m.isMesh || m.isInstancedMesh || m.children.length || dyn.has(m) || Array.isArray(m.material) || !m.visible) continue;
