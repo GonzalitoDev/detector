@@ -289,12 +289,12 @@
   <button class="g" id="volver">⬅ Volver</button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="vendor/supabase.min.js"></script>
 <script src="comun.js"></script>
 <script src="db.js"></script>
 <script src="voz.js"></script>
 <script type="module">
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import * as THREE from "./vendor/three.module.js";
 
 const $ = id => document.getElementById(id);
 const esc = t => String(t).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1666,12 +1666,14 @@ function nuevoJug(id, nombre, eq, bot, cl) {
 }
 
 // ================== RED ==================
-const SB = supabase.createClient("https://eluxvcixctwnzyysvoor.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsdXh2Y2l4Y3R3bnp5eXN2b29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMTk5NzAsImV4cCI6MjEwMzY5NTk3MH0.Gq29eHc-X1vEfbxM_9E5mlOynIJCh0pBbsSOPX923IQ", { realtime: { params: { eventsPerSecond: 25 } } });   // por defecto son 10 por segundo y se perdían mensajes
+// Si la librería del online no carga (internet lento o bloqueada), la práctica igual tiene que andar
+const SB = typeof supabase === "undefined" ? null : supabase.createClient("https://eluxvcixctwnzyysvoor.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsdXh2Y2l4Y3R3bnp5eXN2b29yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMTk5NzAsImV4cCI6MjEwMzY5NTk3MH0.Gq29eHc-X1vEfbxM_9E5mlOynIJCh0pBbsSOPX923IQ", { realtime: { params: { eventsPerSecond: 25 } } });   // por defecto son 10 por segundo y se perdían mensajes
 const enviar = (ev, p) => { if (online && canal) canal.send({ type: "broadcast", event: ev, payload: p }); };
 function conectar(cod, host) {
   online = true; soyHost = host; codigo = cod;
   $("menu").classList.add("oculto"); $("sala").classList.remove("oculto"); $("codigo").textContent = cod;
   $("arrancar").classList.toggle("oculto", !host); $("espera").textContent = host ? "Cuando estén todos, tocá Empezar." : "Esperando que el creador empiece...";
+  if (!SB || !navigator.onLine) { alert("Para jugar online hace falta internet. Sin conexión podés jugar la práctica con bots."); location.reload(); return; }
   canal = SB.channel("polis-" + cod, { config: { broadcast: { self: false }, presence: { key: miId } } });
   Voz.preparar(canal, miId); Voz.nombre = id => jug[id]?.nombre;
   canal.on("presence", { event: "sync" }, () => {
