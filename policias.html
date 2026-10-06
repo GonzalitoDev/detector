@@ -1430,6 +1430,32 @@ function crearMoto(halcon = false) {
   g.userData = { rojo, azul: azulL, cartel: c, cuadro, ruedas: ruedasM, radio: .4 };
   escena.add(g); return g;
 }
+// Camioneta policial tipo pickup (doble cabina con caja atrás), blanca con franja azul — la puede usar cualquier poli
+function crearPickup() {
+  const g = new THREE.Group(), blanco = new THREE.MeshLambertMaterial({ color: 0xf2f4f7 }), azulM = new THREE.MeshLambertMaterial({ color: 0x1e4fd8 }), goma = new THREE.MeshLambertMaterial({ color: 0x111111 });
+  const vidrio = new THREE.MeshLambertMaterial({ color: 0x0b1118, polygonOffset: true, polygonOffsetFactor: -1 });
+  const bajo = extruir([[-2.6, .45], [-2.6, 1.15], [2.45, 1.15], [2.6, .95], [2.6, .45]], 2.0, blanco); g.add(bajo);           // chasis y laterales
+  const cab = extruir([[-.6, 1.1], [-.6, 1.95], [1.0, 1.95], [1.6, 1.15]], 1.9, blanco); g.add(cab);                             // doble cabina
+  const vid = extruir([[-.5, 1.22], [-.5, 1.85], [.95, 1.85], [1.45, 1.22]], 1.94, vidrio, .02); g.add(vid);
+  const parante = new THREE.Mesh(new THREE.BoxGeometry(1.96, .7, .1), blanco); parante.position.set(0, 1.55, .25); g.add(parante);
+  for (const sx of [-1, 1]) { const borde = new THREE.Mesh(new THREE.BoxGeometry(.08, .35, 2), blanco); borde.position.set(sx * .96, 1.3, -1.6); g.add(borde); }   // caja
+  const portón = new THREE.Mesh(new THREE.BoxGeometry(2, .35, .08), blanco); portón.position.set(0, 1.3, -2.6); g.add(portón);
+  const fondoCaja = new THREE.Mesh(new THREE.BoxGeometry(1.84, .05, 2), new THREE.MeshLambertMaterial({ color: 0x333333 })); fondoCaja.position.set(0, 1.16, -1.6); g.add(fondoCaja);
+  const rollbar = new THREE.Mesh(new THREE.BoxGeometry(1.9, .08, .08), new THREE.MeshLambertMaterial({ color: 0x222222 })); rollbar.position.set(0, 2.0, -.75); g.add(rollbar);
+  const matLetras = textoPlano("POLICÍA", "#1e4fd8", "#ffffff", 3.2, .4, 512);
+  for (const sx of [-1, 1]) {
+    const fr = new THREE.Mesh(new THREE.PlaneGeometry(5.1, .42), azulM.clone()); fr.position.set(sx * 1.011, .82, 0); fr.rotation.y = sx * Math.PI / 2; g.add(fr);
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(3.2, .4), matLetras); p.position.set(sx * 1.013, .82, -.2); p.rotation.y = sx * Math.PI / 2; g.add(p); }
+  const atras = new THREE.Mesh(new THREE.PlaneGeometry(1.6, .3), matLetras); atras.position.set(0, 1.3, -2.65); atras.rotation.y = Math.PI; g.add(atras);
+  const pt = new THREE.Mesh(new THREE.BoxGeometry(2.05, .25, .18), goma); pt.position.set(0, .55, 2.62); g.add(pt);
+  opticas(g, 2.6, -2.62, 1.0, .78, .38);
+  espejos(g, 1.0, 1.5, 1.2, 0xf2f4f7);
+  const { rojo, azul } = barraLuces(g, 0, 2.02, .3, 1.4);
+  const ruedas = [[-.95, 1.65], [.95, 1.65], [-.95, -1.65], [.95, -1.65]].map(([x, z]) => rueda(g, x, .44, z, .44, .3, 0xb0b0b0));
+  const c = cartel("🛻 CAMIONETA POLICIAL", "#1e4fd8"); c.scale.set(4, .85, 1); c.position.y = 3; c.visible = false; g.add(c);
+  g.userData = { rojo, azul, cartel: c, ruedas, radio: .44 };
+  escena.add(g); return g;
+}
 // Camioneta negra del Grupo Especial Táctico (para SWAT y Grupo Halcón)
 function crearCamioneta(texto = "GRUPO ESPECIAL TÁCTICO") {
   const g = new THREE.Group();
@@ -1463,7 +1489,7 @@ function crearCamioneta(texto = "GRUPO ESPECIAL TÁCTICO") {
 }
 // ================== ESTACIONAMIENTO POLICIAL ==================
 // Playón al lado del departamento: 2 filas de 5 cocheras, pasillo en el medio (se sale por el oeste o por el este)
-const ESTAC = { x1: -76, x2: -60, z1: -4, z2: 12, filaA: -.5, filaB: 8.5, ancho: 3.2 };
+const ESTAC = { x1: -76, x2: -60, z1: -4, z2: 18, filaA: -.5, filaB: 8.5, filaC: 15, ancho: 3.2 };   // fila C: camionetas policiales (en paralelo)
 {
   const E = ESTAC, cx = (E.x1 + E.x2) / 2, cz = (E.z1 + E.z2) / 2, w = E.x2 - E.x1, d = E.z2 - E.z1;
   const piso = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshLambertMaterial({ color: 0x1c1e24 })); piso.rotation.x = -Math.PI / 2; piso.position.set(cx, .02, cz); escena.add(piso);
@@ -1506,7 +1532,7 @@ const ESTAC = { x1: -76, x2: -60, z1: -4, z2: 12, filaA: -.5, filaB: 8.5, ancho:
   const barrera = new THREE.Mesh(new THREE.BoxGeometry(.12, 3.6, .12), new THREE.MeshBasicMaterial({ color: 0xff3030 })); barrera.position.set(E.x1 - .3, 1.9, pasA + .1); barrera.rotation.x = .15; escena.add(barrera);
   // Postes de luz con charco de luz
   const texL = textura((g, W, H) => { const gr = g.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W / 2); gr.addColorStop(0, "rgba(220,235,255,.5)"); gr.addColorStop(1, "rgba(220,235,255,0)"); g.fillStyle = gr; g.fillRect(0, 0, W, H); });
-  for (const [x, z] of [[E.x1 + 4, cz], [E.x2 - 4, cz]]) {
+  for (const [x, z] of [[E.x1 + 4, E.z1 + .3], [E.x2 - 4, E.z1 + .3], [E.x1 + 4, E.z2 - .3], [E.x2 - 4, E.z2 - .3]]) {   // en los bordes (antes estaban en el medio del pasillo)
     const p = new THREE.Mesh(new THREE.CylinderGeometry(.08, .12, 6, 6), matPoste); p.position.set(x, 3, z); escena.add(p);
     const f = new THREE.Mesh(new THREE.BoxGeometry(1.4, .15, .4), new THREE.MeshBasicMaterial({ color: 0xe8f4ff })); f.position.set(x, 6, z); escena.add(f);
     const c = new THREE.Mesh(new THREE.PlaneGeometry(12, 12), new THREE.MeshBasicMaterial({ map: texL, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); c.rotation.x = -Math.PI / 2; c.position.set(x, .06, z); escena.add(c);
@@ -1521,7 +1547,9 @@ const autos = (() => {
     return { i, tipo, r: tipo === "camioneta" ? 1.6 : tipo === "moto" ? .7 : AUTO_R, max: tipo === "camioneta" ? 23 : tipo === "moto" ? 31 : 26, x0: p.x0, z0: p.z0, h0: p.h0, x: p.x0, z: p.z0, h: p.h0, vel: 0, conductor: null, sirena: true,
       tx: p.x0, tz: p.z0, th: p.h0, mesh: tipo === "camioneta" ? crearCamioneta() : tipo === "moto" ? crearMoto() : crearPatrullero(i >= 2 ? "provincia" : "ciudad") }; })
     .concat([49, 52.5, 56].map((z, k) => ({ i: tipos.length + k, tipo: "moto", halcon: true, r: .7, max: 34, x0: -91, z0: z, h0: Math.PI, x: -91, z, h: Math.PI, vel: 0, conductor: null, sirena: true,
-      tx: -91, tz: z, th: Math.PI, mesh: crearMoto(true) })));   // motos del Grupo Halcón, en el galpón de la base
+      tx: -91, tz: z, th: Math.PI, mesh: crearMoto(true) })))
+    .concat([-72, -66.4, -60.8].map((x, k) => ({ i: tipos.length + 3 + k, tipo: "camioneta", pickup: true, r: 1.5, max: 25, x0: x, z0: ESTAC.filaC, h0: Math.PI / 2, x, z: ESTAC.filaC, h: Math.PI / 2, vel: 0, conductor: null, sirena: true,
+      tx: x, tz: ESTAC.filaC, th: Math.PI / 2, mesh: crearPickup() })));   // motos del Grupo Halcón (galpón de la base) y camionetas policiales (cualquier poli)
 })();
 function resetAutos() { for (const a of autos) Object.assign(a, { x: a.x0, z: a.z0, tx: a.x0, tz: a.z0, h: a.h0, th: a.h0, vel: 0, conductor: null, sirena: true, balizas: false }); }
 let miAuto = null, sirenaT = 0, sirenaAlt = false, mirarAuto = 0;
@@ -1556,11 +1584,11 @@ function ponerCabina(a) {
 function subirAuto(a) { setTimeout(pintarPanel, 0);
   if (a.propio) { if (yo.preso) return; a.conductor = yo.id; miAuto = a; yaw = a.h + Math.PI; pitch = -.05; grande(`🔑 ${MODELO(a.modeloId).nom}`, "#7dff8a"); beep(500, .1); return; }
   if (a.conductor || yo.equipo !== "poli" || yo.preso) return;
-  if (a.tipo === "camioneta" && !ARMADO(yo.clase)) { grande("🚙 Solo para SWAT y Grupo Halcón", "#f2c200"); return; }
+  if (a.tipo === "camioneta" && !a.pickup && !ARMADO(yo.clase)) { grande("🚙 Solo para SWAT y Grupo Halcón", "#f2c200"); return; }
   if (a.halcon && yo.clase !== "halcon") { grande("🦅 Moto del Grupo Halcón: solo para el Halcón", "#3dff6a"); return; }
   a.conductor = yo.id; miAuto = a; yaw = a.h + Math.PI; pitch = -.05;
   enviar("auto", { i: a.i, quien: yo.id, sube: true });
-  grande(a.tipo === "camioneta" ? "🚙 GRUPO ESPECIAL TÁCTICO" : a.tipo === "moto" ? (a.halcon ? "🦅 ¡HALCÓN EN MOTO!" : "🏍️ ¡MOTORIZADA!") : "🚓 ¡A PATRULLAR!", a.tipo === "camioneta" ? "#f2c200" : "#5a8aff"); beep(500, .1); setTimeout(() => beep(800, .1), 120);
+  grande(a.pickup ? "🛻 ¡CAMIONETA POLICIAL!" : a.tipo === "camioneta" ? "🚙 GRUPO ESPECIAL TÁCTICO" : a.tipo === "moto" ? (a.halcon ? "🦅 ¡HALCÓN EN MOTO!" : "🏍️ ¡MOTORIZADA!") : "🚓 ¡A PATRULLAR!", a.tipo === "camioneta" ? "#f2c200" : "#5a8aff"); beep(500, .1); setTimeout(() => beep(800, .1), 120);
 }
 function bajarAuto() { setTimeout(pintarPanel, 0);
   const a = miAuto; if (!a) return;
@@ -2929,7 +2957,7 @@ function loop(t) {
       else if (objetivo) pista = miAuto ? `🚓 ¡Atropellalo o tocá E para atrapar a ${objetivo.nombre}!` : `🚔 ¡Click para atrapar a ${objetivo.nombre}!`;
       else if (miAuto) pista = document.body.classList.contains("tactil") ? "🚓 Botón azul 🚓 para bajarte · sirenas en el panel" : "🚓 F para bajarte · H sirena · Espacio freno";
       else if (autoCerca && autoCerca.propio) pista = "🔑 F: subirte a tu auto";
-      else if (autoCerca) pista = autoCerca.tipo === "camioneta"
+      else if (autoCerca) pista = autoCerca.pickup ? "🛻 Tocá F para subirte a la camioneta policial" : autoCerca.tipo === "camioneta"
         ? (ARMADO(yo.clase) ? "🚙 Tocá F para subirte a la camioneta del Grupo Especial Táctico" : "🚙 Camioneta del Grupo Especial Táctico: solo SWAT y Grupo Halcón")
         : autoCerca.tipo === "moto" ? (autoCerca.halcon ? (yo.clase === "halcon" ? "🦅 Tocá F para subirte a la moto Halcón" : "🦅 Moto del Grupo Halcón: solo para el Halcón") : "🏍️ Tocá F para subirte a la moto") : "🚓 Tocá F para subirte al patrullero";
       const llevo = Object.values(jug).filter(s => s.esposado === yo.id);
