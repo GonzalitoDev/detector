@@ -397,6 +397,9 @@ const BP = { x1: -124, x2: -50, z1: -150, puerta1: -60, puerta2: -52, garitaZ: -
 const ACAD = { x1: -150, x2: -84, z1: 77, z2: 140, puerta1: 76, puerta2: 82, instX: -98, instZ: 84 };
 // Base de la Policía de la Ciudad: afuera de la ciudad al sureste, al final del camino del aeropuerto (pasando la zona de autos)
 const CIUD = { x1: 86, x2: 172, z1: 132, z2: 196, puerta1: 88, puerta2: 96 };
+// Complejo del Servicio Penitenciario: afuera de la ciudad, al norte del supermercado (se sigue por la calle x = -8)
+const PEN = { x1: -46, x2: 30, z1: -206, z2: -132, puerta1: -12, puerta2: -4,
+  ex1: -32, ex2: 16, ez1: -192, ez2: -160, entrada1: -10, entrada2: -6, pasilloZ: -174, celdaZ: -184, mesaX: -8, mesaZ: -165, palancaX: 13, palancaZ: -176 };
 // Puerta blindada de la Casa de Gobierno (b: cerrada; pasa: el que se está moviendo es el Presidente)
 const PGOB = { b: false, pasa: false };
 const ZONAS = { banco: { x: 4, z: -44, r: 5 } /* adentro del edificio del banco (manzana x -4..12, z -52..-36) */, guarida: { x: 40, z: 95, r: 5 } /* en el aguantadero, afuera de la ciudad (sur) */, carcel: { x: -44, z: 44, r: 5 },
@@ -456,7 +459,8 @@ function choca(x, z, r = RADIO, eq = null) {
     (x > PUERTO.agua + r || (x > PUERTO.muelleX + r && z > PUERTO.muelleZ1 + r && z < PUERTO.muelleZ2 - r));   // al agua no se puede entrar, salvo por el muelle
   const enAgu = z > mitad - 1 && x > AGU.x1 + r && x < AGU.x2 - r && z < AGU.z2 - r;
   const enGang = z > mitad - 1 && x > GANG.x1 + r && x < GANG.x2 - r && z < GANG.z2 - r;
-  const enSuper = z < -mitad + 1 && x > SUPER.x1 + r && x < SUPER.x2 - r && z > SUPER.z1 + r;
+  const enSuper = z < -mitad + 1 && x > SUPER.x1 + r && x < SUPER.x2 - r && (z > SUPER.z1 + r || (x > PEN.puerta1 + r && x < PEN.puerta2 - r));
+  if (z < SUPER.z1 + 2 && x > PEN.x1 + r && x < PEN.x2 - r && z > PEN.z1 + r && (z < PEN.z2 - r || (x > PEN.puerta1 + r && x < PEN.puerta2 - r))) return cercanos(x, z).some(e => x + r > e.x1 && x - r < e.x2 && z + r > e.z1 && z - r < e.z2);   // complejo penitenciario
   const enBP = z < -mitad + 1 && x > BP.x1 + r && x < BP.x2 - r && z > BP.z1 + r;
   if (enBP && !BP.pasa && z < BP.garitaZ + .3 + r && z > BP.garitaZ - .3 - r && x > BP.puerta1 && x < BP.puerta2) return true;   // barrera del barrio: los guardias solo dejan pasar a la policía y al presidente
   const enPM = z < -mitad + 1 && x > PM.x1 + r && x < PM.x2 - r && z > PM.z1 + r &&
@@ -1421,6 +1425,81 @@ function actualizarCurso(t) {
   const h = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, .08, 28), L(0x2a2a2a)); h.position.set(160, .05, 184); escena.add(h);
   const hl = cartel("H", "#2a2a2a"); hl.scale.set(2.4, 2.4, 1); hl.position.set(160, .35, 184); escena.add(hl);
 }
+// ================== SERVICIO PENITENCIARIO (complejo con interior) ==================
+// Muro alto con alambre, torres de vigilancia, patio, y un pabellón con interior: guardia de entrada con mostrador,
+// pasillo, 8 celdas con rejas (algunas con internos), comedor y la palanca de las celdas al fondo.
+// La policía puede trasladar acá a un preso esposado (+$500). Los presos del penal solo se liberan con la palanca de adentro.
+const PENAL = { celdas: [] };
+{
+  const P = PEN, L = c => new THREE.MeshLambertMaterial({ color: c });
+  const plano = (x1, z1, x2, z2, c, y) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(x2 - x1, z2 - z1), L(c)); m.rotation.x = -Math.PI / 2; m.position.set((x1 + x2) / 2, y, (z1 + z2) / 2); escena.add(m); };
+  const caja = (x1, z1, x2, z2, h, c, choque = true, y0 = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1, h, z2 - z1), typeof c === "number" ? L(c) : c); m.position.set((x1 + x2) / 2, y0 + h / 2, (z1 + z2) / 2); escena.add(m); if (choque) edificios.push({ x1, x2, z1, z2, h }); return m; };
+  plano(P.x1, P.z1, P.x2, P.z2, 0x6a6a5a, .01);
+  plano(P.puerta1, P.ez2, P.puerta2, P.z2 + 2, 0x2b2d33, .015);                       // camino de entrada
+  // Muro perimetral alto gris con alambre de púas arriba
+  const gris = L(0x8a8a86);
+  caja(P.x1, P.z1, P.x2, P.z1 + .5, 4.5, gris); caja(P.x1, P.z1, P.x1 + .5, P.z2, 4.5, gris); caja(P.x2 - .5, P.z1, P.x2, P.z2, 4.5, gris);
+  caja(P.x1, P.z2 - .5, P.puerta1, P.z2, 4.5, gris); caja(P.puerta2, P.z2 - .5, P.x2, P.z2, 4.5, gris);
+  for (const [x1, z1, x2, z2] of [[P.x1, P.z1, P.x2, P.z1 + .5], [P.x1, P.z1, P.x1 + .5, P.z2], [P.x2 - .5, P.z1, P.x2, P.z2]]) { const a = new THREE.Mesh(new THREE.CylinderGeometry(.25, .25, Math.max(x2 - x1, z2 - z1), 8, 1, true), new THREE.MeshBasicMaterial({ color: 0x555555, wireframe: true })); a.rotation.z = x2 - x1 > z2 - z1 ? Math.PI / 2 : 0; if (z2 - z1 > x2 - x1) a.rotation.x = Math.PI / 2; a.position.set((x1 + x2) / 2, 4.8, (z1 + z2) / 2); escena.add(a); }
+  // Torres de vigilancia en las esquinas
+  for (const [x, z] of [[P.x1 + 3, P.z1 + 3], [P.x2 - 3, P.z1 + 3], [P.x1 + 3, P.z2 - 3], [P.x2 - 3, P.z2 - 3]]) { caja(x - 1, z - 1, x + 1, z + 1, 7, 0x5a5a56);
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.6, 2.6), L(0x3a3a36)); cab.position.set(x, 7.8, z); escena.add(cab);
+    const foco = new THREE.Mesh(new THREE.BoxGeometry(.5, .35, .35), new THREE.MeshBasicMaterial({ color: 0xfff6c0 })); foco.position.set(x, 8.8, z); escena.add(foco); }
+  // Pabellón: paredes con la puerta de entrada al sur
+  const pared = L(0xc8c0b0), H = 5;
+  caja(P.ex1, P.ez1, P.ex2, P.ez1 + .4, H, pared); caja(P.ex1, P.ez1, P.ex1 + .4, P.ez2, H, pared); caja(P.ex2 - .4, P.ez1, P.ex2, P.ez2, H, pared);
+  caja(P.ex1, P.ez2 - .4, P.entrada1, P.ez2, H, pared); caja(P.entrada2, P.ez2 - .4, P.ex2, P.ez2, H, pared);
+  caja(P.entrada1, P.ez2 - .4, P.entrada2, P.ez2, H - 3, pared, false, 3);
+  const techo = new THREE.Mesh(new THREE.BoxGeometry(P.ex2 - P.ex1 + .6, .4, P.ez2 - P.ez1 + .6), L(0x5a5a56)); techo.position.set((P.ex1 + P.ex2) / 2, H + .2, (P.ez1 + P.ez2) / 2); escena.add(techo);
+  plano(P.ex1, P.ez1, P.ex2, P.ez2, 0x9a9a92, .02);
+  const cP = cartel("🔒 SERVICIO PENITENCIARIO", "#3a3a36"); cP.scale.set(8, 1.6, 1); cP.position.set((P.ex1 + P.ex2) / 2, H + 2, P.ez2); escena.add(cP);
+  const cE = cartel("🔒 PENAL ↑", "#3a3a36"); cE.scale.set(4, 1, 1); cE.position.set(P.puerta2 + 2, 5, SUPER.z1 + 2); escena.add(cE);
+  // Adentro: mostrador de guardia y tabique con molinete (el pasillo queda libre)
+  caja(-14, P.mesaZ - .4, -10.6, P.mesaZ + .4, 1.1, 0x3a3a36); caja(-5.4, P.mesaZ - .4, -2, P.mesaZ + .4, 1.1, 0x3a3a36);
+  const cG = cartel("🛂 Guardia", "#3a3a36"); cG.scale.set(2.2, .55, 1); cG.position.set(-12, 2.6, P.mesaZ); escena.add(cG);
+  // Celdas a lo largo de la pared del fondo: 8 celdas de 4 m con rejas al frente, camastro e inodoro
+  const hierro = L(0x2a2d33);
+  for (let i = 0; i < 8; i++) { const x1 = P.ex1 + 4 + i * 5, x2 = x1 + 4, cx = (x1 + x2) / 2;
+    caja(x1 - .5, P.ez1 + .4, x1, P.celdaZ + 2, H, pared);                                                // tabique
+    for (let k = 0; k < 9; k++) { const b = new THREE.Mesh(new THREE.CylinderGeometry(.04, .04, H - .5, 6), hierro); b.position.set(x1 + .25 + k * .44, (H - .5) / 2, P.celdaZ + 2); escena.add(b); }
+    edificios.push({ x1, x2, z1: P.celdaZ + 1.9, z2: P.celdaZ + 2.1, h: H, arbol: true });                 // rejas: no se pasa
+    caja(x1 + .2, P.ez1 + .5, x1 + 1.2, P.ez1 + 2.5, .5, 0x6a5a4a, false);                                    // camastro
+    const ino = new THREE.Mesh(new THREE.CylinderGeometry(.22, .18, .45, 10), L(0xe8e8e8)); ino.position.set(x2 - .5, .22, P.ez1 + .8); escena.add(ino);
+    const n = cartel(String(i + 1), "#3a3a36"); n.scale.set(.6, .4, 1); n.position.set(cx, H - .4, P.celdaZ + 2.2); escena.add(n);
+    PENAL.celdas.push({ x: cx, z: P.celdaZ - .5 }); }
+  caja(P.ex2 - 4, P.ez1 + .4, P.ex2 - 3.6, P.celdaZ + 2, H, pared);
+  // Comedor: mesas largas cerca de la entrada (del lado oeste)
+  for (const z of [-170, -166]) { caja(-28, z - .4, -20, z + .4, .8, 0x7a6a5a); }
+  // Palanca de las celdas (al fondo del pasillo, lado este)
+  caja(P.palancaX - .3, P.palancaZ - .3, P.palancaX + .3, P.palancaZ + .3, 1.2, 0x8a1a1a);
+  const cL = cartel("🔓 Palanca de celdas", "#8a1a1a"); cL.scale.set(2.6, .6, 1); cL.position.set(P.palancaX, 2.2, P.palancaZ); escena.add(cL);
+  // Patio con aro de básquet (afuera, al este del pabellón)
+  plano(18, -190, 28, -166, 0x8a8a7a, .02);
+  const aro = new THREE.Mesh(new THREE.TorusGeometry(.4, .04, 6, 16), L(0xff6a10)); aro.rotation.x = Math.PI / 2; aro.position.set(23, 3, -188); escena.add(aro);
+  caja(22.9, -189, 23.1, -188.8, 3, 0x444444);
+}
+// Internos (de adorno, con mameluco naranja) y guardias del penal
+function prepararPenal() {
+  if (PENAL.listo) return; PENAL.listo = true;
+  for (const i of [1, 3, 4, 6]) { const c = crearCivil(4), m = c.mesh || c; m.traverse(o => { if (o.isMesh && o.position.y > .5 && o.position.y < 1.8 && o.geometry.parameters?.height > .4) o.material = new THREE.MeshLambertMaterial({ color: 0xf07a20 }); });
+    const cel = PENAL.celdas[i]; m.position.set(cel.x + (i % 2 ? .6 : -.6), 0, cel.z - .8); m.rotation.y = 0; escena.add(m); }
+  for (const [x, z, ry] of [[-12, PEN.mesaZ - 1.2, Math.PI], [0, PEN.pasilloZ + 1, -Math.PI / 2], [PEN.palancaX - 1.5, PEN.palancaZ + 1, -Math.PI / 2]]) {
+    const c = crearCivil(5), m = c.mesh || c; m.traverse(o => { if (o.isMesh && o.material?.color?.getHex?.() === 0x555555) o.material = new THREE.MeshLambertMaterial({ color: 0x5a5f66 }); });
+    const gorra = new THREE.Mesh(new THREE.CylinderGeometry(.21, .2, .12, 12), new THREE.MeshLambertMaterial({ color: 0x2a2e33 })); gorra.position.y = 1.96; m.add(gorra);
+    m.position.set(x, 0, z); m.rotation.y = ry; escena.add(m); edificios.push({ x1: x - .3, x2: x + .3, z1: z - .3, z2: z + .3, h: 2, arbol: true }); }
+}
+function aLaCeldaPenal(s) { const c = PENAL.celdas[Math.floor(Math.random() * PENAL.celdas.length)]; s.x = s.tx = c.x + (Math.random() - .5) * 2; s.z = s.tz = c.z - Math.random(); s.esposado = null; s.penal = true; }
+function trasladarPenal(id, idPoli) {
+  const s = jug[id]; if (!s || !s.esposado) return; aLaCeldaPenal(s);
+  const p = jug[idPoli]; feed(`🔒 ${p ? p.nombre : "La policía"} trasladó a ${s.nombre} al Servicio Penitenciario`);
+  if (p === yo) { ganar(500, "traslado al penal"); grande("🔒 ¡PRESO ALOJADO EN EL PENAL!", "#7dff8a"); beep(600, .15, "triangle"); }
+  if (s === yo) grande("🔒 Estás en una celda del Servicio Penitenciario", "#5a8aff");
+}
+function liberarPenal(idQuien) {
+  let n = 0; for (const s of Object.values(jug)) if (s.equipo === "ladron" && s.preso && s.penal) { s.preso = false; s.penal = false; n++; if (s === yo || s.bot) { const l = lugarLibre({ x: (PEN.ex1 + PEN.ex2) / 2, z: PEN.pasilloZ }, 4); s.x = s.tx = l.x; s.z = s.tz = l.z; } }
+  if (!n) return; const q = jug[idQuien]; feed(`🔓 ${q ? q.nombre : "Alguien"} abrió las celdas del penal: ${n} libre${n > 1 ? "s" : ""}`); beep(1200, .2, "triangle");
+  if (yo.equipo === "ladron") grande("🔓 ¡SE ABRIERON LAS CELDAS!", "#7dff8a"); else grande("🚨 ¡FUGA EN EL PENAL!", "#ff6a6a");
+}
 // ================== AGUANTADERO (guarida de los ladrones) ==================
 // Un predio abandonado afuera de la ciudad: galpones viejos, desarmadero de autos, tachos con fuego y contenedor-oficina
 {
@@ -2264,6 +2343,8 @@ function conectar(cod, host) {
     .on("broadcast", { event: "atrapa" }, ({ payload: p }) => atrapado(p.ladron, p.poli))
     .on("broadcast", { event: "admin" }, ({ payload: p }) => accionAdmin(p))
     .on("broadcast", { event: "gobpuerta" }, ({ payload: p }) => puertaGob(p))
+    .on("broadcast", { event: "penal" }, ({ payload: p }) => trasladarPenal(p.id, p.poli))
+    .on("broadcast", { event: "liberaPenal" }, ({ payload: p }) => liberarPenal(p.quien))
     .on("broadcast", { event: "decreto" }, ({ payload: p }) => decreto(p))
     .on("broadcast", { event: "libera" }, ({ payload: p }) => liberar(p.quien))
     .on("broadcast", { event: "entregaPreso" }, ({ payload: p }) => { const s = jug[p.id]; if (s && p.poli === "") { s.esposado = null; return; } entregarPreso(p.id, p.poli); })
@@ -2305,7 +2386,7 @@ function recibirPos(p) {
     s._rt = ahora; }
   s.tx = p.x; s.tz = p.z; s.rot = p.rot + Math.PI;   // la cámara mira hacia -z y el muñeco hacia +z
   // (antes esta parte había quedado adentro del comentario: no se actualizaba preso/bolsa/auto y los jugadores "se iban" a los 8 s)
-  if (p.res !== undefined) s.res = p.res; s.preso = !!p.preso; s.bolsa = !!p.bolsa; s.paquete = !!p.paq; s.visto = Date.now(); s.auto = p.auto ?? null; s.esposado = s.preso ? (p.esp || null) : null; s.adm = !!p.adm && /^gonza/i.test(s.nombre || ""); s.pres = !!p.pres && /^gonza/i.test(s.nombre || ""); s.ng = +p.ng || 0; s.cv = !!p.cv; s.orden = ["seguir", "quietos", "perimetro"].includes(p.po) ? p.po : "seguir"; s.ancla = Array.isArray(p.pa) ? { x: +p.pa[0], z: +p.pa[1] } : null;
+  if (p.res !== undefined) s.res = p.res; s.preso = !!p.preso; s.bolsa = !!p.bolsa; s.paquete = !!p.paq; s.visto = Date.now(); s.auto = p.auto ?? null; s.esposado = s.preso ? (p.esp || null) : null; s.penal = s.preso && !!p.pen; s.adm = !!p.adm && /^gonza/i.test(s.nombre || ""); s.pres = !!p.pres && /^gonza/i.test(s.nombre || ""); s.ng = +p.ng || 0; s.cv = !!p.cv; s.orden = ["seguir", "quietos", "perimetro"].includes(p.po) ? p.po : "seguir"; s.ancla = Array.isArray(p.pa) ? { x: +p.pa[0], z: +p.pa[1] } : null;
   autoRemoto(s, p.pc, p);
   if (s.auto !== null && autos[s.auto] && autos[s.auto] !== miAuto) { const a = autos[s.auto]; a.conductor = p.id; { const ahora = performance.now(), d = (ahora - (a._rt || 0)) / 1000;
     if (d > .03 && d < 1) { a.vx = Math.max(-60, Math.min(60, (p.x - a.tx) / d)); a.vz = Math.max(-60, Math.min(60, (p.z - a.tz) / d)); } else a.vx = a.vz = 0; a._rt = ahora; }
@@ -2313,9 +2394,9 @@ function recibirPos(p) {
 }
 
 function enviarPos() {
-      const npcs = soyHost ? Object.values(jug).filter(b => b.bot).map(b => ({ id: b.id, nombre: b.nombre, equipo: "ladron", clase: "ladron", res: Math.round(b.res), x: +b.x.toFixed(2), z: +b.z.toFixed(2), rot: +((b.rot || 0) - Math.PI).toFixed(2), preso: b.preso, esp: b.esposado || null, bolsa: b.bolsa, paq: !!b.paquete, auto: null })) : [];
+      const npcs = soyHost ? Object.values(jug).filter(b => b.bot).map(b => ({ id: b.id, nombre: b.nombre, equipo: "ladron", clase: "ladron", res: Math.round(b.res), x: +b.x.toFixed(2), z: +b.z.toFixed(2), rot: +((b.rot || 0) - Math.PI).toFixed(2), preso: b.preso, esp: b.esposado || null, pen: b.penal ? 1 : 0, bolsa: b.bolsa, paq: !!b.paquete, auto: null })) : [];
       const danos = danosPend.splice(0);
-      enviar("pos", { npcs, danos, id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, uni: yo.uni, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, adm: ADMIN.modo ? 1 : 0, pres: ADMIN.pres ? 1 : 0, ng: ADMIN.extra, cv: CONVOY.activo ? 1 : 0, po: ADMIN.orden, pa: ADMIN.ancla ? [+ADMIN.ancla.x.toFixed(1), +ADMIN.ancla.z.toFixed(1)] : null, esp: yo.esposado || null, bolsa: yo.bolsa, paq: !!yo.paquete,
+      enviar("pos", { npcs, danos, id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, uni: yo.uni, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, pen: yo.penal ? 1 : 0, adm: ADMIN.modo ? 1 : 0, pres: ADMIN.pres ? 1 : 0, ng: ADMIN.extra, cv: CONVOY.activo ? 1 : 0, po: ADMIN.orden, pa: ADMIN.ancla ? [+ADMIN.ancla.x.toFixed(1), +ADMIN.ancla.z.toFixed(1)] : null, esp: yo.esposado || null, bolsa: yo.bolsa, paq: !!yo.paquete,
       auto: miAuto && !miAuto.propio ? miAuto.i : null, pc: miAuto && miAuto.propio ? { m: miAuto.modeloId, c: miAuto.color, n: miAuto.neon || 0 } : null, ah: miAuto ? +miAuto.h.toFixed(2) : 0, av: miAuto ? +miAuto.vel.toFixed(1) : 0, sir: miAuto ? miAuto.sirena : false, sp: miAuto ? (miAuto.patron || "alterno") : "" });
 }
 // Si la pestaña queda en segundo plano el juego se pausa, pero igual avisamos que seguimos (antes a los 8 s te daban por ido)
@@ -2431,7 +2512,7 @@ function soltarEsposado(id, idQuien) {
   if (s === yo) grande("🔓 ¡TE SOLTARON! ¡Corré!", "#7dff8a"); beep(1200, .2, "triangle");
 }
 function liberar(idQuien) {
-  let n = 0; for (const s of Object.values(jug)) if (s.equipo === "ladron" && s.preso && !s.esposado) { s.preso = false; n++; const l = lugarLibre(ZONAS.carcel, 9); if (s === yo || s.bot) { s.x = s.tx = l.x; s.z = s.tz = l.z; } }
+  let n = 0; for (const s of Object.values(jug)) if (s.equipo === "ladron" && s.preso && !s.esposado && !s.penal) { s.preso = false; n++; const l = lugarLibre(ZONAS.carcel, 9); if (s === yo || s.bot) { s.x = s.tx = l.x; s.z = s.tz = l.z; } }
   if (!n) return;
   const q = jug[idQuien]; feed(`🔓 ${q ? q.nombre : "Alguien"} liberó a ${n} preso${n > 1 ? "s" : ""}`);
   if (yo.equipo === "ladron") grande("🔓 ¡LIBERADOS!", "#7dff8a"); else grande("😡 ¡SE ESCAPARON!", "#ff6a6a");
@@ -3215,7 +3296,8 @@ function pensarBot(b, dt) {
       if (Math.hypot(b.x - GOB.bovX, b.z - GOB.bovZ) < 1.6) { enviar("maletin", { quien: b.id }); robarMaletin(b.id); b.vaGob = undefined; } }
     else if (b.narco === undefined ? (b.narco = Math.random() < .5) : b.narco) b.objetivo = { x: 45, z: -45.5 };
     else if (presos && (b.rescata ??= Math.random() < .5)) b.objetivo = ZONAS.carcel;   // decide una vez (antes cambiaba de idea en cada cuadro y temblaba en el lugar)
-    else b.objetivo = ZONAS.banco;
+    else { let bo = null, dm = 1e9; for (const q of BOLSAS) if (q.hasta < Date.now()) { const d = Math.hypot(q.x - b.x, q.z - b.z); if (d < dm) { dm = d; bo = q; } }   // va a la bolsa libre más cercana (antes se quedaba quieto en el medio del banco)
+      b.objetivo = bo ? { x: bo.x, z: bo.z } : { x: ZONAS.narco.x, z: ZONAS.narco.z }; }
     // En el online, lo que hace un ladrón NPC se avisa a todos (el anfitrión es el que los maneja)
     if (b.bolsa && dentro(b, ZONAS.guarida)) { enviar("entrega", { quien: b.id }); entregar(b.id); }
     if (b.paquete && dentro(b, ZONAS.muelle)) { enviar("entregaP", { quien: b.id }); entregarPaquete(b.id); b.narco = Math.random() < .5; }
@@ -3300,6 +3382,7 @@ function buscarCamino(desde, hasta, peaton = false) {
 
 // ================== PARTIDA ==================
 function empezar(finTs) {
+  for (const s of Object.values(jug)) s.penal = false;
   CURSO.id = null;
   CONVOY.activo = false;
   ADMIN.extra = 0; PGOB.b = false;
@@ -3397,13 +3480,13 @@ function fondoMini() {
   const R = (x1, z1, x2, z2, col) => { g.fillStyle = col; g.fillRect((x1 - M.X0) * M.esc, (z1 - M.Z0) * M.esc, (x2 - x1) * M.esc, (z2 - z1) * M.esc); };
   const m = CIUDAD.tam / 2;
   R(-m, -m, m, m, "#3a3f4a");                                     // ciudad (calles)
-  for (const Z of [AER, ZAUTOS, AGU, SUPER, HALCON, PUERTO, GANG, { x1: BP.x1, x2: BP.x2, z1: BP.z1, z2: -CIUDAD.tam / 2 }, { x1: ACAD.x1, x2: -CIUDAD.tam / 2, z1: ACAD.z1, z2: ACAD.z2 }, CIUD]) R(Z.x1, Z.z1, Z.x2 ?? m, Z.z2 ?? -m, "#343a44");
+  for (const Z of [AER, ZAUTOS, AGU, SUPER, HALCON, PUERTO, GANG, { x1: BP.x1, x2: BP.x2, z1: BP.z1, z2: -CIUDAD.tam / 2 }, { x1: ACAD.x1, x2: -CIUDAD.tam / 2, z1: ACAD.z1, z2: ACAD.z2 }, CIUD, PEN]) R(Z.x1, Z.z1, Z.x2 ?? m, Z.z2 ?? -m, "#343a44");
   R(PM.x1, PM.z1, PM.x2, -m, "#3d3a36"); R(PM.x1, PM.aguaZ1, PM.x2, PM.aguaZ2, "#1d5a8a"); R(PUERTO.x1, PUERTO.z1, PUERTO.agua, PUERTO.z2, "#1d5a8a");
   R(-m, AUTOPISTA.z1, m, AUTOPISTA.z2, "#555a66");
   for (const e of edificios) if (!e.arbol && e.h > 1) R(e.x1, e.z1, e.x2, e.z2, "#8a93a6");
   M.fondo = c;
 }
-const LUGARES_MINI = [[ZONAS.banco, "🏦"], [ZONAS.carcel, "⛓️"], [ZONAS.guarida, "🏚️"], [ZONAS.narco, "💊"], [ZONAS.muelle, "🚤"], [{ x: CAMBIO.mostX, z: CAMBIO.mostZ }, "💵"], [{ x: 159, z: -190 }, "🏛️"], [{ x: -20, z: 52 }, "🏨"], [{ x: GANG.jefeX, z: GANG.jefeZ }, "🐺"], [{ x: GOB.cx, z: GOB.cz }, "🏛️"], [{ x: -84, z: -120 }, "🏡"], [{ x: -94, z: 110 }, "🎓"], [{ x: 125, z: 165 }, "🚓"], [{ x: 100, z: 72 }, "🚗"]];
+const LUGARES_MINI = [[ZONAS.banco, "🏦"], [ZONAS.carcel, "⛓️"], [ZONAS.guarida, "🏚️"], [ZONAS.narco, "💊"], [ZONAS.muelle, "🚤"], [{ x: CAMBIO.mostX, z: CAMBIO.mostZ }, "💵"], [{ x: 159, z: -190 }, "🏛️"], [{ x: -20, z: 52 }, "🏨"], [{ x: GANG.jefeX, z: GANG.jefeZ }, "🐺"], [{ x: GOB.cx, z: GOB.cz }, "🏛️"], [{ x: -84, z: -120 }, "🏡"], [{ x: -94, z: 110 }, "🎓"], [{ x: 125, z: 165 }, "🚓"], [{ x: -8, z: -176 }, "🔒"], [{ x: 100, z: 72 }, "🚗"]];
 function dibujarMini(t) {
   const cv = $("minimapa"); cv.style.display = jugando && MINI.modo < 2 ? "block" : "none"; cv.classList.toggle("chico", MINI.modo === 1);
   if (!jugando || MINI.modo === 2 || t - MINI.ult < 100 || !yo) return; MINI.ult = t;
@@ -3510,6 +3593,14 @@ function loop(t) {
         pistaDepto = (INV.tiene("diploma") ? "🎓 Ya te recibiste. " : "") + `👮 E: hacer el ${CURSOS[prox].nom} (+$${CURSOS[prox].premio})` + (Object.keys(CURSOS).length > 1 ? " · R: el otro curso" : "");
         if (accionPedida) { accionPedida = false; empezarCurso(prox); }
         if (teclas.KeyR) { teclas.KeyR = false; empezarCurso(Object.keys(CURSOS).find(k => k !== prox)); } } }
+    if (yo.x > PEN.x1 && yo.x < PEN.x2 && yo.z > PEN.z1 && yo.z < PEN.z2) { prepararPenal();
+      if (!miAuto && !yo.preso && Math.hypot(yo.x - PEN.mesaX, yo.z - (PEN.mesaZ + 1.2)) < 2.5 && !pistaDepto)
+        pistaDepto = yo.equipo === "poli" ? "🛂 Guardia: \"Si trae un preso esposado, lo alojamos acá (+$500)\"" : "🛂 Guardia: \"Visitas solo con turno\"";
+      if (!miAuto && !yo.preso && Math.hypot(yo.x - PEN.palancaX, yo.z - PEN.palancaZ) < 1.8) {
+        const hay = Object.values(jug).some(o => o.equipo === "ladron" && o.preso && o.penal);
+        if (yo.equipo === "ladron") { pistaDepto = hay ? "🔓 E: tirar la palanca y abrir las celdas" : "🔓 Palanca de celdas (no hay compañeros presos acá)"; if (accionPedida && hay) { accionPedida = false; enviar("liberaPenal", { quien: yo.id }); liberarPenal(yo.id); } }
+        else pistaDepto = "🔒 Palanca de las celdas (cuidala: los ladrones la quieren tirar)"; } }
+    if (yo.preso && yo.penal) { pistaDepto = "🔒 Estás en el penal: un compañero tiene que tirar la palanca del pabellón"; }
     // La banda: polis detienen miembros; ladrones hablan con el jefe (le venden el botín o hacen una changa)
     if (!miAuto && !yo.preso) {
       if (yo.equipo === "poli") { const m = BANDA.miembros.find(m => !m.vuelve && Math.hypot(m.x - yo.x, m.z - yo.z) < 1.9);
@@ -3580,7 +3671,8 @@ function loop(t) {
         ? (ARMADO(yo.clase) ? "🚙 Tocá F para subirte a la camioneta del Grupo Especial Táctico" : "🚙 Camioneta del Grupo Especial Táctico: solo SWAT y Grupo Halcón")
         : autoCerca.tipo === "moto" ? (autoCerca.halcon ? (yo.clase === "halcon" ? "🦅 Tocá F para subirte a la moto Halcón" : "🦅 Moto del Grupo Halcón: solo para el Halcón") : "🏍️ Tocá F para subirte a la moto") : "🚓 Tocá F para subirte al patrullero";
       const llevo = Object.values(jug).filter(s => s.esposado === yo.id);
-      if (llevo.length && dentro(yo, ZONAS.carcel, 3)) for (const s of llevo) { enviar("entregaPreso", { id: s.id, poli: yo.id }); entregarPreso(s.id, yo.id); }
+      if (llevo.length && Math.hypot(yo.x - PEN.mesaX, yo.z - (PEN.mesaZ + 1.2)) < 3) for (const s of llevo) { enviar("penal", { id: s.id, poli: yo.id }); trasladarPenal(s.id, yo.id); }
+      else if (llevo.length && dentro(yo, ZONAS.carcel, 3)) for (const s of llevo) { enviar("entregaPreso", { id: s.id, poli: yo.id }); entregarPreso(s.id, yo.id); }
       else if (llevo.length && !pista && !objetivo) pista = `🔗 Llevás a ${llevo.map(s => s.nombre).join(", ")}: andá a la ⛓️ CÁRCEL (${Math.round(Math.hypot(yo.x - ZONAS.carcel.x, yo.z - ZONAS.carcel.z))} m)`;
       if (objetivo && accionPedida) { enviar("atrapa", { ladron: objetivo.id, poli: yo.id }); atrapado(objetivo.id, yo.id); }
     } else if (!yo.preso) {
@@ -3866,7 +3958,7 @@ async function abrirAdmin() {
     ADMIN.ok = true; }
   $("admin").style.display = "block"; pintarAdmin(); }
 const LUGARES = [["🚔 Cárcel", ZONAS.carcel], ["🏦 Banco", ZONAS.banco], ["🏚️ Guarida", ZONAS.guarida], ["💊 Casa narco", ZONAS.narco], ["🚤 Muelle", ZONAS.muelle],
-  ["🏨 Hotel", { x: -20, z: 61 }], ["🚗 Conce", { x: 96, z: 72 }], ["🦅 Halcón", { x: -84, z: 42 }], ["🏛️ Mi residencia", { x: 159, z: -178 }], ["🐺 Los Lobos", { x: -32, z: 100 }], ["🏛️ Casa de Gobierno", { x: 28, z: 11 }], ["🏡 Barrio privado", { x: -56, z: -104 }], ["🎓 Academia", { x: -96, z: 88 }], ["🚓 Base Policía de la Ciudad", { x: 125, z: 160 }]];
+  ["🏨 Hotel", { x: -20, z: 61 }], ["🚗 Conce", { x: 96, z: 72 }], ["🦅 Halcón", { x: -84, z: 42 }], ["🏛️ Mi residencia", { x: 159, z: -178 }], ["🐺 Los Lobos", { x: -32, z: 100 }], ["🏛️ Casa de Gobierno", { x: 28, z: 11 }], ["🏡 Barrio privado", { x: -56, z: -104 }], ["🎓 Academia", { x: -96, z: 88 }], ["🚓 Base Policía de la Ciudad", { x: 125, z: 160 }], ["🔒 Servicio Penitenciario", { x: -8, z: -150 }]];
 function pintarAdmin() {
   const todos = Object.values(jug).filter(s => s !== yo), bt = (a, t, c = "#ffffff22") => `<button data-ad="${a}" style="margin:3px;padding:8px 10px;border:0;border-radius:10px;background:${c};color:#fff;font-weight:800">${t}</button>`;
   $("ad-cuerpo").innerHTML = `${bt("modo", ADMIN.modo ? "🛠️ Modo admin: PRENDIDO (tag en la cabeza)" : "🛠️ Modo admin: apagado", ADMIN.modo ? "#b8860b" : "#ffffff22")}<br><b>💵 Plata y vos</b><br>${bt("plata", "+$10.000", "#1e7a3a")}${bt("vida", "❤️ Curarme")}${bt("rapido", ADMIN.rapido ? "🐢 Velocidad normal" : "⚡ Súper velocidad")}
