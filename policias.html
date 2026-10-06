@@ -391,6 +391,8 @@ const META = 10000, DURACION = 240, ATRAPA = 2.2, RADIO = 0.45;
 // Cuadrícula de manzanas: edificios en las celdas, calles entre medio
 const CIUDAD = { tam: 168, cuadra: 16, calle: 8 };
 const edificios = [];   // { x1, z1, x2, z2, h }
+// Barrio privado "Los Aromos" (inventado): afuera de la ciudad al noroeste; se entra por un portón con guardia en la calle x = -56
+const BP = { x1: -124, x2: -50, z1: -150, puerta1: -60, puerta2: -52, garitaZ: -92, pasa: false };
 // Puerta blindada de la Casa de Gobierno (b: cerrada; pasa: el que se está moviendo es el Presidente)
 const PGOB = { b: false, pasa: false };
 const ZONAS = { banco: { x: 4, z: -44, r: 5 } /* adentro del edificio del banco (manzana x -4..12, z -52..-36) */, guarida: { x: 40, z: 95, r: 5 } /* en el aguantadero, afuera de la ciudad (sur) */, carcel: { x: -44, z: 44, r: 5 },
@@ -450,11 +452,13 @@ function choca(x, z, r = RADIO, eq = null) {
   const enAgu = z > mitad - 1 && x > AGU.x1 + r && x < AGU.x2 - r && z < AGU.z2 - r;
   const enGang = z > mitad - 1 && x > GANG.x1 + r && x < GANG.x2 - r && z < GANG.z2 - r;
   const enSuper = z < -mitad + 1 && x > SUPER.x1 + r && x < SUPER.x2 - r && z > SUPER.z1 + r;
+  const enBP = z < -mitad + 1 && x > BP.x1 + r && x < BP.x2 - r && z > BP.z1 + r;
+  if (enBP && !BP.pasa && z < BP.garitaZ + .3 + r && z > BP.garitaZ - .3 - r && x > BP.puerta1 && x < BP.puerta2) return true;   // barrera del barrio: los guardias solo dejan pasar a la policía y al presidente
   const enPM = z < -mitad + 1 && x > PM.x1 + r && x < PM.x2 - r && z > PM.z1 + r &&
     !(z > PM.aguaZ1 - r && z < PM.aguaZ2 + r && !PM.puentes.some(([a, b]) => x > a + r && x < b - r));   // al dique no se entra, salvo por los puentes
-  if (Math.abs(z + mitad) < r + .3 && x > -mitad && x < mitad && !(x > SUPER.puerta1 + r && x < SUPER.puerta2 - r) && !(x > PM.puerta1 + r && x < PM.puerta2 - r)) return true;   // paredón norte con portones al súper y a Puerto Madero
+  if (Math.abs(z + mitad) < r + .3 && x > -mitad && x < mitad && !(x > SUPER.puerta1 + r && x < SUPER.puerta2 - r) && !(x > BP.puerta1 + r && x < BP.puerta2 - r) && !(x > PM.puerta1 + r && x < PM.puerta2 - r)) return true;   // paredón norte con portones al súper y a Puerto Madero
   const enHalcon = x < -mitad + 1 && x > HALCON.x1 + r && z > HALCON.z1 + r && z < HALCON.z2 - r;
-  if (!enCiudad && !enAer && !enPuerto && !enAgu && !enGang && !enSuper && !enPM && !enHalcon) return true;
+  if (!enCiudad && !enAer && !enPuerto && !enAgu && !enGang && !enSuper && !enBP && !enPM && !enHalcon) return true;
   if (Math.abs(z - mitad) < r + .3 && x > -mitad && x < mitad && !(x > AGU.puerta1 + r && x < AGU.puerta2 - r) && !(x > GANG.puerta1 + r && x < GANG.puerta2 - r)) return true;   // paredón sur con portones al aguantadero y a la banda
   if (Math.abs(x + mitad) < r + .3 && z > -mitad - 1 && z < mitad + 1 && !(z > PUERTO.puerta1 + r && z < PUERTO.puerta2 - r) && !(z > HALCON.puerta1 + r && z < HALCON.puerta2 - r)) return true;   // paredón oeste con portones al puerto y a la base Halcón
   if (Math.abs(x - mitad) < r + .3 && z > -mitad - 1 && z < mitad + 1 && !(z > AER.puerta1 + r && z < AER.puerta2 - r) && !(z > AUTOPISTA.z1 + r && z < AUTOPISTA.z2 - r)) return true;   // paredón con portón hacia el aeropuerto
@@ -607,7 +611,7 @@ const coloresEd = [0x8a8fa3, 0xa38a7a, 0x7a8fa3, 0x9a9a9a, 0xb0a080, 0x6f7f8f];
   instancias(new THREE.CylinderGeometry(.03, .05, 4, 4), new THREE.MeshBasicMaterial({ color: 0xff3030 }), antenas);
   // Paredón del borde y edificios lejanos (no se puede llegar)
   const borde = [];
-  { const T = CIUDAD.tam + 1, cortes = [[-mitad, SUPER.puerta1], [SUPER.puerta2, PM.puerta1], [PM.puerta2, mitad]];   // lado norte: portones al súper y a Puerto Madero
+  { const T = CIUDAD.tam + 1, cortes = [[-mitad, BP.puerta1], [BP.puerta2, SUPER.puerta1], [SUPER.puerta2, PM.puerta1], [PM.puerta2, mitad]];   // lado norte: portones al súper y a Puerto Madero
     for (const [a, b] of cortes) borde.push([(a + b) / 2, 1.2, -mitad - .3, 0, (b - a) / T, 1, 1]); }
   { const T = CIUDAD.tam + 1, cortes = [[-mitad, GANG.puerta1], [GANG.puerta2, AGU.puerta1], [AGU.puerta2, mitad]];   // lado sur: portones a la banda y al aguantadero
     for (const [a, b] of cortes) borde.push([(a + b) / 2, 1.2, mitad + .3, 0, (b - a) / T, 1, 1]); }
@@ -624,6 +628,7 @@ const coloresEd = [0x8a8fa3, 0xa38a7a, 0x7a8fa3, 0x9a9a9a, 0xb0a080, 0x6f7f8f];
     if (Math.sin(a) > .55 && Math.cos(a) > -.25) continue;   // ni del lado del aguantadero
     if (Math.sin(a) < -.6 && Math.cos(a) > -.55 && Math.cos(a) < .4) continue;   // ni del lado del supermercado
     if (Math.sin(a) < -.3 && Math.cos(a) > .2) continue;   // ni del lado de Puerto Madero
+    if (Math.sin(a) * r < -mitad + 2 && Math.cos(a) * r > BP.x1 - 10 && Math.cos(a) * r < BP.x2 + 10) continue;   // ni en el barrio privado
     if (Math.sin(a) * r > mitad - 2 && Math.cos(a) * r > GANG.x1 - 10 && Math.cos(a) * r < GANG.x2 + 10) continue;   // ni en el territorio de la banda
     lejos.push([Math.cos(a) * r, h / 2, Math.sin(a) * r, -a, w, h, w]); }
   const tl = texVentanas.clone(), tle = texLuces.clone(); tl.needsUpdate = tle.needsUpdate = true; tl.repeat.set(2, 8); tle.repeat.set(2, 8);
@@ -1266,6 +1271,70 @@ $("su-ok").onclick = () => { $("super").style.display = "none"; if (!document.bo
   const c1 = cartel("🐺 TERRITORIO LOS LOBOS", "#5a1a1a"); c1.scale.set(7, 1.6, 1); c1.position.set((G.puerta1 + G.puerta2) / 2, 5, mitad + 6); escena.add(c1);
   const c2 = cartel("🐺 LOS LOBOS ↓", "#5a1a1a"); c2.scale.set(5, 1.25, 1); c2.position.set(G.puerta2 + 2, 5, mitad - 2); escena.add(c2);
   const c3 = cartel("🐺 El Lobo (el jefe)", "#5a1a1a"); c3.scale.set(4, 1, 1); c3.position.set(G.jefeX, 3.6, G.jefeZ + 3); escena.add(c3);
+}
+// ================== BARRIO PRIVADO "LOS AROMOS" ==================
+// Barrio cerrado con muro, portón con garita y barrera, guardias de seguridad (uno en la entrada y dos de ronda),
+// casas con jardín y pileta, una calle principal y una plaza con club house. Solo entran la policía y el Presidente.
+{
+  const B = BP, mitad = CIUDAD.tam / 2, L = c => new THREE.MeshLambertMaterial({ color: c });
+  const plano = (x1, z1, x2, z2, c, y) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(x2 - x1, z2 - z1), L(c)); m.rotation.x = -Math.PI / 2; m.position.set((x1 + x2) / 2, y, (z1 + z2) / 2); escena.add(m); };
+  const caja = (x1, z1, x2, z2, h, c, choque = true) => { const m = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1, h, z2 - z1), typeof c === "number" ? L(c) : c); m.position.set((x1 + x2) / 2, h / 2, (z1 + z2) / 2); escena.add(m); if (choque) edificios.push({ x1, x2, z1, z2, h }); return m; };
+  plano(B.x1, B.z1, B.x2, -mitad, 0x3f8a3a, .01);                                  // césped
+  plano(B.puerta1, B.z1 + 4, B.puerta2, -mitad, 0x2b2d33, .015);                   // calle principal
+  plano(B.x1 + 4, -124, B.puerta2, -116, 0x2b2d33, .015);                          // calle transversal
+  // Muro perimetral claro con tejas
+  const muro = L(0xe8e2d4);
+  caja(B.x1, B.z1, B.x2, B.z1 + .4, 2.6, muro); caja(B.x1, B.z1, B.x1 + .4, -mitad, 2.6, muro); caja(B.x2 - .4, B.z1, B.x2, -mitad, 2.6, muro);
+  // Garita y barrera en la entrada
+  caja(B.puerta2 + .4, B.garitaZ - 1.5, B.puerta2 + 3, B.garitaZ + 1.5, 2.6, 0xf2efe6);
+  const vid = new THREE.Mesh(new THREE.BoxGeometry(2.64, .8, 3.04), L(0x9fd4ff)); vid.position.set(B.puerta2 + 1.7, 1.7, B.garitaZ); escena.add(vid);
+  const techo = new THREE.Mesh(new THREE.BoxGeometry(3.2, .25, 3.6), L(0x8a3a2a)); techo.position.set(B.puerta2 + 1.7, 2.75, B.garitaZ); escena.add(techo);
+  BP.barrera = new THREE.Group(); BP.barrera.position.set(B.puerta2, 1, B.garitaZ); escena.add(BP.barrera);
+  { const brazo = new THREE.Mesh(new THREE.BoxGeometry(B.puerta2 - B.puerta1, .15, .15), new THREE.MeshBasicMaterial({ color: 0xff3030 })); brazo.position.x = -(B.puerta2 - B.puerta1) / 2; BP.barrera.add(brazo);
+    for (let k = 0; k < 4; k++) { const fr = new THREE.Mesh(new THREE.BoxGeometry(.5, .16, .16), new THREE.MeshBasicMaterial({ color: 0xffffff })); fr.position.x = -1 - k * 2; BP.barrera.add(fr); } }
+  const c1 = cartel("🏡 BARRIO PRIVADO LOS AROMOS", "#2e5a2e"); c1.scale.set(8, 1.6, 1); c1.position.set((B.puerta1 + B.puerta2) / 2, 4.6, B.garitaZ - .5); escena.add(c1);
+  const c2 = cartel("🏡 LOS AROMOS ↑", "#2e5a2e"); c2.scale.set(5, 1.25, 1); c2.position.set(B.puerta1 - 2, 5, -mitad + 2); escena.add(c2);
+  // Casas: planta baja con techo a dos aguas, jardín, pileta y auto en la entrada
+  const colores = [0xf2e6c8, 0xe8d0c0, 0xd8e4f0, 0xf0e0e8, 0xe0f0dc, 0xf4f0e0, 0xe6dcc8, 0xd0e0e8];
+  let k = 0;
+  for (const x of [-112, -98, -84, -70]) for (const [z, fr] of [[-106, 1], [-136, -1]]) { const col = colores[k++ % colores.length];
+    caja(x - 4, z - 3.5, x + 4, z + 3.5, 3.2, col);
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(0, 5.8, 2, 4, 1), L(0x9a3a2a)); t.rotation.y = Math.PI / 4; t.scale.set(1, 1, .62); t.position.set(x, 4.2, z); escena.add(t);
+    const puerta = new THREE.Mesh(new THREE.BoxGeometry(1, 2, .08), L(0x5a3a1a)); puerta.position.set(x, 1, z - fr * 3.55); escena.add(puerta);
+    for (const dx of [-2.4, 2.4]) { const v = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1, .06), L(0x9fd4ff)); v.position.set(x + dx, 1.7, z - fr * 3.55); escena.add(v); }
+    const pil = new THREE.Mesh(new THREE.BoxGeometry(4, .1, 2.4), new THREE.MeshLambertMaterial({ color: 0x3ab0e8, emissive: 0x0a3a5a })); pil.position.set(x, .06, z + fr * 6); escena.add(pil);
+    const seto = caja(x - 5, z + fr * 8.3 - .3, x + 5, z + fr * 8.3 + .3, 1, 0x2a6a2a);
+    const auto = crearAutoCivil(["sedan", "hatch", "sedan"][k % 3], [0x1a1a1a, 0xc0c0c0, 0x2a4a8a, 0x8a1a1a][k % 4]); auto.position.set(x + 6, 0, z); auto.rotation.y = 0; escena.add(auto);
+    edificios.push({ x1: x + 5, x2: x + 7, z1: z - 2.3, z2: z + 2.3, h: 1.5, arbol: true }); }
+  // Árboles en la calle principal y plaza con club house
+  for (let z = -100; z > B.z1 + 8; z -= 10) for (const x of [B.puerta1 - 1.5, B.puerta2 + 1.5]) { if (z > -126 && z < -114) continue;
+    const tr = new THREE.Mesh(new THREE.CylinderGeometry(.15, .2, 2.4, 6), L(0x6a4a2a)); tr.position.set(x, 1.2, z); escena.add(tr);
+    const co = new THREE.Mesh(new THREE.SphereGeometry(1.2, 8, 6), L(0x2f7a32)); co.position.set(x, 3, z); escena.add(co); edificios.push({ x1: x - .25, x2: x + .25, z1: z - .25, z2: z + .25, h: 3, arbol: true }); }
+  caja(-118, -122, -106, -118.5, .1, 0x3ab0e8, false);
+  const club = caja(-120, -132, -104, -126, 4, 0xf4efe6); const cc = cartel("🏊 CLUB HOUSE", "#2e5a2e"); cc.scale.set(3.6, .9, 1); cc.position.set(-112, 5.2, -129); escena.add(cc);
+}
+// Guardias del barrio: uno en la garita y dos que hacen la ronda por las calles
+const GUARDIAS_BP = { lista: [] };
+function crearGuardiaBP() { const c = crearCivil(3), m = c.mesh || c; m.userData.piernas = c.piernas; m.userData.brazos = c.brazos;
+  const chaleco = new THREE.Mesh(new THREE.BoxGeometry(.54, .5, .32), new THREE.MeshLambertMaterial({ color: 0x1a2a4a })); chaleco.position.y = 1.3; m.add(chaleco);
+  const gorra = new THREE.Mesh(new THREE.CylinderGeometry(.2, .2, .1, 12), new THREE.MeshLambertMaterial({ color: 0x1a2a4a })); gorra.position.y = 1.95; m.add(gorra);
+  const placa = new THREE.Mesh(new THREE.PlaneGeometry(.4, .1), new THREE.MeshBasicMaterial({ map: texTexto("SEGURIDAD", "#00000000", "#f2c200"), transparent: true })); placa.position.set(0, 1.42, -.17); placa.rotation.y = Math.PI; m.add(placa);
+  escena.add(m); return m; }
+const RONDA_BP = [[-56, -100], [-56, -144], [-56, -120], [-116, -120], [-56, -120]];
+function actualizarBarrio(dt, t) {
+  if (!GUARDIAS_BP.lista.length) {
+    const g0 = crearGuardiaBP(); g0.position.set(BP.puerta2 + 1.2, 0, BP.garitaZ - 2); g0.rotation.y = Math.PI; GUARDIAS_BP.lista.push({ mesh: g0, fijo: true });
+    for (let i = 0; i < 2; i++) GUARDIAS_BP.lista.push({ mesh: crearGuardiaBP(), fase: i * .5 });
+  }
+  // Ronda: recorren el camino a velocidad de caminata
+  const largos = RONDA_BP.slice(1).map((p, i) => Math.hypot(p[0] - RONDA_BP[i][0], p[1] - RONDA_BP[i][1])), total = largos.reduce((a, b) => a + b, 0);
+  for (const g of GUARDIAS_BP.lista) { if (g.fijo) { animarMuneco(g.mesh, 0, t); continue; }
+    let d = ((t / 1000 * 1.4) + g.fase * total) % total, i = 0; while (d > largos[i]) d -= largos[i++];
+    const a = RONDA_BP[i], b = RONDA_BP[i + 1], f = d / largos[i], x = a[0] + (b[0] - a[0]) * f + (g.fase ? 1 : -1), z = a[1] + (b[1] - a[1]) * f;
+    g.mesh.position.set(x, 0, z); g.mesh.rotation.y = Math.atan2(b[0] - a[0], b[1] - a[1]); animarMuneco(g.mesh, 1.4, t); }
+  // Barrera: se levanta cuando se acerca un policía (o el Presidente)
+  const abre = yo && yo.equipo === "poli" && Math.hypot(yo.x - (BP.puerta1 + BP.puerta2) / 2, yo.z - BP.garitaZ) < 9;
+  BP.barrera.rotation.z += ((abre ? -1.35 : 0) - BP.barrera.rotation.z) * Math.min(1, dt * 4);
 }
 // ================== AGUANTADERO (guarida de los ladrones) ==================
 // Un predio abandonado afuera de la ciudad: galpones viejos, desarmadero de autos, tachos con fuego y contenedor-oficina
@@ -2357,9 +2426,9 @@ $("b-cam").addEventListener("touchstart", e => { e.preventDefault(); cambiarCama
 function mover(s, dx, dz, vel, dt) {
   const l = Math.hypot(dx, dz); if (!l) return; dx /= l; dz /= l;
   const nx = s.x + dx * vel * dt, nz = s.z + dz * vel * dt;
-  PGOB.pasa = s === yo && yo.clase === "presidente"; RG.pasa = s === yo && esGonza(); RG.porton = RG.pasa || (s === yo && INV.tiene("llave-rg"));
+  BP.pasa = s === yo && yo.equipo === "poli"; PGOB.pasa = s === yo && yo.clase === "presidente"; RG.pasa = s === yo && esGonza(); RG.porton = RG.pasa || (s === yo && INV.tiene("llave-rg"));
   if (!choca(nx, s.z, RADIO, s.equipo)) s.x = nx; if (!choca(s.x, nz, RADIO, s.equipo)) s.z = nz;
-  RG.pasa = RG.porton = PGOB.pasa = false;
+  RG.pasa = RG.porton = PGOB.pasa = BP.pasa = false;
 }
 const dentro = (s, Z, extra = 0) => Math.hypot(s.x - Z.x, s.z - Z.z) < Z.r + extra;
 
@@ -3213,13 +3282,13 @@ function fondoMini() {
   const R = (x1, z1, x2, z2, col) => { g.fillStyle = col; g.fillRect((x1 - M.X0) * M.esc, (z1 - M.Z0) * M.esc, (x2 - x1) * M.esc, (z2 - z1) * M.esc); };
   const m = CIUDAD.tam / 2;
   R(-m, -m, m, m, "#3a3f4a");                                     // ciudad (calles)
-  for (const Z of [AER, ZAUTOS, AGU, SUPER, HALCON, PUERTO, GANG]) R(Z.x1, Z.z1, Z.x2 ?? m, Z.z2 ?? -m, "#343a44");
+  for (const Z of [AER, ZAUTOS, AGU, SUPER, HALCON, PUERTO, GANG, { x1: BP.x1, x2: BP.x2, z1: BP.z1, z2: -CIUDAD.tam / 2 }]) R(Z.x1, Z.z1, Z.x2 ?? m, Z.z2 ?? -m, "#343a44");
   R(PM.x1, PM.z1, PM.x2, -m, "#3d3a36"); R(PM.x1, PM.aguaZ1, PM.x2, PM.aguaZ2, "#1d5a8a"); R(PUERTO.x1, PUERTO.z1, PUERTO.agua, PUERTO.z2, "#1d5a8a");
   R(-m, AUTOPISTA.z1, m, AUTOPISTA.z2, "#555a66");
   for (const e of edificios) if (!e.arbol && e.h > 1) R(e.x1, e.z1, e.x2, e.z2, "#8a93a6");
   M.fondo = c;
 }
-const LUGARES_MINI = [[ZONAS.banco, "🏦"], [ZONAS.carcel, "⛓️"], [ZONAS.guarida, "🏚️"], [ZONAS.narco, "💊"], [ZONAS.muelle, "🚤"], [{ x: CAMBIO.mostX, z: CAMBIO.mostZ }, "💵"], [{ x: 159, z: -190 }, "🏛️"], [{ x: -20, z: 52 }, "🏨"], [{ x: GANG.jefeX, z: GANG.jefeZ }, "🐺"], [{ x: GOB.cx, z: GOB.cz }, "🏛️"], [{ x: 100, z: 72 }, "🚗"]];
+const LUGARES_MINI = [[ZONAS.banco, "🏦"], [ZONAS.carcel, "⛓️"], [ZONAS.guarida, "🏚️"], [ZONAS.narco, "💊"], [ZONAS.muelle, "🚤"], [{ x: CAMBIO.mostX, z: CAMBIO.mostZ }, "💵"], [{ x: 159, z: -190 }, "🏛️"], [{ x: -20, z: 52 }, "🏨"], [{ x: GANG.jefeX, z: GANG.jefeZ }, "🐺"], [{ x: GOB.cx, z: GOB.cz }, "🏛️"], [{ x: -84, z: -120 }, "🏡"], [{ x: 100, z: 72 }, "🚗"]];
 function dibujarMini(t) {
   const cv = $("minimapa"); cv.style.display = jugando && MINI.modo < 2 ? "block" : "none"; cv.classList.toggle("chico", MINI.modo === 1);
   if (!jugando || MINI.modo === 2 || t - MINI.ult < 100 || !yo) return; MINI.ult = t;
@@ -3318,6 +3387,8 @@ function loop(t) {
       if (accionPedida && e <= 0 && !yo.bolsa && !yo.paquete) { accionPedida = false; enviar("maletin", { quien: yo.id }); robarMaletin(yo.id); }
     }
     if (GOB.rueda) GOB.rueda.rotation.z += dt * (Date.now() < GOB.listo ? 3 : .2);
+    if (!miAuto && Math.hypot(yo.x - (BP.puerta1 + BP.puerta2) / 2, yo.z - (BP.garitaZ + 1.5)) < 4 && !pistaDepto)
+      pistaDepto = yo.equipo === "poli" ? (yo.clase === "presidente" ? "🛂 Guardia: \"¡Bienvenido a Los Aromos, señor Presidente!\"" : "🛂 Guardia: \"Adelante, oficial\"") : "🛂 Guardia: \"Solo vecinos y policía. No puede pasar.\"";
     // La banda: polis detienen miembros; ladrones hablan con el jefe (le venden el botín o hacen una changa)
     if (!miAuto && !yo.preso) {
       if (yo.equipo === "poli") { const m = BANDA.miembros.find(m => !m.vuelve && Math.hypot(m.x - yo.x, m.z - yo.z) < 1.9);
@@ -3358,7 +3429,7 @@ function loop(t) {
     if (autoPedido) { if (miAuto) bajarAuto(); else if (autoCerca) subirAuto(autoCerca); }
     autoPedido = false;
     if (!miAuto) CHOFER.ruta = null;
-    actualizarChofer(); actualizarConvoy(t);
+    actualizarChofer(); actualizarConvoy(t); actualizarBarrio(dt, t);
     if (miAuto) { if (!(miAuto.presi && CHOFER.ruta && conduceChofer(miAuto, dt))) manejar(miAuto, dt); }
     else if (!yo.preso && Date.now() >= aturdidoHasta && Date.now() >= dormirHasta) {
       const f = (teclas.KeyW || teclas.ArrowUp ? 1 : 0) - (teclas.KeyS || teclas.ArrowDown ? 1 : 0) - joy.y;
@@ -3672,7 +3743,7 @@ async function abrirAdmin() {
     ADMIN.ok = true; }
   $("admin").style.display = "block"; pintarAdmin(); }
 const LUGARES = [["🚔 Cárcel", ZONAS.carcel], ["🏦 Banco", ZONAS.banco], ["🏚️ Guarida", ZONAS.guarida], ["💊 Casa narco", ZONAS.narco], ["🚤 Muelle", ZONAS.muelle],
-  ["🏨 Hotel", { x: -20, z: 61 }], ["🚗 Conce", { x: 96, z: 72 }], ["🦅 Halcón", { x: -84, z: 42 }], ["🏛️ Mi residencia", { x: 159, z: -178 }], ["🐺 Los Lobos", { x: -32, z: 100 }], ["🏛️ Casa de Gobierno", { x: 28, z: 11 }]];
+  ["🏨 Hotel", { x: -20, z: 61 }], ["🚗 Conce", { x: 96, z: 72 }], ["🦅 Halcón", { x: -84, z: 42 }], ["🏛️ Mi residencia", { x: 159, z: -178 }], ["🐺 Los Lobos", { x: -32, z: 100 }], ["🏛️ Casa de Gobierno", { x: 28, z: 11 }], ["🏡 Barrio privado", { x: -56, z: -104 }]];
 function pintarAdmin() {
   const todos = Object.values(jug).filter(s => s !== yo), bt = (a, t, c = "#ffffff22") => `<button data-ad="${a}" style="margin:3px;padding:8px 10px;border:0;border-radius:10px;background:${c};color:#fff;font-weight:800">${t}</button>`;
   $("ad-cuerpo").innerHTML = `${bt("modo", ADMIN.modo ? "🛠️ Modo admin: PRENDIDO (tag en la cabeza)" : "🛠️ Modo admin: apagado", ADMIN.modo ? "#b8860b" : "#ffffff22")}<br><b>💵 Plata y vos</b><br>${bt("plata", "+$10.000", "#1e7a3a")}${bt("vida", "❤️ Curarme")}${bt("rapido", ADMIN.rapido ? "🐢 Velocidad normal" : "⚡ Súper velocidad")}
