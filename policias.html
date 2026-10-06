@@ -1623,6 +1623,16 @@ function rueda(g, x, y, z, r, ancho, colorLlanta) {
   for (let i = 0; i < 5; i++) { const rayo = new THREE.Mesh(new THREE.BoxGeometry(ancho + .04, r * .9, .05), new THREE.MeshLambertMaterial({ color: 0x555555 })); rayo.rotation.x = i * Math.PI / 5; eje.add(rayo); }
   return eje;
 }
+// Barra de luces baja y moderna: base gris, domo transparente y 3 segmentos de cada color (se prenden juntos)
+function barraModerna(g, x, y, z, largo) {
+  const base = new THREE.Mesh(new THREE.BoxGeometry(largo, .07, .32), new THREE.MeshPhongMaterial({ color: 0x9aa0a8, shininess: 90 })); base.position.set(x, y, z); g.add(base);
+  const domo = new THREE.Mesh(new THREE.BoxGeometry(largo - .04, .12, .28), new THREE.MeshPhongMaterial({ color: 0xffffff, transparent: true, opacity: .25, shininess: 120 })); domo.position.set(x, y + .09, z); g.add(domo);
+  const grupo = (lado, color) => { const gr = new THREE.Group(); g.add(gr); gr.material = new THREE.MeshBasicMaterial({ color });   // material compartido: las sirenas le cambian el color
+    for (let k = 0; k < 3; k++) { const m = new THREE.Mesh(new THREE.BoxGeometry(largo / 7, .1, .24), gr.material); m.position.set(x + lado * (largo / 7 * (k + .6)), y + .09, z); gr.add(m); }
+    return gr; };
+  const centro = new THREE.Mesh(new THREE.BoxGeometry(largo / 9, .1, .24), new THREE.MeshBasicMaterial({ color: 0xf0f0f0 })); centro.position.set(x, y + .09, z); g.add(centro);
+  return { rojo: grupo(-1, 0x550000), azul: grupo(1, 0x000055) };
+}
 function barraLuces(g, x, y, z, largo) {
   const base = new THREE.Mesh(new THREE.BoxGeometry(largo, .1, .3), new THREE.MeshLambertMaterial({ color: 0x111111 })); base.position.set(x, y, z); g.add(base);
   const rojo = new THREE.Mesh(new THREE.BoxGeometry(largo / 2 - .06, .14, .26), new THREE.MeshBasicMaterial({ color: 0x550000 })); rojo.position.set(x - largo / 4, y + .1, z); g.add(rojo);
@@ -1644,13 +1654,16 @@ function espejos(g, x, y, z, color) { for (const s of [-1, 1]) { const e = new T
 function crearPatrullero(estilo = "ciudad") {
   const prov = estilo === "provincia";   // diseño inspirado en la Policía de la Provincia de Buenos Aires (sin escudos oficiales)
   const g = new THREE.Group();
-  const blanco = new THREE.MeshLambertMaterial({ color: 0xf4f4f4 }), negro = new THREE.MeshLambertMaterial({ color: 0x151515 });
-  const vidrio = new THREE.MeshLambertMaterial({ color: 0x1b2633, polygonOffset: true, polygonOffsetFactor: -1 });
-  // Carrocería tipo sedán (perfil de costado: baúl, luneta, techo, parabrisas, capó)
-  const cuerpo = extruir([[-2.2, .32], [-2.22, .85], [-1.95, .97], [-1.2, 1.0], [-.78, 1.44], [.42, 1.47], [1.05, 1.02], [2.05, .9], [2.25, .72], [2.25, .32]], 1.86, blanco);
+  const blanco = new THREE.MeshPhongMaterial({ color: 0xf6f7f9, emissive: 0x3a3e44, shininess: 70, specular: 0x666666 }), negro = new THREE.MeshLambertMaterial({ color: 0x151515 });
+  const vidrio = new THREE.MeshPhongMaterial({ color: 0x0e1622, shininess: 120, specular: 0x8899aa, polygonOffset: true, polygonOffsetFactor: -1 });
+  // Carrocería tipo sedán moderno: perfil con curvas suaves (trompa baja, parabrisas inclinado, techo redondeado, cola corta)
+  const cuerpo = extruir([[-2.22, .34], [-2.25, .7], [-2.18, .9], [-1.98, .99], [-1.3, 1.03], [-1.05, 1.24], [-.78, 1.42], [-.4, 1.5], [.25, 1.5], [.55, 1.42], [1.0, 1.1], [1.2, 1.03],
+    [1.9, .95], [2.2, .84], [2.3, .66], [2.28, .34]], 1.74, blanco, .1);
   g.add(cuerpo);
-  const vid = extruir([[-1.2, .99], [-.78, 1.43], [.42, 1.46], [1.07, 1.01]], 1.98, vidrio, .02); vid.position.y = .005; g.add(vid);
-  const parante = new THREE.Mesh(new THREE.BoxGeometry(2.04, .44, .12), blanco); parante.position.set(0, 1.22, -.15); g.add(parante);
+  const vid = extruir([[-1.22, 1.02], [-1.02, 1.22], [-.76, 1.4], [-.4, 1.47], [.24, 1.47], [.53, 1.4], [.98, 1.08], [1.12, 1.02]], 1.9, vidrio, .02); vid.position.y = .005; g.add(vid);
+  // Parantes negros (separan parabrisas, ventanillas y luneta) y zócalo/guardabarros oscuros sobre las ruedas
+  for (const z of [-1.05, -.05, .95]) { const p = new THREE.Mesh(new THREE.BoxGeometry(2.0, .5, .09), negro); p.position.set(0, 1.25, z); g.add(p); }
+  for (const s of [-1, 1]) for (const z of [1.38, -1.38]) { const arco = new THREE.Mesh(new THREE.CircleGeometry(.47, 18, 0, Math.PI), new THREE.MeshBasicMaterial({ color: 0x0c0c0c, side: THREE.DoubleSide })); arco.position.set(s * 1.0, .37, z); arco.rotation.y = s * Math.PI / 2; g.add(arco); }
   // Franjas celeste y azul oscuro a los costados, y "POLICÍA" en las puertas
   for (const s of [-1, 1]) {
     if (prov) {
@@ -1679,7 +1692,11 @@ function crearPatrullero(estilo = "ciudad") {
   // Paragolpes, parrilla, ópticas, espejos, antena
   const pd = new THREE.Mesh(new THREE.BoxGeometry(1.95, .22, .16), negro); pd.position.set(0, .42, 2.3); g.add(pd);
   const pt = new THREE.Mesh(new THREE.BoxGeometry(1.95, .22, .16), negro); pt.position.set(0, .42, -2.26); g.add(pt);
-  const parrilla = new THREE.Mesh(new THREE.BoxGeometry(.8, .16, .04), negro); parrilla.position.set(0, .66, 2.27); g.add(parrilla);
+  const parrilla = new THREE.Mesh(new THREE.BoxGeometry(.9, .18, .04), negro); parrilla.position.set(0, .62, 2.3); g.add(parrilla);
+  { const def = new THREE.Group(); def.position.set(0, 0, 2.42); g.add(def);   // defensa delantera negra con dos parantes
+    const barra = new THREE.Mesh(new THREE.BoxGeometry(1.3, .08, .08), negro); barra.position.y = .78; def.add(barra);
+    const barra2 = new THREE.Mesh(new THREE.BoxGeometry(1.3, .08, .08), negro); barra2.position.y = .45; def.add(barra2);
+    for (const x of [-.45, .45]) { const p = new THREE.Mesh(new THREE.BoxGeometry(.08, .45, .08), negro); p.position.set(x, .6, 0); def.add(p); } }
   opticas(g, 2.27, -2.24, .74, .68);
   espejos(g, 1.06, 1.02, .95, 0xf4f4f4);
   const antena = new THREE.Mesh(new THREE.CylinderGeometry(.01, .01, .6, 4), negro); antena.position.set(.5, 1.75, -.9); g.add(antena);
@@ -1688,8 +1705,8 @@ function crearPatrullero(estilo = "ciudad") {
     const capo = new THREE.Mesh(new THREE.PlaneGeometry(1.2, .7), new THREE.MeshBasicMaterial({ color: 0x0d3a8c })); capo.rotation.x = -Math.PI / 2 + .12; capo.position.set(0, 1.0, 1.55); g.add(capo);
     for (const [z, ry] of [[2.39, 0], [-2.35, Math.PI]]) { const t = new THREE.Mesh(new THREE.PlaneGeometry(1.1, .18), textoPlano("POLICÍA", "#0d3a8c", "#ffffff", 1.1, .18)); t.position.set(0, .58, z); t.rotation.y = ry; g.add(t); } }
   const num = new THREE.Mesh(new THREE.PlaneGeometry(.9, .45), textoPlano((prov ? "P-" : "C-") + (10 + Math.floor(Math.random() * 89)), null, prov ? "#0d3a8c" : "#0f1d36", .9, .45, 256)); num.rotation.x = -Math.PI / 2; num.position.set(0, 1.49, -.55); g.add(num);
-  const { rojo, azul } = barraLuces(g, 0, 1.52, .05, 1.3);
-  const ruedas = [[-.92, 1.38], [.92, 1.38], [-.92, -1.38], [.92, -1.38]].map(([x, z]) => rueda(g, x, .37, z, .37, .26, 0xc8c8c8));
+  const { rojo, azul } = barraModerna(g, 0, 1.55, .0, 1.4);
+  const ruedas = [[-.92, 1.38], [.92, 1.38], [-.92, -1.38], [.92, -1.38]].map(([x, z]) => rueda(g, x, .38, z, .38, .26, 0xd0d4da));
   const c = cartel(prov ? "🚓 POLICÍA PROVINCIA" : "🚓 POLICÍA", prov ? "#0d3a8c" : "#1e4fd8"); c.scale.set(prov ? 3.2 : 2.4, prov ? .8 : .6, 1); c.position.y = 2.4; c.visible = false; g.add(c);
   g.userData = { rojo, azul, cartel: c, ruedas, radio: .37 };
   escena.add(g); return g;
