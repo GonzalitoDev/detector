@@ -2166,7 +2166,11 @@ const poliEnAuto = p => !!p && (p === yo ? !!miAuto : (p.auto !== null && p.auto
 function crearGuardaespaldas() { const c = crearCivil(5), m = c.mesh || c; m.userData.piernas = c.piernas; m.userData.brazos = c.brazos;
   const lentes = new THREE.Mesh(new THREE.BoxGeometry(.3, .07, .05), new THREE.MeshBasicMaterial({ color: 0x050505 })); lentes.position.set(0, 1.78, .2); m.add(lentes);
   const cable = new THREE.Mesh(new THREE.CylinderGeometry(.01, .01, .3, 4), new THREE.MeshBasicMaterial({ color: 0xdddddd })); cable.position.set(.17, 1.6, .05); m.add(cable);
-  m.scale.setScalar(1.08); escena.add(m); return { mesh: m, x: 0, z: 0, listo: false }; }
+  const arma = new THREE.Group(); arma.position.set(.33, 1.05, .2); m.add(arma);   // subfusil negro en la mano derecha
+  const cuerpoA = new THREE.Mesh(new THREE.BoxGeometry(.08, .12, .5), new THREE.MeshLambertMaterial({ color: 0x111111 })); arma.add(cuerpoA);
+  const cargador = new THREE.Mesh(new THREE.BoxGeometry(.05, .16, .07), new THREE.MeshLambertMaterial({ color: 0x1a1a1a })); cargador.position.set(0, -.12, .05); arma.add(cargador);
+  const destello = new THREE.Mesh(new THREE.SphereGeometry(.09, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffd27a })); destello.position.z = .32; destello.visible = false; arma.add(destello);
+  m.scale.setScalar(1.08); escena.add(m); return { mesh: m, x: 0, z: 0, listo: false, cd: 0, destello }; }
 function actualizarPresidente(dt, t) {
   for (const s of Object.values(jug)) {
     const es = s === yo ? ADMIN.pres : !!s.pres;
@@ -2182,14 +2186,28 @@ function actualizarPresidente(dt, t) {
     const nG = s.guardas.length;
     s.guardas.forEach((g, i) => { const lado = i % 2 ? 1 : -1, fila = Math.floor(i / 2); let tx = s.x - fx * (1.1 + fila * 1.3) + rx * lado * 1.1, tz = s.z - fz * (1.1 + fila * 1.3) + rz * lado * 1.1;
       if (orden === "quietos" && ancla) { tx = ancla.x + lado * 1.3 * (fila + 1); tz = ancla.z + (fila % 2) * 1.3; }
-      else if (orden === "perimetro" && ancla) { const a = t / 3500 + i * Math.PI * 2 / nG; let px = ancla.x + Math.cos(a) * 6, pz = ancla.z + Math.sin(a) * 6; if (choca(px, pz, .4)) { px = ancla.x + Math.cos(a) * 3; pz = ancla.z + Math.sin(a) * 3; } tx = px; tz = pz; }
-      if (!g.listo || Math.hypot(g.x - tx, g.z - tz) > 12) { g.x = tx; g.z = tz; g.listo = true; }
-      const ox = g.x, oz = g.z; g.x += (tx - g.x) * Math.min(1, dt * 6); g.z += (tz - g.z) * Math.min(1, dt * 6);
+      else if (orden === "perimetro" && ancla) { const a = t / 3500 + i * Math.PI * 2 / nG; tx = ancla.x; tz = ancla.z; for (const rr of [6, 5, 4, 3, 2]) { const px = ancla.x + Math.cos(a) * rr, pz = ancla.z + Math.sin(a) * rr; if (!choca(px, pz, .5) && lineaLibre(ancla, { x: px, z: pz }, .35)) { tx = px; tz = pz; break; } } }
+      if (!g.listo) { g.x = tx; g.z = tz; g.listo = true; }
+      const ox = g.x, oz = g.z;
+      // Se mueven sin atravesar paredes (se deslizan) y sin chocarse entre ellos
+      let mx = (tx - g.x) * Math.min(1, dt * 6), mz = (tz - g.z) * Math.min(1, dt * 6);
+      for (const o of s.guardas) if (o !== g) { const dx = g.x - o.x, dz = g.z - o.z, dd = Math.hypot(dx, dz); if (dd < .9 && dd > .001) { mx += dx / dd * (.9 - dd) * .5; mz += dz / dd * (.9 - dd) * .5; } }
+      { const dd = Math.hypot(g.x - s.x, g.z - s.z); if (dd < .8 && dd > .001) { mx += (g.x - s.x) / dd * (.8 - dd) * .5; mz += (g.z - s.z) / dd * (.8 - dd) * .5; } }   // ni con el presidente
+      const lejos = Math.hypot(g.x - tx, g.z - tz) > 9;   // muy lejos (por ejemplo, después de un viaje en auto): aparece en su lugar
+      if (lejos) { g.x = tx; g.z = tz; }
+      else { if (!choca(g.x + mx, g.z, .35)) g.x += mx; if (!choca(g.x, g.z + mz, .35)) g.z += mz; }
       const v = Math.hypot(g.x - ox, g.z - oz) / Math.max(dt, .001);
       const sigue = orden === "seguir" || !ancla;
       g.mesh.visible = !(enAuto && sigue); g.mesh.position.set(g.x, 0, g.z);
       g.mesh.rotation.y = orden === "perimetro" && ancla ? Math.atan2(g.x - ox, g.z - oz) : orden === "quietos" && ancla ? Math.atan2(g.x - ancla.x, g.z - ancla.z + .001) : Math.atan2(fx, fz);
       animarMuneco(g.mesh, v > .3 ? v : 0, t);
+      if (g.destello.visible && performance.now() - (g.tiro || 0) > 70) g.destello.visible = false;
+      g.cd = (g.cd || 0) - dt;
+      if (s === yo && g.cd <= 0 && g.mesh.visible) {   // le tiran (aturden, sin sangre) al ladrón más cercano que se acerque al presidente o a ellos
+        let obj = null, dm = 11; for (const o of Object.values(jug)) if (o.equipo === "ladron" && !o.preso && !o.esposado) { const d = Math.hypot(o.x - g.x, o.z - g.z); if (d < dm && (Math.hypot(o.x - s.x, o.z - s.z) < 14 || d < 6) && lineaLibre(g, o, .1)) { dm = d; obj = o; } }
+        if (obj) { g.cd = 1.3; g.tiro = performance.now(); g.destello.visible = true; g.mesh.rotation.y = Math.atan2(obj.x - g.x, obj.z - g.z);
+          const o = new THREE.Vector3(g.x, 1.15, g.z), d = new THREE.Vector3(obj.x - g.x, 0, obj.z - g.z).normalize(); trazo(o, d, dm); enviar("disparo", { o: [o.x, o.y, o.z], d: [d.x, d.y, d.z], l: dm });
+          beep(170, .04, "square", .02); enviar("dano", { ladron: obj.id, de: yo.id, dmg: 12, at: 0 }); recibirDano(obj.id, yo.id, 12, 0); } }
       // Los guardaespaldas también frenan a los ladrones que se les acercan
       if (s !== yo && yo.equipo === "ladron" && !yo.preso && g.mesh.visible) { const d = Math.hypot(yo.x - g.x, yo.z - g.z);
         if (d < 1.6) { const k = (1.6 - d) / Math.max(d, .1), nx = yo.x + (yo.x - g.x) * k, nz = yo.z + (yo.z - g.z) * k; if (!choca(nx, nz, RADIO)) { yo.x = nx; yo.z = nz; } pistaGuardas = performance.now(); } } });
