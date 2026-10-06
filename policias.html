@@ -3296,7 +3296,8 @@ function pensarBot(b, dt) {
       if (Math.hypot(b.x - GOB.bovX, b.z - GOB.bovZ) < 1.6) { enviar("maletin", { quien: b.id }); robarMaletin(b.id); b.vaGob = undefined; } }
     else if (b.narco === undefined ? (b.narco = Math.random() < .5) : b.narco) b.objetivo = { x: 45, z: -45.5 };
     else if (presos && (b.rescata ??= Math.random() < .5)) b.objetivo = ZONAS.carcel;   // decide una vez (antes cambiaba de idea en cada cuadro y temblaba en el lugar)
-    else b.objetivo = ZONAS.banco;
+    else { let bo = null, dm = 1e9; for (const q of BOLSAS) if (q.hasta < Date.now()) { const d = Math.hypot(q.x - b.x, q.z - b.z); if (d < dm) { dm = d; bo = q; } }   // va a la bolsa libre más cercana (antes se quedaba quieto en el medio del banco)
+      b.objetivo = bo ? { x: bo.x, z: bo.z } : { x: ZONAS.narco.x, z: ZONAS.narco.z }; }
     // En el online, lo que hace un ladrón NPC se avisa a todos (el anfitrión es el que los maneja)
     if (b.bolsa && dentro(b, ZONAS.guarida)) { enviar("entrega", { quien: b.id }); entregar(b.id); }
     if (b.paquete && dentro(b, ZONAS.muelle)) { enviar("entregaP", { quien: b.id }); entregarPaquete(b.id); b.narco = Math.random() < .5; }
