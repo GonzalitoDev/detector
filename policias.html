@@ -202,6 +202,7 @@
   </div>
 </div>
 <button id="b-orden" style="display:none;position:fixed;left:12px;top:168px;z-index:6;border:0;border-radius:12px;padding:6px 12px;background:#1a5a9a;color:#fff;font-weight:900">🕴️ Síganme</button>
+<button id="b-chofer" style="display:none;position:fixed;left:12px;top:204px;z-index:6;border:0;border-radius:12px;padding:6px 12px;background:#2a3a5a;color:#fff;font-weight:900">🚘 Chofer</button>
 <button id="b-mochila" title="Inventario (I)" style="display:none;position:fixed;left:12px;top:132px;z-index:6;border:0;border-radius:12px;padding:6px 12px;background:#2a3a5a;color:#fff;font-weight:900">🎒 Inventario</button>
 <div id="inv" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
   <div style="max-width:420px;margin:0 auto;background:#141e33;border:2px solid #5ec8f2;border-radius:16px;padding:16px">
@@ -212,6 +213,14 @@
 </div>
 <button id="b-admin" style="display:none;position:fixed;left:12px;top:96px;z-index:6;border:0;border-radius:12px;padding:6px 12px;background:#ffd400;color:#000;font-weight:900">🛠️ Admin</button>
 <canvas id="minimapa" width="150" height="150" title="Mini mapa (tocá para achicar u ocultar)"></canvas>
+<div id="chofer" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
+  <div style="max-width:420px;margin:0 auto;background:#141e33;border:2px solid #75aadb;border-radius:16px;padding:16px;text-align:center">
+    <h2 style="margin:0 0 4px">🚘 Chofer presidencial</h2>
+    <div style="font-size:12px;opacity:.75;margin-bottom:10px">"¿A dónde lo llevo, señor Presidente?" (tocá W/A/S/D o el joystick para manejar vos)</div>
+    <div id="ch-lista" style="display:grid;gap:6px"></div>
+    <button id="ch-x" style="margin-top:12px;width:100%;padding:8px;border:0;border-radius:10px;background:#ffffff22;color:#fff;font-weight:800">Cerrar</button>
+  </div>
+</div>
 <div id="despacho" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
   <div style="max-width:480px;margin:0 auto;background:#2a1418;border:2px solid #d4af37;border-radius:16px;padding:16px;text-align:center">
     <h2 style="margin:0 0 4px">🏛️ Despacho Presidencial</h2>
@@ -435,8 +444,8 @@ function choca(x, z, r = RADIO, eq = null) {
   const enHalcon = x < -mitad + 1 && x > HALCON.x1 + r && z > HALCON.z1 + r && z < HALCON.z2 - r;
   if (!enCiudad && !enAer && !enPuerto && !enAgu && !enGang && !enSuper && !enPM && !enHalcon) return true;
   if (Math.abs(z - mitad) < r + .3 && x > -mitad && x < mitad && !(x > AGU.puerta1 + r && x < AGU.puerta2 - r) && !(x > GANG.puerta1 + r && x < GANG.puerta2 - r)) return true;   // paredón sur con portones al aguantadero y a la banda
-  if (Math.abs(x + mitad) < r + .3 && !(z > PUERTO.puerta1 + r && z < PUERTO.puerta2 - r) && !(z > HALCON.puerta1 + r && z < HALCON.puerta2 - r)) return true;   // paredón oeste con portones al puerto y a la base Halcón
-  if (Math.abs(x - mitad) < r + .3 && !(z > AER.puerta1 + r && z < AER.puerta2 - r) && !(z > AUTOPISTA.z1 + r && z < AUTOPISTA.z2 - r)) return true;   // paredón con portón hacia el aeropuerto
+  if (Math.abs(x + mitad) < r + .3 && z > -mitad - 1 && z < mitad + 1 && !(z > PUERTO.puerta1 + r && z < PUERTO.puerta2 - r) && !(z > HALCON.puerta1 + r && z < HALCON.puerta2 - r)) return true;   // paredón oeste con portones al puerto y a la base Halcón
+  if (Math.abs(x - mitad) < r + .3 && z > -mitad - 1 && z < mitad + 1 && !(z > AER.puerta1 + r && z < AER.puerta2 - r) && !(z > AUTOPISTA.z1 + r && z < AUTOPISTA.z2 - r)) return true;   // paredón con portón hacia el aeropuerto
   if (!RG.pasa && x + r > RG.p1 && x - r < RG.p2 && z + r > RG.cz2 - .5 && z - r < RG.cz2 + .2) return true;   // puerta de la residencia: solo Gonza
   if (!RG.porton && x + r > RG.rejaP1 && x - r < RG.rejaP2 && z + r > RG.z2 - .4 && z - r < RG.z2 + .2) return true;   // portón: la seguridad no deja pasar a nadie más
   if (puerta.cerrada && eq !== "ladron" && x + r > CASA.x1 - .3 && x - r < CASA.x1 + .3 && z + r > CASA.puertaZ1 && z - r < CASA.puertaZ2) return true;
@@ -1652,7 +1661,9 @@ const autos = (() => {
     .concat([49, 52.5, 56].map((z, k) => ({ i: tipos.length + k, tipo: "moto", halcon: true, r: .7, max: 34, x0: -91, z0: z, h0: Math.PI, x: -91, z, h: Math.PI, vel: 0, conductor: null, sirena: true,
       tx: -91, tz: z, th: Math.PI, mesh: crearMoto(true) })))
     .concat([-72, -66.4, -60.8].map((x, k) => ({ i: tipos.length + 3 + k, tipo: "camioneta", pickup: true, r: 1.5, max: 25, x0: x, z0: ESTAC.filaC, h0: Math.PI / 2, x, z: ESTAC.filaC, h: Math.PI / 2, vel: 0, conductor: null, sirena: true,
-      tx: x, tz: ESTAC.filaC, th: Math.PI / 2, mesh: crearPickup() })));   // motos del Grupo Halcón (galpón de la base) y camionetas policiales (cualquier poli)
+      tx: x, tz: ESTAC.filaC, th: Math.PI / 2, mesh: crearPickup() })))
+    .concat([{ i: tipos.length + 6, tipo: "camioneta", presi: true, r: 1.6, max: 27, x0: 19, z0: 11, h0: Math.PI / 2, x: 19, z: 11, h: Math.PI / 2, vel: 0, conductor: null, sirena: false,
+      tx: 19, tz: 11, th: Math.PI / 2, mesh: crearCamioneta("PRESIDENCIA DE LA NACIÓN") }]);   // auto blindado del Presidente, frente a la Casa de Gobierno   // motos del Grupo Halcón (galpón de la base) y camionetas policiales (cualquier poli)
 })();
 function resetAutos() { for (const a of autos) Object.assign(a, { x: a.x0, z: a.z0, tx: a.x0, tz: a.z0, h: a.h0, th: a.h0, vel: 0, conductor: null, sirena: true, balizas: false }); }
 let miAuto = null, sirenaT = 0, sirenaAlt = false, mirarAuto = 0;
@@ -1687,11 +1698,12 @@ function ponerCabina(a) {
 function subirAuto(a) { setTimeout(pintarPanel, 0);
   if (a.propio) { if (yo.preso) return; a.conductor = yo.id; miAuto = a; yaw = a.h + Math.PI; pitch = -.05; grande(`🔑 ${MODELO(a.modeloId).nom}`, "#7dff8a"); beep(500, .1); return; }
   if (a.conductor || yo.equipo !== "poli" || yo.preso) return;
-  if (a.tipo === "camioneta" && !a.pickup && !ARMADO(yo.clase)) { grande("🚙 Solo para SWAT y Grupo Halcón", "#f2c200"); return; }
+  if (a.presi && yo.clase !== "presidente") { grande("🚘 Auto blindado del Presidente: solo para él", "#75aadb"); return; }
+  if (a.tipo === "camioneta" && !a.pickup && !a.presi && !ARMADO(yo.clase)) { grande("🚙 Solo para SWAT y Grupo Halcón", "#f2c200"); return; }
   if (a.halcon && yo.clase !== "halcon") { grande("🦅 Moto del Grupo Halcón: solo para el Halcón", "#3dff6a"); return; }
   a.conductor = yo.id; miAuto = a; yaw = a.h + Math.PI; pitch = -.05;
   enviar("auto", { i: a.i, quien: yo.id, sube: true });
-  grande(a.pickup ? "🛻 ¡CAMIONETA POLICIAL!" : a.tipo === "camioneta" ? "🚙 GRUPO ESPECIAL TÁCTICO" : a.tipo === "moto" ? (a.halcon ? "🦅 ¡HALCÓN EN MOTO!" : "🏍️ ¡MOTORIZADA!") : "🚓 ¡A PATRULLAR!", a.tipo === "camioneta" ? "#f2c200" : "#5a8aff"); beep(500, .1); setTimeout(() => beep(800, .1), 120);
+  grande(a.presi ? "🚘 Auto blindado presidencial — Y: que maneje el chofer" : a.pickup ? "🛻 ¡CAMIONETA POLICIAL!" : a.tipo === "camioneta" ? "🚙 GRUPO ESPECIAL TÁCTICO" : a.tipo === "moto" ? (a.halcon ? "🦅 ¡HALCÓN EN MOTO!" : "🏍️ ¡MOTORIZADA!") : "🚓 ¡A PATRULLAR!", a.tipo === "camioneta" ? "#f2c200" : "#5a8aff"); beep(500, .1); setTimeout(() => beep(800, .1), 120);
 }
 function bajarAuto() { setTimeout(pintarPanel, 0);
   const a = miAuto; if (!a) return;
@@ -2594,6 +2606,64 @@ const GOB = { x1: 22, x2: 34, z1: -2, z2: 6, alto: 8, cx: 28, cz: 2, puerta1: 26
     edificios.push({ x1: x - .3, x2: x + .3, z1: G.z2 + .25, z2: G.z2 + .85, h: 2, arbol: true }); }
   const cD = cartel("🏛️ Despacho del Presidente", "#7a1020"); cD.scale.set(3.6, .8, 1); cD.position.set(G.x1 + 2, 2.6, G.cz); escena.add(cD);
 }
+// ================== CHOFER PRESIDENCIAL ==================
+// En el auto blindado, el Presidente puede pedirle al chofer que lo lleve: el auto va solo por las calles hasta el destino.
+const CHOFER = { ruta: null, k: 0, destino: "", mesh: null };
+const DESTINOS = [["🏛️ Casa de Gobierno", 19, 11], ["🚔 Comisaría", -56, 20], ["🏦 Banco", 4, -32], ["⛓️ Cárcel", -44, 54], ["🏨 Hotel Plaza", -20, 64],
+  ["✈️ Aeropuerto", 100, 16], ["🌉 Puerto Madero", 64, -96], ["💵 Casa del Dólar", 142, -130], ["🏛️ Residencia", 159, -168], ["🦅 Base Halcón", -96, 40]];
+// Camino para el auto: por la cuadrícula de calles (esquinas) y los portones, nunca por puertas de edificios
+const CALLES_AUTO = { nodos: null, vec: null };
+function prepararCalles() {
+  const L = [-80, -56, -32, -8, 16, 40, 64, 80], N = [];
+  for (const x of L) for (const z of L) if (!choca(x, z, 1.2)) N.push({ x, z });
+  for (const p of [[84, 16], [100, 16], [-84, 40], [-96, 40], [64, -86], [64, -96], [64, -132], [64, -160], [100, -132], [142, -132], [100, -145], [142, -145], [100, -158], [142, -158], [159, -158], [159, -166], [120, -132], [120, -158], [76, -132], [88, -132], [82, -130], [-8, -86], [-8, -96], [-32, 86], [-32, 100], [40, 86], [40, 100]]) if (!choca(p[0], p[1], 1.2)) N.push({ x: p[0], z: p[1] });
+  CALLES_AUTO.nodos = N; CALLES_AUTO.vec = N.map((a, i) => N.map((b, j) => j !== i && Math.hypot(a.x - b.x, a.z - b.z) < 40 && lineaLibre(a, b, 1.1) ? j : -1).filter(j => j >= 0));
+}
+function rutaAuto(desde, hasta) {
+  if (!CALLES_AUTO.nodos) prepararCalles();
+  const N = CALLES_AUTO.nodos, V = CALLES_AUTO.vec;
+  const cerca = p => { let m = -1, dm = 1e9; N.forEach((n, i) => { const d = Math.hypot(n.x - p.x, n.z - p.z); if (d < dm && lineaLibre(p, n, .9)) { dm = d; m = i; } }); return m; };
+  const a = cerca(desde), b = cerca(hasta); if (a < 0 || b < 0) return null;
+  const dist = N.map(() => 1e9), prev = N.map(() => -1), hecho = N.map(() => false); dist[a] = 0;
+  for (;;) { let u = -1; for (let i = 0; i < N.length; i++) if (!hecho[i] && dist[i] < 1e9 && (u < 0 || dist[i] < dist[u])) u = i; if (u < 0 || u === b) break; hecho[u] = true;
+    for (const v of V[u]) { const nd = dist[u] + Math.hypot(N[u].x - N[v].x, N[u].z - N[v].z); if (nd < dist[v]) { dist[v] = nd; prev[v] = u; } } }
+  if (dist[b] >= 1e9) return null;
+  const r = []; for (let u = b; u >= 0; u = prev[u]) r.unshift({ x: N[u].x, z: N[u].z }); return r;
+}
+function abrirChofer() { if (!miAuto || !miAuto.presi) return; document.exitPointerLock?.(); $("chofer").style.display = "block";
+  $("ch-lista").innerHTML = DESTINOS.map(([n], i) => `<button data-d="${i}" style="padding:10px;border:0;border-radius:10px;background:#1a5a9a;color:#fff;font-weight:800">${n}</button>`).join("");
+  $("ch-lista").querySelectorAll("[data-d]").forEach(b => b.onclick = () => { const [n, x, z] = DESTINOS[+b.dataset.d], a = miAuto;
+    const ruta = rutaAuto({ x: a.x, z: a.z }, { x, z }); $("chofer").style.display = "none";
+    if (!ruta || !ruta.length) { grande("🚘 \"No conozco el camino a " + n + ", señor\"", "#ff8a3b"); return; }
+    CHOFER.ruta = ruta.concat([{ x, z }]); CHOFER.k = 0; CHOFER.destino = n; grande("🚘 \"Enseguida, señor Presidente\" → " + n, "#75aadb"); }); }
+$("ch-x").onclick = () => { $("chofer").style.display = "none"; };
+$("b-chofer").onclick = e => { e.stopPropagation(); if (CHOFER.ruta) { CHOFER.ruta = null; grande("🚘 Manejás vos", "#75aadb"); } else abrirChofer(); };
+addEventListener("keydown", e => { if (e.code === "KeyY" && !e.repeat && jugando && miAuto && miAuto.presi) { if (CHOFER.ruta) CHOFER.ruta = null; else abrirChofer(); } });
+// Maneja el chofer: va de punto en punto de la ruta; si tocás las teclas o el joystick, volvés a manejar vos
+function conduceChofer(a, dt) {
+  if (teclas.KeyW || teclas.KeyS || teclas.KeyA || teclas.KeyD || teclas.ArrowUp || teclas.ArrowDown || Math.abs(joy.x) + Math.abs(joy.y) > .2) { CHOFER.ruta = null; grande("🚘 Manejás vos", "#75aadb"); return false; }
+  const R = CHOFER.ruta; let p = R[CHOFER.k];
+  while (p && Math.hypot(p.x - a.x, p.z - a.z) < 2.2 && CHOFER.k < R.length - 1) p = R[++CHOFER.k];
+  const d = Math.hypot(p.x - a.x, p.z - a.z);
+  if (CHOFER.k >= R.length - 1 && d < 2.5) { a.vel = 0; CHOFER.ruta = null; grande("🚘 \"Llegamos, señor Presidente\" (" + CHOFER.destino + ")", "#75aadb"); return true; }
+  const hObj = Math.atan2(p.x - a.x, p.z - a.z), dh = Math.atan2(Math.sin(hObj - a.h), Math.cos(hObj - a.h));
+  a.h += Math.max(-1, Math.min(1, dh)) * dt * 3;
+  const objetivo = Math.abs(dh) > .9 ? 4 : CHOFER.k >= R.length - 2 ? 8 : 14; a.vel += (objetivo - a.vel) * Math.min(1, dt * 2);
+  const nx = a.x + Math.sin(a.h) * a.vel * dt, nz = a.z + Math.cos(a.h) * a.vel * dt;
+  if (!choca(nx, nz, .8)) { a.x = nx; a.z = nz; }
+  else if (!choca(nx, a.z, .8)) a.x = nx;            // se desliza por la pared
+  else if (!choca(a.x, nz, .8)) a.z = nz;
+  else a.vel *= .3;
+  a.giro = Math.sign(dh) * Math.min(1, Math.abs(dh)); yo.x = a.x; yo.z = a.z; return true;
+}
+function actualizarChofer() {
+  const a = autos.find(q => q.presi); if (!a) return;
+  if (!CHOFER.mesh) { const c = crearCivil(5), m = c.mesh || c; const gorra = new THREE.Mesh(new THREE.CylinderGeometry(.2, .2, .1, 12), new THREE.MeshLambertMaterial({ color: 0x111111 })); gorra.position.y = 1.95; m.add(gorra); escena.add(m); CHOFER.mesh = m; }
+  const m = CHOFER.mesh;
+  if (a.conductor) { const adentro = miAuto === a && CHOFER.ruta; m.visible = !!adentro;   // va sentado manejando
+    if (adentro) { m.position.set(a.x + Math.cos(a.h) * .45 + Math.sin(a.h) * .3, .35, a.z - Math.sin(a.h) * .45 + Math.cos(a.h) * .3); m.rotation.y = a.h; } }
+  else { m.visible = true; m.position.set(a.x - Math.sin(a.h + Math.PI / 2) * 1.8, 0, a.z - Math.cos(a.h + Math.PI / 2) * 1.8); m.rotation.y = a.h + Math.PI / 2; }   // espera al lado del auto
+}
 // ================== DESPACHO PRESIDENCIAL: DECRETOS ==================
 // El Presidente (Gonza) firma decretos desde el escritorio de la Casa de Gobierno; le llegan a todos los jugadores.
 const DECRETOS = {
@@ -3168,7 +3238,9 @@ function loop(t) {
     if (yo.equipo === "poli" && !miAuto && !autoCerca) { let dm = 3.2; for (const a of autos) { const d = Math.hypot(a.x - yo.x, a.z - yo.z); if (!a.conductor && d < dm) { dm = d; autoCerca = a; } } }   // el más cercano
     if (autoPedido) { if (miAuto) bajarAuto(); else if (autoCerca) subirAuto(autoCerca); }
     autoPedido = false;
-    if (miAuto) manejar(miAuto, dt);
+    if (!miAuto) CHOFER.ruta = null;
+    actualizarChofer();
+    if (miAuto) { if (!(miAuto.presi && CHOFER.ruta && conduceChofer(miAuto, dt))) manejar(miAuto, dt); }
     else if (!yo.preso && Date.now() >= aturdidoHasta && Date.now() >= dormirHasta) {
       const f = (teclas.KeyW || teclas.ArrowUp ? 1 : 0) - (teclas.KeyS || teclas.ArrowDown ? 1 : 0) - joy.y;
       const r = (teclas.KeyD || teclas.ArrowRight ? 1 : 0) - (teclas.KeyA || teclas.ArrowLeft ? 1 : 0) + joy.x;
@@ -3192,6 +3264,7 @@ function loop(t) {
       else if (objetivo) pista = miAuto ? `🚓 ¡Atropellalo o tocá E para atrapar a ${objetivo.nombre}!` : `🚔 ¡Click para atrapar a ${objetivo.nombre}!`;
       else if (miAuto) pista = document.body.classList.contains("tactil") ? "🚓 Botón azul 🚓 para bajarte · sirenas en el panel" : "🚓 F para bajarte · H sirena · Espacio freno";
       else if (autoCerca && autoCerca.propio) pista = "🔑 F: subirte a tu auto";
+      else if (autoCerca && autoCerca.presi) pista = yo.clase === "presidente" ? "🚘 F: subirte a tu auto blindado (adentro, Y para el chofer)" : "🚘 Auto blindado del Presidente";
       else if (autoCerca) pista = autoCerca.pickup ? "🛻 Tocá F para subirte a la camioneta policial" : autoCerca.tipo === "camioneta"
         ? (ARMADO(yo.clase) ? "🚙 Tocá F para subirte a la camioneta del Grupo Especial Táctico" : "🚙 Camioneta del Grupo Especial Táctico: solo SWAT y Grupo Halcón")
         : autoCerca.tipo === "moto" ? (autoCerca.halcon ? (yo.clase === "halcon" ? "🦅 Tocá F para subirte a la moto Halcón" : "🦅 Moto del Grupo Halcón: solo para el Halcón") : "🏍️ Tocá F para subirte a la moto") : "🚓 Tocá F para subirte al patrullero";
@@ -3212,6 +3285,7 @@ function loop(t) {
     } else pista = yo.esposado ? "🔗 Estás esposado: te llevan a la cárcel. Un compañero te puede soltar en el camino." : "⛓️ Estás preso. Esperá que un compañero te libere.";
     if (!pista && autoCerca && autoCerca.propio) pista = "🔑 F: subirte a tu auto";
     accionPedida = false;
+    $("b-chofer").style.display = miAuto && miAuto.presi ? "block" : "none"; $("b-chofer").textContent = CHOFER.ruta ? "🚘 Manejar yo" : "🚘 Chofer";
     $("b-orden").style.display = ADMIN.pres ? "block" : "none"; $("b-orden").textContent = { seguir: "🕴️ Síganme", quietos: "🕴️ Quietos acá", perimetro: "🕴️ Perímetro" }[ADMIN.orden];
     $("b-admin").style.display = esGonza() ? "block" : "none"; $("b-mochila").style.display = "block"; $("b-mochila").style.top = esGonza() ? "132px" : "96px";
     if (performance.now() - pistaGuardas < 1500) pista = "🕴️ Guardaespaldas: \"¡Atrás! ¡Atrás del presidente!\"";
