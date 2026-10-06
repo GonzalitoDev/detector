@@ -201,6 +201,14 @@
     <button id="ad-x" style="margin-top:10px;width:100%;padding:8px;border:0;border-radius:10px;background:#ffffff22;color:#fff;font-weight:800">Cerrar</button>
   </div>
 </div>
+<button id="b-inv" title="Inventario (I)" style="display:none;position:fixed;left:12px;top:132px;z-index:6;border:0;border-radius:12px;padding:6px 12px;background:#2a3a5a;color:#fff;font-weight:900">🎒 Inventario</button>
+<div id="inv" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
+  <div style="max-width:420px;margin:0 auto;background:#141e33;border:2px solid #5ec8f2;border-radius:16px;padding:16px">
+    <h2 style="margin:0 0 10px;text-align:center">🎒 Inventario</h2>
+    <div id="inv-lista" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
+    <button id="inv-x" style="margin-top:12px;width:100%;padding:8px;border:0;border-radius:10px;background:#ffffff22;color:#fff;font-weight:800">Cerrar</button>
+  </div>
+</div>
 <button id="b-admin" style="display:none;position:fixed;left:12px;top:96px;z-index:6;border:0;border-radius:12px;padding:6px 12px;background:#ffd400;color:#000;font-weight:900">🛠️ Admin</button>
 <canvas id="minimapa" width="150" height="150" title="Mini mapa (tocá para achicar u ocultar)"></canvas>
 <div id="cambio" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
@@ -419,7 +427,7 @@ function choca(x, z, r = RADIO, eq = null) {
   if (Math.abs(x + mitad) < r + .3 && !(z > PUERTO.puerta1 + r && z < PUERTO.puerta2 - r) && !(z > HALCON.puerta1 + r && z < HALCON.puerta2 - r)) return true;   // paredón oeste con portones al puerto y a la base Halcón
   if (Math.abs(x - mitad) < r + .3 && !(z > AER.puerta1 + r && z < AER.puerta2 - r) && !(z > AUTOPISTA.z1 + r && z < AUTOPISTA.z2 - r)) return true;   // paredón con portón hacia el aeropuerto
   if (!RG.pasa && x + r > RG.p1 && x - r < RG.p2 && z + r > RG.cz2 - .5 && z - r < RG.cz2 + .2) return true;   // puerta de la residencia: solo Gonza
-  if (!RG.pasa && x + r > RG.rejaP1 && x - r < RG.rejaP2 && z + r > RG.z2 - .4 && z - r < RG.z2 + .2) return true;   // portón: la seguridad no deja pasar a nadie más
+  if (!RG.porton && x + r > RG.rejaP1 && x - r < RG.rejaP2 && z + r > RG.z2 - .4 && z - r < RG.z2 + .2) return true;   // portón: la seguridad no deja pasar a nadie más
   if (puerta.cerrada && eq !== "ladron" && x + r > CASA.x1 - .3 && x - r < CASA.x1 + .3 && z + r > CASA.puertaZ1 && z - r < CASA.puertaZ2) return true;
   return cercanos(x, z).some(e => x + r > e.x1 && x - r < e.x2 && z + r > e.z1 && z - r < e.z2);
 }
@@ -2245,9 +2253,9 @@ $("b-cam").addEventListener("touchstart", e => { e.preventDefault(); cambiarCama
 function mover(s, dx, dz, vel, dt) {
   const l = Math.hypot(dx, dz); if (!l) return; dx /= l; dz /= l;
   const nx = s.x + dx * vel * dt, nz = s.z + dz * vel * dt;
-  RG.pasa = s === yo && esGonza();
+  RG.pasa = s === yo && esGonza(); RG.porton = RG.pasa || (s === yo && INV.tiene("llave-rg"));
   if (!choca(nx, s.z, RADIO, s.equipo)) s.x = nx; if (!choca(s.x, nz, RADIO, s.equipo)) s.z = nz;
-  RG.pasa = false;
+  RG.pasa = RG.porton = false;
 }
 const dentro = (s, Z, extra = 0) => Math.hypot(s.x - Z.x, s.z - Z.z) < Z.r + extra;
 
@@ -3035,7 +3043,7 @@ function loop(t) {
       RG.puerta.position.x = (RG.p1 + RG.p2) / 2 + (abierta ? (RG.p2 - RG.p1) * .9 : 0);
       if (!miAuto && dP < 2.5 && !soy) pistaDepto = "🔒 Residencia presidencial: solo entra Gonza";
       const dG = Math.hypot(yo.x - (RG.rejaP1 + RG.rejaP2) / 2, yo.z - RG.z2);
-      if (!miAuto && dG < 3) { pistaDepto = soy ? "💂 Seguridad: \"Adelante, Presidente\"" : "💂 Seguridad: \"Propiedad privada. No puede pasar.\"";
+      if (!miAuto && dG < 3) { pistaDepto = soy ? "💂 Seguridad: \"Adelante, Presidente\"" : INV.tiene("llave-rg") ? "💂 Seguridad: \"Tiene la llave del portón: pase\" (la casa sigue siendo solo de Gonza)" : "💂 Seguridad: \"Propiedad privada. No puede pasar.\"";
         if (soy && !RG.saludo) { RG.saludo = true; beep(880, .1, "triangle"); } } else if (dG > 6) RG.saludo = false;
       const adentro = yo.x > RG.cx1 && yo.x < RG.cx2 && yo.z > RG.cz1 && yo.z < RG.cz2;
       if (adentro && !RG.adentro) { RG.adentro = true; if (soy) grande("🏛️ ¡Bienvenido a casa, Presidente Gonza!", "#75aadb"); } else if (!adentro) RG.adentro = false;
@@ -3100,7 +3108,7 @@ function loop(t) {
     } else pista = yo.esposado ? "🔗 Estás esposado: te llevan a la cárcel. Un compañero te puede soltar en el camino." : "⛓️ Estás preso. Esperá que un compañero te libere.";
     if (!pista && autoCerca && autoCerca.propio) pista = "🔑 F: subirte a tu auto";
     accionPedida = false;
-    $("b-admin").style.display = esGonza() ? "block" : "none";
+    $("b-admin").style.display = esGonza() ? "block" : "none"; $("b-inv").style.display = "block"; $("b-inv").style.top = esGonza() ? "132px" : "96px";
     $("pista").textContent = pistaDepto || pista; $("mira").classList.toggle("cerca", !!objetivo);
     $("radar").style.display = yo.equipo === "poli" && yo.div === "comunicaciones" ? "block" : "none";
     if (yo.equipo === "poli" && yo.div === "comunicaciones") { const P = ["N","NE","E","SE","S","SO","O","NO"];
@@ -3258,6 +3266,30 @@ function actualizarPatrullas(dt, t) {
 }
 // ================== AUTOS PROPIOS: CONCESIONARIA Y MECÁNICO CACHO ==================
 // Billetera del jugador (se guarda en el teléfono): la policía gana $300 por detenido, los ladrones la mitad de lo que entregan.
+// ================== INVENTARIO ==================
+// Queda guardado en el dispositivo. Muestra lo que tenés (plata, dólares, arma, autos, llaves) y lo que llevás encima ahora.
+const INV = {
+  get items() { try { return JSON.parse(localStorage.getItem("polis-inv") || "[]"); } catch (e) { return []; } },
+  set items(v) { try { localStorage.setItem("polis-inv", JSON.stringify(v)); } catch (e) {} },
+  tiene(id) { return this.items.includes(id) || (id === "llave-rg" && esGonza()); },
+  dar(id) { const a = this.items; if (!a.includes(id)) { a.push(id); this.items = a; } },
+  quitar(id) { this.items = this.items.filter(x => x !== id); } };
+const OBJETOS = { "llave-rg": { ico: "🔑", nom: "Llave del portón", d: "Abre el portón de la Residencia Presidencial (la casa es solo de Gonza)." } };
+function abrirInv() { if (!jugando) return; document.exitPointerLock?.(); $("inv").style.display = "block"; pintarInv(); }
+function pintarInv() {
+  const casilla = (ico, nom, d, c = "#ffffff14") => `<div style="background:${c};border-radius:12px;padding:10px;text-align:center"><div style="font-size:28px">${ico}</div><b>${nom}</b><div style="font-size:12px;opacity:.75">${d}</div></div>`;
+  const L = [casilla("💵", `$${BILLE.plata.toLocaleString("es-AR")}`, "Pesos en la billetera"), casilla("💲", `US$ ${DOLAR.us.toLocaleString("es-AR")}`, "Dólares (Casa del Dólar)")];
+  if (yo.equipo === "poli") { const A = ARMA(); L.push(casilla(A.ico, A.nom, "Arma equipada")); if (yo.clase === "halcon") L.push(casilla("💣", `${granadas} granadas`, "Aturdidoras (G)")); }
+  if (yo.bolsa) L.push(casilla("💰", "Bolsa de plata", "Llevala a la guarida o al Lobo", "#3a5a1a"));
+  if (yo.paquete) L.push(casilla("📦", "Paquete", "Llevalo al muelle", "#5a4a1a"));
+  for (const id of BILLE.garage.tengo) { const m = MODELO(id); if (m) L.push(casilla("🚗", m.nom, "Tu auto (sacalo en la conce)")); }
+  if (esGonza()) L.push(casilla("🗝️", "Llaves de la residencia", "Portón y casa: sos el dueño", "#5a4a10"));
+  else for (const id of INV.items) { const o = OBJETOS[id]; if (o) L.push(casilla(o.ico, o.nom, o.d, "#5a4a10")); }
+  $("inv-lista").innerHTML = L.join("");
+}
+$("inv-x").onclick = () => { $("inv").style.display = "none"; };
+$("b-inv").onclick = abrirInv;
+addEventListener("keydown", e => { if (e.code === "KeyI" && !e.repeat && jugando && document.activeElement?.tagName !== "INPUT") { if ($("inv").style.display === "block") $("inv").style.display = "none"; else abrirInv(); } });
 const BILLE = { get plata() { try { return +(localStorage.getItem("polis-plata") ?? 3000); } catch (e) { return 3000; } },
   set plata(v) { try { localStorage.setItem("polis-plata", Math.max(0, Math.round(v))); } catch (e) {} },
   get garage() { try { return JSON.parse(localStorage.getItem("polis-autos") || '{"tengo":[],"mejoras":{}}'); } catch (e) { return { tengo: [], mejoras: {} }; } },
@@ -3347,11 +3379,13 @@ function pintarAdmin() {
     <br><b>📍 Teletransporte</b><br>${LUGARES.map((l, i) => bt("tp" + i, l[0])).join("")}
     <br><b>🎮 Partida ${online ? (soyHost ? "(sos el host)" : "") : "(práctica)"}</b><br>${bt("presos", "⛓️ Encarcelar a todos los ladrones")}${bt("libres", "🔓 Liberar a todos")}${bt("dist", "🔥 Empezar disturbio")}${bt("tiempo", "⏱️ +5 minutos")}${bt("finpoli", "🏁 Terminar: gana la poli", "#2a4fa8")}${bt("finlad", "🏁 Terminar: ganan los ladrones", "#8a2a2a")}
     <br><b>📢 Anuncio para todos</b><br><input id="ad-msg" maxlength="80" placeholder="Escribí un mensaje" style="width:70%;padding:8px;border-radius:8px;border:0">${bt("anuncio", "Enviar", "#a87a00")}
-    <br><b>👥 Jugadores ${online ? "" : "(bots)"}</b><br>${todos.length ? bt("traetodos", "📍 Traer a todos acá", "#2a4fa8") + "<br>" + todos.map(s => `${s.equipo === "poli" ? "👮" : "🦹"} ${esc(s.nombre)} ${bt("trae:" + esc(s.id), "📍 Traer", "#2a4fa8")}${bt("ir:" + esc(s.id), "🚀 Ir")}${online && !s.bot ? bt("kick:" + esc(s.id), "🚪 Sacar", "#8a2a2a") : ""}`).join("<br>") : "No hay otros jugadores"}`;
+    <br><b>👥 Jugadores ${online ? "" : "(bots)"}</b><br>${todos.length ? bt("traetodos", "📍 Traer a todos acá", "#2a4fa8") + "<br>" + todos.map(s => `${s.equipo === "poli" ? "👮" : "🦹"} ${esc(s.nombre)} ${bt("trae:" + esc(s.id), "📍 Traer", "#2a4fa8")}${bt("ir:" + esc(s.id), "🚀 Ir")}${online && !s.bot ? bt("llave:" + esc(s.id), "🔑 Dar llave", "#7a5a10") + bt("sinllave:" + esc(s.id), "Quitar llave") + bt("kick:" + esc(s.id), "🚪 Sacar", "#8a2a2a") : ""}`).join("<br>") : "No hay otros jugadores"}`;
 }
 // Lo que ve y hace cada jugador cuando el admin manda algo (en práctica se aplica solo local)
 function accionAdmin(p) {
   const de = jug[p.de]; if (!de || !/^gonza/i.test(de.nombre || "")) return;
+  if (p.acc === "llave") { if (p.id === yo.id) { if (p.dar) { INV.dar("llave-rg"); grande("🔑 ¡Gonza te dio la llave del portón!", "#ffd400"); } else { INV.quitar("llave-rg"); grande("🔑 Gonza te sacó la llave del portón", "#ff6a6a"); } }
+    else { const s = jug[p.id]; if (s) feed(p.dar ? `🔑 ${de.nombre} le dio la llave del portón a ${s.nombre}` : `🔑 ${de.nombre} le sacó la llave a ${s.nombre}`); } return; }
   if (p.acc === "tp") { const s = jug[p.id]; if (!s || !(s === yo || (s.bot && (!online || soyHost)))) return;   // cada uno mueve lo suyo (los NPC los mueve el host)
     if (s === yo) { if (miAuto) bajarAuto(); grande(`🛠️ ${de.nombre} te teletransportó`, "#ffd400"); }
     const l = lugarLibre({ x: +p.x || 0, z: +p.z || 0 }, 3); s.x = s.tx = l.x; s.z = s.tz = l.z; s.ruta = null; return; }
@@ -3375,6 +3409,8 @@ function clickAdmin(e) { const a = e.target.dataset?.ad; if (!a) return;
   else if (a === "finpoli" || a === "finlad") { $("admin").style.display = "none"; mandarAdmin({ acc: "fin", gana: a === "finlad" ? "ladron" : "poli" }); return; }
   else if (a === "anuncio") { const m = $("ad-msg").value.trim(); if (m) mandarAdmin({ acc: "anuncio", msg: m }); }
   else if (a.startsWith("kick:")) mandarAdmin({ acc: "kick", id: a.slice(5) });
+  else if (a.startsWith("llave:")) mandarAdmin({ acc: "llave", id: a.slice(6), dar: true });
+  else if (a.startsWith("sinllave:")) mandarAdmin({ acc: "llave", id: a.slice(9), dar: false });
   else if (a === "modo") { ADMIN.modo = !ADMIN.modo; grande(ADMIN.modo ? "🛠️ MODO ADMIN" : "Modo admin apagado", "#ffd400"); }
   else if (a.startsWith("trae:")) mandarAdmin({ acc: "tp", id: a.slice(5), x: yo.x + 1.5, z: yo.z });
   else if (a === "traetodos") { for (const o of Object.values(jug)) if (o !== yo) mandarAdmin({ acc: "tp", id: o.id, x: yo.x + (Math.random() - .5) * 6, z: yo.z + (Math.random() - .5) * 6 }); }
