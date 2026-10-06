@@ -244,6 +244,10 @@ function recibirPos(p) {
   let s = jug[p.id];
   if (!s) { if (!jugando) return; s = jug[p.id] = nuevoJugador(p.id, p.nombre, p.pj, p.arma, false); feed(`👋 Entró ${p.nombre}`); }
   if (p.vivo && !s.vivo) { s.vivo = true; s.x = p.x; s.y = p.y; }
+  { const ahora = performance.now(), d = (ahora - (s._rt || 0)) / 1000;   // velocidad estimada para predecir entre mensajes
+    if (Math.hypot(p.x - s.tx, p.y - s.ty) > 300) { s.x = p.x; s.y = p.y; s.vx = s.vy = 0; }
+    else if (d > .03 && d < 1) { const lim = v => Math.max(-900, Math.min(900, v)); s.vx = lim((p.x - s.tx) / d); s.vy = lim((p.y - s.ty) / d); } else s.vx = s.vy = 0;
+    s._rt = ahora; }
   s.tx = p.x; s.ty = p.y; s.a = p.a; s.hp = p.hp; s.kills = p.kills; s.nombre = p.nombre; s.visto = Date.now();
 }
 function recibirGolpe(p) { const s = jug[p.id]; if (s) { s.hp = p.hp; s.golpeado = .15; chispas(s.x, s.y, "#ff4d4d", 8); } }
@@ -287,8 +291,9 @@ function loop(t) {
   for (const s of Object.values(jug)) {
     s.cd = Math.max(0, s.cd - dt); s.flash = Math.max(0, s.flash - dt); s.golpeado = Math.max(0, (s.golpeado||0) - dt);
     if (s.bot) pensarBot(s, dt);
-    else if (s !== yo) { s.x += (s.tx - s.x) * Math.min(1, dt*12); s.y += (s.ty - s.y) * Math.min(1, dt*12);
-      if (online && s.visto && Date.now() - s.visto > 6000) { feed(`🚪 Se fue ${s.nombre}`); delete jug[s.id]; } }
+    else if (s !== yo) { const ade = s._rt ? Math.min(.2, (performance.now() - s._rt) / 1000) : 0;
+      s.x += (s.tx + (s.vx||0)*ade - s.x) * Math.min(1, dt*15); s.y += (s.ty + (s.vy||0)*ade - s.y) * Math.min(1, dt*15);
+      if (online && s.visto && Date.now() - s.visto > 15000) { feed(`🚪 Se fue ${s.nombre}`); delete jug[s.id]; } }
   }
   // Balas
   for (let i = balas.length-1; i >= 0; i--) {
