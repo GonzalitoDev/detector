@@ -2036,7 +2036,7 @@ function recibirPos(p) {
     s._rt = ahora; }
   s.tx = p.x; s.tz = p.z; s.rot = p.rot + Math.PI;   // la cámara mira hacia -z y el muñeco hacia +z
   // (antes esta parte había quedado adentro del comentario: no se actualizaba preso/bolsa/auto y los jugadores "se iban" a los 8 s)
-  if (p.res !== undefined) s.res = p.res; s.preso = !!p.preso; s.bolsa = !!p.bolsa; s.paquete = !!p.paq; s.visto = Date.now(); s.auto = p.auto ?? null; s.esposado = s.preso ? (p.esp || null) : null;
+  if (p.res !== undefined) s.res = p.res; s.preso = !!p.preso; s.bolsa = !!p.bolsa; s.paquete = !!p.paq; s.visto = Date.now(); s.auto = p.auto ?? null; s.esposado = s.preso ? (p.esp || null) : null; s.adm = !!p.adm && /^gonza/i.test(s.nombre || "");
   autoRemoto(s, p.pc, p);
   if (s.auto !== null && autos[s.auto] && autos[s.auto] !== miAuto) { const a = autos[s.auto]; a.conductor = p.id; { const ahora = performance.now(), d = (ahora - (a._rt || 0)) / 1000;
     if (d > .03 && d < 1) { a.vx = Math.max(-60, Math.min(60, (p.x - a.tx) / d)); a.vz = Math.max(-60, Math.min(60, (p.z - a.tz) / d)); } else a.vx = a.vz = 0; a._rt = ahora; }
@@ -2046,7 +2046,7 @@ function recibirPos(p) {
 function enviarPos() {
       const npcs = soyHost ? Object.values(jug).filter(b => b.bot).map(b => ({ id: b.id, nombre: b.nombre, equipo: "ladron", clase: "ladron", res: Math.round(b.res), x: +b.x.toFixed(2), z: +b.z.toFixed(2), rot: +((b.rot || 0) - Math.PI).toFixed(2), preso: b.preso, esp: b.esposado || null, bolsa: b.bolsa, paq: !!b.paquete, auto: null })) : [];
       const danos = danosPend.splice(0);
-      enviar("pos", { npcs, danos, id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, uni: yo.uni, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, esp: yo.esposado || null, bolsa: yo.bolsa, paq: !!yo.paquete,
+      enviar("pos", { npcs, danos, id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, uni: yo.uni, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, adm: ADMIN.modo ? 1 : 0, esp: yo.esposado || null, bolsa: yo.bolsa, paq: !!yo.paquete,
       auto: miAuto && !miAuto.propio ? miAuto.i : null, pc: miAuto && miAuto.propio ? { m: miAuto.modeloId, c: miAuto.color, n: miAuto.neon || 0 } : null, ah: miAuto ? +miAuto.h.toFixed(2) : 0, av: miAuto ? +miAuto.vel.toFixed(1) : 0, sir: miAuto ? miAuto.sirena : false, sp: miAuto ? (miAuto.patron || "alterno") : "" });
 }
 // Si la pestaña queda en segundo plano el juego se pausa, pero igual avisamos que seguimos (antes a los 8 s te daban por ido)
@@ -3082,6 +3082,10 @@ function loop(t) {
         s.mesh.userData.marca.visible = yo.equipo === "poli" && s.equipo === "ladron" && !s.preso && (((yo.div === "investigaciones" || yo.clase === "investigador") && (s.bolsa || !!s.paquete)) || (capturas[s.id] || 0) > Date.now());
         s.mesh.position.y = 0; }
     }
+    for (const s of Object.values(jug)) { const quiere = s === yo ? ADMIN.modo : !!s.adm; if (!s.mesh || (!quiere && !s.tagAdm)) continue;
+      if (!s.tagAdm) { s.tagAdm = cartel("🛠️ ADMIN", "#b8860b"); s.tagAdm.scale.set(2.2, .55, 1); s.tagAdm.position.y = 3.15; }
+      if (s.tagAdm.parent !== s.mesh) s.mesh.add(s.tagAdm);
+      s.tagAdm.visible = quiere; s.tagAdm.material.opacity = .75 + Math.sin(t / 200) * .25; s.tagAdm.material.transparent = true; }
     moverEsposados(dt); actualizarSwat(dt, t); actualizarLuces(t); actualizarGranadas(dt);
     // Puerta: abierta queda tirada en el piso; se repara sola si no hay nadie adentro
     if (!puerta.cerrada && Date.now() > puerta.hasta && !Object.values(jug).some(s => s.x > CASA.x1 - 1 && s.x < CASA.x2 && s.z > CASA.z1 && s.z < CASA.z2)) { puerta.cerrada = true; feed("🔒 Los narcos repararon la puerta"); }
@@ -3284,7 +3288,7 @@ function autoRemoto(s, pc, p) {
 let pestañaConce = "normales";
 // ================== MENÚ ADMIN (solo Gonza, con PIN) ==================
 // Se abre con la tecla P (a pie) o el botón 🛠️. La primera vez Gonza elige un PIN que queda guardado en este dispositivo.
-const ADMIN = { ok: false, rapido: false };
+const ADMIN = { ok: false, rapido: false, modo: false };
 const esGonza = () => /^gonza/i.test((DB.nombre || "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));   // Gonza, Gonzalito, GonzaDev…
 async function hashPin(p) { try { const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("polis:" + p)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); } catch (e) { return "x" + p; } }
 async function abrirAdmin() {
@@ -3299,16 +3303,19 @@ async function abrirAdmin() {
 const LUGARES = [["🚔 Cárcel", ZONAS.carcel], ["🏦 Banco", ZONAS.banco], ["🏚️ Guarida", ZONAS.guarida], ["💊 Casa narco", ZONAS.narco], ["🚤 Muelle", ZONAS.muelle],
   ["🏨 Hotel", { x: -20, z: 61 }], ["🚗 Conce", { x: 96, z: 72 }], ["🦅 Halcón", { x: -84, z: 42 }], ["🏛️ Mi residencia", { x: 159, z: -178 }], ["🐺 Los Lobos", { x: -32, z: 100 }]];
 function pintarAdmin() {
-  const otros = Object.values(jug).filter(s => s !== yo && !s.bot), bt = (a, t, c = "#ffffff22") => `<button data-ad="${a}" style="margin:3px;padding:8px 10px;border:0;border-radius:10px;background:${c};color:#fff;font-weight:800">${t}</button>`;
-  $("ad-cuerpo").innerHTML = `<b>💵 Plata y vos</b><br>${bt("plata", "+$10.000", "#1e7a3a")}${bt("vida", "❤️ Curarme")}${bt("rapido", ADMIN.rapido ? "🐢 Velocidad normal" : "⚡ Súper velocidad")}
+  const todos = Object.values(jug).filter(s => s !== yo), bt = (a, t, c = "#ffffff22") => `<button data-ad="${a}" style="margin:3px;padding:8px 10px;border:0;border-radius:10px;background:${c};color:#fff;font-weight:800">${t}</button>`;
+  $("ad-cuerpo").innerHTML = `${bt("modo", ADMIN.modo ? "🛠️ Modo admin: PRENDIDO (tag en la cabeza)" : "🛠️ Modo admin: apagado", ADMIN.modo ? "#b8860b" : "#ffffff22")}<br><b>💵 Plata y vos</b><br>${bt("plata", "+$10.000", "#1e7a3a")}${bt("vida", "❤️ Curarme")}${bt("rapido", ADMIN.rapido ? "🐢 Velocidad normal" : "⚡ Súper velocidad")}
     <br><b>📍 Teletransporte</b><br>${LUGARES.map((l, i) => bt("tp" + i, l[0])).join("")}
     <br><b>🎮 Partida ${online ? (soyHost ? "(sos el host)" : "") : "(práctica)"}</b><br>${bt("presos", "⛓️ Encarcelar a todos los ladrones")}${bt("libres", "🔓 Liberar a todos")}${bt("dist", "🔥 Empezar disturbio")}${bt("tiempo", "⏱️ +5 minutos")}${bt("finpoli", "🏁 Terminar: gana la poli", "#2a4fa8")}${bt("finlad", "🏁 Terminar: ganan los ladrones", "#8a2a2a")}
     <br><b>📢 Anuncio para todos</b><br><input id="ad-msg" maxlength="80" placeholder="Escribí un mensaje" style="width:70%;padding:8px;border-radius:8px;border:0">${bt("anuncio", "Enviar", "#a87a00")}
-    ${online ? `<br><b>👥 Jugadores</b><br>${otros.length ? otros.map(s => `${esc(s.nombre)} ${bt("kick:" + esc(s.id), "🚪 Sacar", "#8a2a2a")}`).join("<br>") : "No hay otros jugadores"}` : ""}`;
+    <br><b>👥 Jugadores ${online ? "" : "(bots)"}</b><br>${todos.length ? bt("traetodos", "📍 Traer a todos acá", "#2a4fa8") + "<br>" + todos.map(s => `${s.equipo === "poli" ? "👮" : "🦹"} ${esc(s.nombre)} ${bt("trae:" + esc(s.id), "📍 Traer", "#2a4fa8")}${bt("ir:" + esc(s.id), "🚀 Ir")}${online && !s.bot ? bt("kick:" + esc(s.id), "🚪 Sacar", "#8a2a2a") : ""}`).join("<br>") : "No hay otros jugadores"}`;
 }
 // Lo que ve y hace cada jugador cuando el admin manda algo (en práctica se aplica solo local)
 function accionAdmin(p) {
-  const de = jug[p.de]; if (!de || !/^gonza$/i.test(de.nombre || "")) return;
+  const de = jug[p.de]; if (!de || !/^gonza/i.test(de.nombre || "")) return;
+  if (p.acc === "tp") { const s = jug[p.id]; if (!s || !(s === yo || (s.bot && (!online || soyHost)))) return;   // cada uno mueve lo suyo (los NPC los mueve el host)
+    if (s === yo) { if (miAuto) bajarAuto(); grande(`🛠️ ${de.nombre} te teletransportó`, "#ffd400"); }
+    const l = lugarLibre({ x: +p.x || 0, z: +p.z || 0 }, 3); s.x = s.tx = l.x; s.z = s.tz = l.z; s.ruta = null; return; }
   if (p.acc === "anuncio") { grande("📢 " + String(p.msg || "").slice(0, 80), "#ffd400"); feed(`📢 ${de.nombre}: ${String(p.msg || "").slice(0, 80)}`); beep(880, .2, "triangle"); }
   else if (p.acc === "presos") { for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso) { s.preso = true; s.bolsa = false; s.paquete = false; if (s === yo || s.bot) alaCelda(s); } feed("🛠️ El admin metió presos a todos los ladrones"); revisarFin(); }
   else if (p.acc === "libres") { for (const s of Object.values(jug)) if (s.equipo === "ladron" && s.preso) { s.preso = false; s.esposado = null; s.res = 100; } feed("🛠️ El admin liberó a todos"); }
@@ -3329,6 +3336,10 @@ function clickAdmin(e) { const a = e.target.dataset?.ad; if (!a) return;
   else if (a === "finpoli" || a === "finlad") { $("admin").style.display = "none"; mandarAdmin({ acc: "fin", gana: a === "finlad" ? "ladron" : "poli" }); return; }
   else if (a === "anuncio") { const m = $("ad-msg").value.trim(); if (m) mandarAdmin({ acc: "anuncio", msg: m }); }
   else if (a.startsWith("kick:")) mandarAdmin({ acc: "kick", id: a.slice(5) });
+  else if (a === "modo") { ADMIN.modo = !ADMIN.modo; grande(ADMIN.modo ? "🛠️ MODO ADMIN" : "Modo admin apagado", "#ffd400"); }
+  else if (a.startsWith("trae:")) mandarAdmin({ acc: "tp", id: a.slice(5), x: yo.x + 1.5, z: yo.z });
+  else if (a === "traetodos") { for (const o of Object.values(jug)) if (o !== yo) mandarAdmin({ acc: "tp", id: o.id, x: yo.x + (Math.random() - .5) * 6, z: yo.z + (Math.random() - .5) * 6 }); }
+  else if (a.startsWith("ir:")) { const o = jug[a.slice(3)]; if (o) { if (miAuto) bajarAuto(); const l = lugarLibre({ x: o.x, z: o.z }, 3); yo.x = l.x; yo.z = l.z; $("admin").style.display = "none"; return; } }
   else mandarAdmin({ acc: a });
   pintarAdmin(); }
 $("ad-cuerpo").onclick = clickAdmin;
