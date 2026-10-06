@@ -212,6 +212,15 @@
 </div>
 <button id="b-admin" style="display:none;position:fixed;left:12px;top:96px;z-index:6;border:0;border-radius:12px;padding:6px 12px;background:#ffd400;color:#000;font-weight:900">🛠️ Admin</button>
 <canvas id="minimapa" width="150" height="150" title="Mini mapa (tocá para achicar u ocultar)"></canvas>
+<div id="despacho" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
+  <div style="max-width:480px;margin:0 auto;background:#2a1418;border:2px solid #d4af37;border-radius:16px;padding:16px;text-align:center">
+    <h2 style="margin:0 0 4px">🏛️ Despacho Presidencial</h2>
+    <div style="font-size:12px;opacity:.75;margin-bottom:10px">Firmá decretos que cambian la partida para todos. Cada uno se puede volver a firmar después de un rato.</div>
+    <div id="dp-lista" style="display:grid;gap:8px"></div>
+    <input id="dp-msg" maxlength="80" placeholder="Mensaje para la cadena nacional" style="width:100%;margin-top:10px;padding:8px;border-radius:8px;border:0;box-sizing:border-box">
+    <button id="dp-x" style="margin-top:12px;width:100%;padding:8px;border:0;border-radius:10px;background:#ffffff22;color:#fff;font-weight:800">Cerrar</button>
+  </div>
+</div>
 <div id="cambio" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
   <div style="max-width:440px;margin:0 auto;background:#0f2a1a;border:2px solid #4caf50;border-radius:16px;padding:16px;text-align:center">
     <h2 style="margin:0 0 4px">💵 Casa del Dólar</h2>
@@ -2046,6 +2055,7 @@ function conectar(cod, host) {
     .on("broadcast", { event: "dano" }, ({ payload: p }) => recibirDano(p.ladron, p.de, p.dmg, Math.min(4000, +p.at || 0)))
     .on("broadcast", { event: "atrapa" }, ({ payload: p }) => atrapado(p.ladron, p.poli))
     .on("broadcast", { event: "admin" }, ({ payload: p }) => accionAdmin(p))
+    .on("broadcast", { event: "decreto" }, ({ payload: p }) => decreto(p))
     .on("broadcast", { event: "libera" }, ({ payload: p }) => liberar(p.quien))
     .on("broadcast", { event: "entregaPreso" }, ({ payload: p }) => { const s = jug[p.id]; if (s && p.poli === "") { s.esposado = null; return; } entregarPreso(p.id, p.poli); })
     .on("broadcast", { event: "suelta" }, ({ payload: p }) => soltarEsposado(p.id, p.quien))
@@ -2569,6 +2579,47 @@ const GOB = { x1: 22, x2: 34, z1: -2, z2: 6, alto: 8, cx: 28, cz: 2, puerta1: 26
   const plaza = new THREE.Mesh(new THREE.PlaneGeometry(16, 6), new THREE.MeshLambertMaterial({ color: 0xbdb5a6 })); plaza.rotation.x = -Math.PI / 2; plaza.position.set(G.cx, .03, G.z2 + 3); escena.add(plaza);
   const c = cartel("🏛️ CASA DE GOBIERNO", "#b0506a"); c.position.set(G.cx, G.alto + 6.5, G.cz); escena.add(c);
   // (los escalones del frente ya no frenan: por ahí se entra)
+  // Granaderos de guardia a los lados de la puerta (uniforme azul con vivos rojos y morrión alto con penacho — inspirado, sin escudos)
+  GOB.granaderos = [];
+  for (const x of [G.puerta1 - .7, G.puerta2 + .7]) { const g = new THREE.Group(); g.position.set(x, 0, G.z2 + .55); escena.add(g); GOB.granaderos.push(g);
+    const L = c => new THREE.MeshLambertMaterial({ color: c });
+    for (const dx of [-.11, .11]) { const p = new THREE.Mesh(new THREE.BoxGeometry(.18, .9, .2), L(0xf2f2f2)); p.position.set(dx, .45, 0); g.add(p); const b = new THREE.Mesh(new THREE.BoxGeometry(.2, .3, .24), L(0x111111)); b.position.set(dx, .15, .02); g.add(b); }
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(.5, .66, .3), L(0x1a2a6a)); torso.position.y = 1.24; g.add(torso);
+    const vivo = new THREE.Mesh(new THREE.BoxGeometry(.2, .6, .02), L(0xc81e1e)); vivo.position.set(0, 1.24, .16); g.add(vivo);
+    for (const dx of [-.33, .33]) { const a = new THREE.Mesh(new THREE.BoxGeometry(.13, .6, .15), L(0x1a2a6a)); a.position.set(dx, 1.22, 0); g.add(a); const ep = new THREE.Mesh(new THREE.BoxGeometry(.18, .06, .2), L(0xd4af37)); ep.position.set(dx, 1.56, 0); g.add(ep); }
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(.3, .3, .3), L(0xe0b48a)); cab.position.y = 1.72; g.add(cab);
+    const morrion = new THREE.Mesh(new THREE.CylinderGeometry(.17, .15, .42, 12), L(0x111111)); morrion.position.y = 2.08; g.add(morrion);
+    const penacho = new THREE.Mesh(new THREE.ConeGeometry(.07, .3, 8), L(0xc81e1e)); penacho.position.set(0, 2.42, .05); g.add(penacho);
+    const sable = new THREE.Mesh(new THREE.BoxGeometry(.03, .9, .04), L(0xdddddd)); sable.position.set(.42, 1.3, .1); g.add(sable);
+    edificios.push({ x1: x - .3, x2: x + .3, z1: G.z2 + .25, z2: G.z2 + .85, h: 2, arbol: true }); }
+  const cD = cartel("🏛️ Despacho del Presidente", "#7a1020"); cD.scale.set(3.6, .8, 1); cD.position.set(G.x1 + 2, 2.6, G.cz); escena.add(cD);
+}
+// ================== DESPACHO PRESIDENCIAL: DECRETOS ==================
+// El Presidente (Gonza) firma decretos desde el escritorio de la Casa de Gobierno; le llegan a todos los jugadores.
+const DECRETOS = {
+  aumento:   { ico: "💵", nom: "Aumento a la policía", d: "Cada policía cobra $500.", cd: 120 },
+  operativo: { ico: "🚨", nom: "Operativo de seguridad", d: "Todos los ladrones quedan marcados 30 segundos.", cd: 90 },
+  jornada:   { ico: "⏱️", nom: "Extender la jornada", d: "La partida dura 3 minutos más.", cd: 150 },
+  indulto:   { ico: "🕊️", nom: "Indulto presidencial", d: "Libera a todos los presos.", cd: 180 },
+  cadena:    { ico: "📺", nom: "Cadena nacional", d: "Tu mensaje aparece en la pantalla de todos.", cd: 30 } };
+const firmados = {};
+function abrirDespacho() { document.exitPointerLock?.(); $("despacho").style.display = "block"; pintarDespacho(); clearInterval(abrirDespacho.t); abrirDespacho.t = setInterval(() => { if ($("despacho").style.display === "block") pintarDespacho(); else clearInterval(abrirDespacho.t); }, 1000); }
+function pintarDespacho() {
+  $("dp-lista").innerHTML = Object.entries(DECRETOS).map(([k, D]) => { const falta = Math.ceil(((firmados[k] || 0) - Date.now()) / 1000);
+    return `<button data-dec="${k}" ${falta > 0 ? "disabled" : ""} style="padding:10px;border:0;border-radius:12px;background:${falta > 0 ? "#ffffff14" : "#7a1020"};color:#fff;text-align:left;opacity:${falta > 0 ? .5 : 1}"><b>${D.ico} ${D.nom}</b>${falta > 0 ? ` <small>(de nuevo en ${falta} s)</small>` : ""}<br><small>${D.d}</small></button>`; }).join("");
+  $("dp-lista").querySelectorAll("[data-dec]").forEach(b => b.onclick = () => { const k = b.dataset.dec; if ((firmados[k] || 0) > Date.now()) return;
+    let msg = ""; if (k === "cadena") { msg = $("dp-msg").value.trim().slice(0, 80); if (!msg) { $("dp-msg").focus(); return; } $("dp-msg").value = ""; }
+    firmados[k] = Date.now() + DECRETOS[k].cd * 1000; const p = { k, de: yo.id, msg }; enviar("decreto", p); decreto(p); pintarDespacho(); });
+}
+$("dp-x").onclick = () => { $("despacho").style.display = "none"; };
+function decreto(p) {
+  const D = DECRETOS[p.k], de = jug[p.de]; if (!D || !de || de.clase !== "presidente" || !/^gonza/i.test(de.nombre || "")) return;
+  if (p.k === "cadena") { grande("📺 CADENA NACIONAL: " + String(p.msg || "").slice(0, 80), "#75aadb"); feed(`📺 ${de.nombre}: ${String(p.msg || "").slice(0, 80)}`); beep(660, .3, "triangle"); return; }
+  grande(`📜 DECRETO: ${D.ico} ${D.nom}`, "#d4af37"); feed(`📜 El Presidente ${de.nombre} firmó: ${D.nom}`); beep(520, .15, "triangle"); setTimeout(() => beep(780, .2, "triangle"), 160);
+  if (p.k === "aumento" && yo.equipo === "poli") ganar(500, "aumento por decreto");
+  if (p.k === "operativo") for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso) capturas[s.id] = Date.now() + 30000;
+  if (p.k === "jornada" && isFinite(fin)) fin += 180000;
+  if (p.k === "indulto") { for (const s of Object.values(jug)) if (s.equipo === "ladron" && s.preso) { s.preso = false; s.esposado = null; s.res = 100; } }
 }
 // Recorrido de la caravana por las calles (ida y vuelta a la Casa de Gobierno)
 const RUTA = [[28, 16], [16, 16], [16, -32], [-32, -32], [-32, 16], [16, 16], [28, 16]];
@@ -2984,7 +3035,7 @@ function fondoMini() {
   for (const e of edificios) if (!e.arbol && e.h > 1) R(e.x1, e.z1, e.x2, e.z2, "#8a93a6");
   M.fondo = c;
 }
-const LUGARES_MINI = [[ZONAS.banco, "🏦"], [ZONAS.carcel, "⛓️"], [ZONAS.guarida, "🏚️"], [ZONAS.narco, "💊"], [ZONAS.muelle, "🚤"], [{ x: CAMBIO.mostX, z: CAMBIO.mostZ }, "💵"], [{ x: 159, z: -190 }, "🏛️"], [{ x: -20, z: 52 }, "🏨"], [{ x: GANG.jefeX, z: GANG.jefeZ }, "🐺"], [{ x: 100, z: 72 }, "🚗"]];
+const LUGARES_MINI = [[ZONAS.banco, "🏦"], [ZONAS.carcel, "⛓️"], [ZONAS.guarida, "🏚️"], [ZONAS.narco, "💊"], [ZONAS.muelle, "🚤"], [{ x: CAMBIO.mostX, z: CAMBIO.mostZ }, "💵"], [{ x: 159, z: -190 }, "🏛️"], [{ x: -20, z: 52 }, "🏨"], [{ x: GANG.jefeX, z: GANG.jefeZ }, "🐺"], [{ x: GOB.cx, z: GOB.cz }, "🏛️"], [{ x: 100, z: 72 }, "🚗"]];
 function dibujarMini(t) {
   const cv = $("minimapa"); cv.style.display = jugando && MINI.modo < 2 ? "block" : "none"; cv.classList.toggle("chico", MINI.modo === 1);
   if (!jugando || MINI.modo === 2 || t - MINI.ult < 100 || !yo) return; MINI.ult = t;
@@ -3066,6 +3117,12 @@ function loop(t) {
         if (accionPedida && !k.ocupada) { accionPedida = false; dormirJugador(k); } break; }
     }
     // Bóveda de la Casa de Gobierno (solo ladrones)
+    { const adentro = yo.x > GOB.x1 && yo.x < GOB.x2 && yo.z > GOB.z1 && yo.z < GOB.z2;
+      if (adentro && !GOB.adentro && yo.clase === "presidente") grande("🏛️ Bienvenido a la Casa de Gobierno, Presidente", "#75aadb"); GOB.adentro = adentro;
+      if (!miAuto && !yo.preso && Math.hypot(yo.x - (GOB.x1 + 3.3), yo.z - GOB.cz) < 1.6) {
+        if (yo.clase === "presidente") { pistaDepto = "🏛️ E: sentarte en el despacho y firmar decretos"; if (accionPedida) { accionPedida = false; abrirDespacho(); } }
+        else pistaDepto = "🏛️ El despacho del Presidente (solo él firma decretos)"; }
+      if (!miAuto && Math.hypot(yo.x - GOB.cx, yo.z - (GOB.z2 + .8)) < 2.2 && !pistaDepto) pistaDepto = yo.clase === "presidente" ? "🎖️ Granaderos: \"¡Buenas, señor Presidente!\"" : "🎖️ Granaderos de guardia en la Casa de Gobierno"; }
     if (yo.equipo === "ladron" && !yo.preso && !pistaDepto && Math.hypot(yo.x - GOB.bovX, yo.z - GOB.bovZ) < 1.8) {
       const e = Math.ceil((GOB.listo - Date.now()) / 1000);
       pistaDepto = e > 0 ? `💼 La bóveda está vacía (vuelve a llenarse en ${e} s)` : yo.bolsa || yo.paquete ? "💼 Ya llevás algo: entregalo primero" : "💼 E: robar el maletín presidencial ($3.000)";
@@ -3421,7 +3478,7 @@ async function abrirAdmin() {
     ADMIN.ok = true; }
   $("admin").style.display = "block"; pintarAdmin(); }
 const LUGARES = [["🚔 Cárcel", ZONAS.carcel], ["🏦 Banco", ZONAS.banco], ["🏚️ Guarida", ZONAS.guarida], ["💊 Casa narco", ZONAS.narco], ["🚤 Muelle", ZONAS.muelle],
-  ["🏨 Hotel", { x: -20, z: 61 }], ["🚗 Conce", { x: 96, z: 72 }], ["🦅 Halcón", { x: -84, z: 42 }], ["🏛️ Mi residencia", { x: 159, z: -178 }], ["🐺 Los Lobos", { x: -32, z: 100 }]];
+  ["🏨 Hotel", { x: -20, z: 61 }], ["🚗 Conce", { x: 96, z: 72 }], ["🦅 Halcón", { x: -84, z: 42 }], ["🏛️ Mi residencia", { x: 159, z: -178 }], ["🐺 Los Lobos", { x: -32, z: 100 }], ["🏛️ Casa de Gobierno", { x: 28, z: 11 }]];
 function pintarAdmin() {
   const todos = Object.values(jug).filter(s => s !== yo), bt = (a, t, c = "#ffffff22") => `<button data-ad="${a}" style="margin:3px;padding:8px 10px;border:0;border-radius:10px;background:${c};color:#fff;font-weight:800">${t}</button>`;
   $("ad-cuerpo").innerHTML = `${bt("modo", ADMIN.modo ? "🛠️ Modo admin: PRENDIDO (tag en la cabeza)" : "🛠️ Modo admin: apagado", ADMIN.modo ? "#b8860b" : "#ffffff22")}<br><b>💵 Plata y vos</b><br>${bt("plata", "+$10.000", "#1e7a3a")}${bt("vida", "❤️ Curarme")}${bt("rapido", ADMIN.rapido ? "🐢 Velocidad normal" : "⚡ Súper velocidad")}
