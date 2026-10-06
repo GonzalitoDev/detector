@@ -197,7 +197,7 @@
     <button id="ad-x" style="margin-top:10px;width:100%;padding:8px;border:0;border-radius:10px;background:#ffffff22;color:#fff;font-weight:800">Cerrar</button>
   </div>
 </div>
-<button id="b-admin" style="display:none;position:fixed;left:50%;transform:translateX(-50%);top:8px;z-index:6;border:0;border-radius:12px;padding:6px 12px;background:#ffd400;color:#000;font-weight:900">🛠️ Admin</button>
+<button id="b-admin" style="display:none;position:fixed;left:12px;top:96px;z-index:6;border:0;border-radius:12px;padding:6px 12px;background:#ffd400;color:#000;font-weight:900">🛠️ Admin</button>
 <div id="conce" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
   <div style="max-width:620px;margin:0 auto;background:#0f1d36;border:2px solid #5ec8f2;border-radius:16px;padding:16px">
     <h2 style="margin:0 0 4px;text-align:center">🚗 Concesionaria Gonzalito</h2>
@@ -400,6 +400,7 @@ function choca(x, z, r = RADIO, eq = null) {
   if (Math.abs(z - mitad) < r + .3 && x > -mitad && x < mitad && !(x > AGU.puerta1 + r && x < AGU.puerta2 - r)) return true;   // paredón sur con portón al aguantadero
   if (Math.abs(x + mitad) < r + .3 && !(z > PUERTO.puerta1 + r && z < PUERTO.puerta2 - r) && !(z > HALCON.puerta1 + r && z < HALCON.puerta2 - r)) return true;   // paredón oeste con portones al puerto y a la base Halcón
   if (Math.abs(x - mitad) < r + .3 && !(z > AER.puerta1 + r && z < AER.puerta2 - r) && !(z > AUTOPISTA.z1 + r && z < AUTOPISTA.z2 - r)) return true;   // paredón con portón hacia el aeropuerto
+  if (!RG.pasa && x + r > RG.p1 && x - r < RG.p2 && z + r > RG.cz2 - .5 && z - r < RG.cz2 + .2) return true;   // puerta de la residencia: solo Gonza
   if (puerta.cerrada && eq !== "ladron" && x + r > CASA.x1 - .3 && x - r < CASA.x1 + .3 && z + r > CASA.puertaZ1 && z - r < CASA.puertaZ2) return true;
   return cercanos(x, z).some(e => x + r > e.x1 && x - r < e.x2 && z + r > e.z1 && z - r < e.z2);
 }
@@ -900,7 +901,7 @@ const TAQUILLAS = { x: DEPTO.x1 + 2.5, z: DEPTO.z1 + 1.6 }, ARMERIA = { x: DEPTO
     for (let x = 0; x < w; x += 16) { c.fillStyle = "#3a6a9a"; c.fillRect(x, 0, 2, h); } for (let i = 0; i < 60; i++) { c.fillStyle = Math.random() < .5 ? "#ffe6a8" : "#bfe3ff"; c.fillRect(Math.floor(Math.random() * 8) * 16 + 3, Math.floor(Math.random() * 16) * 8 + 2, 12, 5); } }, 128, 128);
   texVid.wrapS = texVid.wrapT = THREE.RepeatWrapping;
   const torres = [[46, -100, 10, 10, 48], [82, -100, 12, 12, 62], [100, -102, 9, 9, 40], [124, -100, 14, 10, 75], [152, -100, 10, 10, 54], [168, -96, 8, 8, 36],
-                  [48, -172, 12, 12, 70], [76, -182, 10, 14, 92], [104, -170, 14, 10, 58], [132, -184, 12, 12, 84], [160, -172, 10, 10, 66], [92, -196, 10, 8, 44]];
+                  [48, -172, 12, 12, 70], [76, -182, 10, 14, 92], [104, -170, 14, 10, 58], [132, -184, 12, 12, 84], [92, -196, 10, 8, 44]];   // (la torre de x=160 se sacó: ahí está la residencia de Gonza)
   for (const [x, z, w, d, h] of torres) {
     const t = texVid.clone(); t.needsUpdate = true; t.repeat.set(Math.max(1, w / 6), h / 12);
     const mat = new THREE.MeshLambertMaterial({ map: t, emissiveMap: t, emissive: 0x99aabb, color: 0xb8d0e8 });
@@ -921,6 +922,92 @@ const TAQUILLAS = { x: DEPTO.x1 + 2.5, z: DEPTO.z1 + 1.6 }, ARMERIA = { x: DEPTO
     const g = new THREE.Mesh(new THREE.SphereGeometry(.22, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffe9b0 })); g.position.set(x, 3.7, z); escena.add(g); }
   const cP = cartel("🌉 PUERTO MADERO", "#0a4a7a"); cP.scale.set(8, 2, 1); cP.position.set(64, 7, -mitad - 6); escena.add(cP);
   const cE = cartel("🌉 PUERTO MADERO ↑", "#0a4a7a"); cE.scale.set(6, 1.5, 1); cE.position.set(PM.puerta2 + 2, 5, -mitad + 2); escena.add(cE);
+}
+// ---- Más Puerto Madero: barcos en el dique, fragata museo, plaza con fuente, palmeras, bancos y bares en la costanera ----
+{
+  const P = PM, L = c => new THREE.MeshLambertMaterial({ color: c }), zAgua = (P.aguaZ1 + P.aguaZ2) / 2;
+  const caja = (w, h, d, c, x, y, z, g) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), typeof c === "number" ? L(c) : c); m.position.set(x, y, z); (g || escena).add(m); return m; };
+  // Yates amarrados (en el agua: no se camina ahí, así que no hacen falta colisiones)
+  for (const [x, c] of [[44, 0xffffff], [62, 0xe8eef5], [118, 0xffffff], [128, 0xdde6ee], [164, 0xffffff]]) { const g = new THREE.Group(); g.position.set(x, 0, zAgua + (x % 3 ? 3 : -3)); escena.add(g);
+    caja(7, 1, 2.4, c, 0, .2, 0, g); caja(3, .9, 1.8, 0x2a4a6a, -.6, 1.1, 0, g); const proa = new THREE.Mesh(new THREE.ConeGeometry(1.2, 2.4, 4), L(c)); proa.rotation.z = -Math.PI / 2; proa.rotation.x = Math.PI / 4; proa.position.set(4.6, .2, 0); g.add(proa);
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, 5, 4), L(0xcccccc)); m.position.set(.5, 3, 0); g.add(m); }
+  // Fragata museo (barco antiguo de tres mástiles, diseño propio)
+  { const g = new THREE.Group(); g.position.set(80, 0, zAgua); escena.add(g);
+    caja(16, 2.2, 4, 0x2a1a10, 0, .6, 0, g); caja(16.2, .3, 4.2, 0xf2e6c8, 0, 1.7, 0, g);
+    for (const dx of [-5, 0, 5]) { const m = new THREE.Mesh(new THREE.CylinderGeometry(.12, .15, 11, 6), L(0x5a3a1a)); m.position.set(dx, 7, 0); g.add(m);
+      for (const y of [5, 8]) caja(.1, 1.6, 3.4, 0xf4f0e6, dx + .2, y, 0, g); }
+    const c = cartel("⛵ FRAGATA MUSEO", "#5a3a1a"); c.scale.set(5, 1.2, 1); c.position.set(0, 13.5, 0); g.add(c); }
+  // Plaza con fuente frente a la entrada (sobre la avenida norte del barrio)
+  { const x = 120, z = -168; const base = new THREE.Mesh(new THREE.CylinderGeometry(3, 3.2, .6, 20), L(0xd8d2c4)); base.position.set(x, .3, z); escena.add(base);
+    const agua = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, .1, 20), new THREE.MeshLambertMaterial({ color: 0x3aa0d8, emissive: 0x0a3050 })); agua.position.set(x, .62, z); escena.add(agua);
+    const ch = new THREE.Mesh(new THREE.CylinderGeometry(.25, .4, 2.2, 8), L(0xd8d2c4)); ch.position.set(x, 1.4, z); escena.add(ch);
+    const ag = new THREE.Mesh(new THREE.ConeGeometry(.9, 1.2, 10), new THREE.MeshBasicMaterial({ color: 0xbfe8ff, transparent: true, opacity: .6 })); ag.position.set(x, 2.9, z); escena.add(ag);
+    edificios.push({ x1: x - 3.2, x2: x + 3.2, z1: z - 3.2, z2: z + 3.2, h: .6 }); }
+  // Palmeras y bancos en las costaneras
+  for (let x = P.x1 + 9; x < P.x2 - 4; x += 20) for (const z of [P.aguaZ2 + 1.6, P.aguaZ1 - 1.6]) { if (P.puentes.some(([a, b]) => x > a - 2 && x < b + 2)) continue;
+    const tr = new THREE.Mesh(new THREE.CylinderGeometry(.15, .22, 5, 6), L(0x8a6a3a)); tr.position.set(x, 2.5, z); escena.add(tr);
+    for (let k = 0; k < 5; k++) { const h = new THREE.Mesh(new THREE.BoxGeometry(2.6, .06, .5), L(0x2f8a3a)); h.position.set(x + Math.cos(k * 1.26) * 1.1, 5, z + Math.sin(k * 1.26) * 1.1); h.rotation.y = -k * 1.26; h.rotation.z = -.3; escena.add(h); }
+    edificios.push({ x1: x - .3, x2: x + .3, z1: z - .3, z2: z + .3, h: 5, arbol: true });
+    caja(1.8, .45, .5, 0x6a4a2a, x + 4, .35, z + (z > zAgua ? .4 : -.4)); }
+  // Bares con sombrillas en la costanera norte
+  for (const x of [52, 88, 134]) { const z = P.aguaZ1 - 6;
+    for (const dx of [-3, 0, 3]) { const pa = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, 2.4, 4), L(0xdddddd)); pa.position.set(x + dx, 1.2, z); escena.add(pa);
+      const so = new THREE.Mesh(new THREE.ConeGeometry(1.3, .6, 8), L([0xd83a3a, 0xf2f2f2, 0x2a6ad8][(dx + 3) / 3])); so.position.set(x + dx, 2.5, z); escena.add(so);
+      caja(.9, .7, .9, 0xeeeeee, x + dx, .35, z); }
+    const c = cartel(["🍝 TRATTORIA", "🥩 PARRILLA", "🍣 SUSHI"][[52, 88, 134].indexOf(x)], "#7a2a1a"); c.scale.set(4, 1, 1); c.position.set(x, 3.6, z); escena.add(c); }
+}
+// ================== RESIDENCIA PRESIDENCIAL DE GONZA (Puerto Madero) ==================
+// Casa blanca con columnas, jardín, pileta y helipuerto. La puerta solo se abre para Gonza; adentro tiene caja fuerte y su despacho.
+const RG = { x1: 144, x2: 174, z1: -204, z2: -172, cx1: 148, cx2: 170, cz1: -198, cz2: -184, p1: 157.6, p2: 160.4, rejaP1: 155, rejaP2: 163, cajaX: 166, cajaZ: -195.5, pasa: false };
+{
+  const L = c => new THREE.MeshLambertMaterial({ color: c }), blanco = L(0xf4f1ea), muro = (x1, z1, x2, z2, h, mat) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(.3, x2 - x1), h, Math.max(.3, z2 - z1)), mat); m.position.set((x1 + x2) / 2, h / 2, (z1 + z2) / 2); escena.add(m);
+    edificios.push({ x1: Math.min(x1, x2 - .3), x2: Math.max(x2, x1 + .3), z1: Math.min(z1, z2 - .3), z2: Math.max(z2, z1 + .3), h }); return m; };
+  const deco = (w, h, d, c, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), typeof c === "number" ? L(c) : c); m.position.set(x, y, z); escena.add(m); return m; };
+  // Pasto y reja negra con portón (el portón está abierto: lo que se cierra es la puerta de la casa)
+  { const g = new THREE.Mesh(new THREE.PlaneGeometry(RG.x2 - RG.x1, RG.z2 - RG.z1), L(0x3f8a3a)); g.rotation.x = -Math.PI / 2; g.position.set((RG.x1 + RG.x2) / 2, .02, (RG.z1 + RG.z2) / 2); escena.add(g); }
+  const reja = L(0x1a1a1a);
+  muro(RG.x1, RG.z1, RG.x2, RG.z1 + .2, 2, reja); muro(RG.x1, RG.z1, RG.x1 + .2, RG.z2, 2, reja); muro(RG.x2 - .2, RG.z1, RG.x2, RG.z2, 2, reja);
+  muro(RG.x1, RG.z2 - .2, RG.rejaP1, RG.z2, 2, reja); muro(RG.rejaP2, RG.z2 - .2, RG.x2, RG.z2, 2, reja);
+  for (const x of [RG.rejaP1 - .4, RG.rejaP2 + .4]) { deco(.8, 2.8, .8, 0xf4f1ea, x, 1.4, RG.z2 - .1); deco(.5, .5, .5, 0xd4af37, x, 3, RG.z2 - .1); }
+  // Camino de entrada
+  { const c = new THREE.Mesh(new THREE.PlaneGeometry(RG.p2 - RG.p1 + 2, RG.z2 - RG.cz2), L(0xd8d2c4)); c.rotation.x = -Math.PI / 2; c.position.set((RG.p1 + RG.p2) / 2, .03, (RG.z2 + RG.cz2) / 2); escena.add(c); }
+  // La casa: paredes blancas (con hueco para la puerta), techo, columnas y escalinata
+  const H = 5.5;
+  muro(RG.cx1, RG.cz1, RG.cx2, RG.cz1 + .3, H, blanco); muro(RG.cx1, RG.cz1, RG.cx1 + .3, RG.cz2, H, blanco); muro(RG.cx2 - .3, RG.cz1, RG.cx2, RG.cz2, H, blanco);
+  muro(RG.cx1, RG.cz2 - .3, RG.p1, RG.cz2, H, blanco); muro(RG.p2, RG.cz2 - .3, RG.cx2, RG.cz2, H, blanco);
+  deco(RG.cx2 - RG.cx1 + 1, .5, RG.cz2 - RG.cz1 + 1, 0xd8d2c4, (RG.cx1 + RG.cx2) / 2, H + .25, (RG.cz1 + RG.cz2) / 2);
+  { const t = new THREE.Mesh(new THREE.CylinderGeometry(0, 9, 3, 4, 1), L(0x8a3a2a)); t.rotation.y = Math.PI / 4; t.scale.set(1.25, 1, .75); t.position.set((RG.cx1 + RG.cx2) / 2, H + 2, (RG.cz1 + RG.cz2) / 2); escena.add(t); }
+  for (let i = 0; i < 6; i++) { const x = RG.cx1 + 2 + i * (RG.cx2 - RG.cx1 - 4) / 5; if (x > RG.p1 - .6 && x < RG.p2 + .6) continue;
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(.35, .4, H, 12), blanco); c.position.set(x, H / 2, RG.cz2 + 1.4); escena.add(c); edificios.push({ x1: x - .4, x2: x + .4, z1: RG.cz2 + 1, z2: RG.cz2 + 1.8, h: H }); }
+  deco(RG.cx2 - RG.cx1, .3, 2.2, 0xe8e2d4, (RG.cx1 + RG.cx2) / 2, H - .1, RG.cz2 + 1.3);
+  deco(6, .2, 2.2, 0xd8d2c4, (RG.p1 + RG.p2) / 2, .1, RG.cz2 + 1.2);
+  // Ventanas
+  for (let i = 0; i < 5; i++) { const x = RG.cx1 + 2.2 + i * 4.4; if (x > RG.p1 - 1 && x < RG.p2 + 1) continue; deco(1.4, 1.8, .1, 0x9fd4ff, x, 2.6, RG.cz2 + .02); }
+  // Puerta (se ve cerrada; se abre cuando Gonza está cerca)
+  RG.puerta = deco(RG.p2 - RG.p1, 3, .15, 0x5a3a1a, (RG.p1 + RG.p2) / 2, 1.5, RG.cz2 - .15);
+  deco(.15, .15, .2, 0xd4af37, RG.p2 - .4, 1.5, RG.cz2 - .02);
+  // Mástil con bandera celeste y blanca
+  { const m = new THREE.Mesh(new THREE.CylinderGeometry(.08, .1, 10, 6), L(0xdddddd)); m.position.set(RG.rejaP2 + 3, 5, RG.z2 - 3); escena.add(m);
+    [0x75aadb, 0xffffff, 0x75aadb].forEach((c, k) => deco(2.4, .4, .05, c, RG.rejaP2 + 4.3, 9.6 - k * .4, RG.z2 - 3)); deco(.18, .18, .07, 0xf6b40e, RG.rejaP2 + 4.3, 9.2, RG.z2 - 3); }
+  // Pileta y helipuerto en el jardín
+  { const p = deco(6, .1, 3.6, new THREE.MeshLambertMaterial({ color: 0x3ab0e8, emissive: 0x0a3a5a }), RG.x1 + 4, .06, RG.z2 - 6);
+    for (const [w, d, x, z] of [[6.6, .3, 0, -1.95], [6.6, .3, 0, 1.95], [.3, 4.2, -3.15, 0], [.3, 4.2, 3.15, 0]]) deco(w, .25, d, 0xeeeeee, RG.x1 + 4 + x, .12, RG.z2 - 6 + z); }
+  { const h = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, .08, 24), L(0x3a3a3a)); h.position.set(RG.x2 - 5, .05, RG.z2 - 6); escena.add(h);
+    const t = cartel("H", "#3a3a3a"); t.scale.set(2, 2, 1); t.position.set(RG.x2 - 5, .3, RG.z2 - 6); t.material.rotation = 0; escena.add(t); }
+  // Adentro: alfombra roja, despacho (escritorio, sillón, banderas), living (sillones, TV), cama grande y caja fuerte
+  deco(2.4, .03, RG.cz2 - RG.cz1 - 2, 0xa01a1a, (RG.p1 + RG.p2) / 2, .04, (RG.cz1 + RG.cz2) / 2);
+  { const x = (RG.cx1 + RG.cx2) / 2, z = RG.cz1 + 3; deco(4, .9, 1.6, 0x4a2a12, x, .45, z); deco(1.2, 1.6, 1, 0x7a1a1a, x, .8, z - 1.6);
+    edificios.push({ x1: x - 2, x2: x + 2, z1: z - .8, z2: z + .8, h: .9 });
+    for (const dx of [-3, 3]) { const m = new THREE.Mesh(new THREE.CylinderGeometry(.04, .04, 2.6, 4), L(0xd4af37)); m.position.set(x + dx, 1.3, z - 1.8); escena.add(m);
+      [0x75aadb, 0xffffff, 0x75aadb].forEach((c, k) => deco(.05, .3, .9, c, x + dx, 2.4 - k * .3, z - 1.3)); }
+    const c = cartel("🏛️ Despacho del Presidente Gonza", "#7a1a1a"); c.scale.set(5, 1, 1); c.position.set(x, 4, z - 2); escena.add(c); }
+  { const x = RG.cx1 + 3.5, z = RG.cz2 - 4; deco(3, .8, 1.1, 0x2a3a6a, x, .4, z); deco(1.1, .8, 3, 0x2a3a6a, x - 2, .4, z - 1.5); deco(3.2, 1.8, .1, 0x111111, x, 1.8, RG.cz2 - .5);
+    edificios.push({ x1: x - 2.6, x2: x + 1.5, z1: z - 3, z2: z + .6, h: .8 }); }
+  { const x = RG.cx2 - 4, z = RG.cz2 - 4.5; deco(3.2, .6, 4, 0xf2f2f2, x, .3, z); deco(3.2, 1.2, .3, 0x5a3a1a, x, .6, z - 2); edificios.push({ x1: x - 1.6, x2: x + 1.6, z1: z - 2.1, z2: z + 2, h: .6 }); }
+  RG.caja = deco(1, 1.2, .8, 0x4a4f57, RG.cajaX, .6, RG.cajaZ); deco(.3, .3, .05, 0xd4af37, RG.cajaX, .7, RG.cajaZ + .42);
+  edificios.push({ x1: RG.cajaX - .5, x2: RG.cajaX + .5, z1: RG.cajaZ - .4, z2: RG.cajaZ + .4, h: 1.2 });
+  const c = cartel("🏛️ RESIDENCIA PRESIDENCIAL · GONZA", "#1a3a7a"); c.scale.set(9, 1.8, 1); c.position.set((RG.cx1 + RG.cx2) / 2, H + 5.5, RG.cz2); escena.add(c);
 }
 // ================== SUPERMERCADO ==================
 // Un "súper chino" de barrio afuera de la ciudad: estacionamiento, cartel, góndolas, heladeras y el señor Li en la caja.
@@ -1956,7 +2043,9 @@ $("b-cam").addEventListener("touchstart", e => { e.preventDefault(); cambiarCama
 function mover(s, dx, dz, vel, dt) {
   const l = Math.hypot(dx, dz); if (!l) return; dx /= l; dz /= l;
   const nx = s.x + dx * vel * dt, nz = s.z + dz * vel * dt;
+  RG.pasa = s === yo && esGonza();
   if (!choca(nx, s.z, RADIO, s.equipo)) s.x = nx; if (!choca(s.x, nz, RADIO, s.equipo)) s.z = nz;
+  RG.pasa = false;
 }
 const dentro = (s, Z, extra = 0) => Math.hypot(s.x - Z.x, s.z - Z.z) < Z.r + extra;
 
@@ -2657,6 +2746,17 @@ function loop(t) {
       if (accionPedida && e <= 0 && !yo.bolsa && !yo.paquete) { accionPedida = false; enviar("maletin", { quien: yo.id }); robarMaletin(yo.id); }
     }
     if (GOB.rueda) GOB.rueda.rotation.z += dt * (Date.now() < GOB.listo ? 3 : .2);
+    // Residencia de Gonza: la puerta se abre sola para él; los demás la encuentran cerrada
+    { const dP = Math.hypot(yo.x - (RG.p1 + RG.p2) / 2, yo.z - RG.cz2), soy = esGonza(), abierta = soy && dP < 3.5;
+      RG.puerta.position.x = (RG.p1 + RG.p2) / 2 + (abierta ? (RG.p2 - RG.p1) * .9 : 0);
+      if (!miAuto && dP < 2.5 && !soy) pistaDepto = "🔒 Residencia presidencial: solo entra Gonza";
+      const adentro = yo.x > RG.cx1 && yo.x < RG.cx2 && yo.z > RG.cz1 && yo.z < RG.cz2;
+      if (adentro && !RG.adentro) { RG.adentro = true; if (soy) grande("🏛️ ¡Bienvenido a casa, Presidente Gonza!", "#75aadb"); } else if (!adentro) RG.adentro = false;
+      if (soy && !miAuto && Math.hypot(yo.x - RG.cajaX, yo.z - (RG.cajaZ + 1.2)) < 1.6) {
+        let ult = 0; try { ult = +localStorage.getItem("polis-caja-gonza") || 0; } catch (e) {}
+        const falta = ult + 20 * 3600 * 1000 - Date.now();
+        pistaDepto = falta > 0 ? `💰 Caja fuerte: volvé en ${Math.ceil(falta / 3600000)} h` : "💰 E: abrir la caja fuerte ($5.000 por día)";
+        if (accionPedida && falta <= 0) { accionPedida = false; try { localStorage.setItem("polis-caja-gonza", Date.now()); } catch (e) {} ganar(5000, "caja fuerte presidencial"); grande("💰 ¡$5.000!", "#ffd400"); beep(900, .2, "triangle"); } } }
     // Supermercado: cualquiera puede comprarle al señor Li
     if (!miAuto && !yo.preso && Math.hypot(yo.x - senorLi.position.x, yo.z - (senorLi.position.z + 2.6)) < 1.8) {
       pistaDepto = "🛒 E: comprarle al señor Li";
@@ -2809,7 +2909,7 @@ function loop(t) {
 }
 // Junta en una sola malla todos los objetos fijos que comparten material (veredas, rayas, carteles pintados, aeropuerto...)
 function fusionarEstaticos() {
-  const dyn = new Set([ZAUTOS.cacho, ...HOTEL.camas.map(k => k.zz), GOB.rueda, SUPER.pata, AER.faro, puerta.mesh, conoLuz, ...AGU.fuegos, ...PAQUETES.map(p => p.mesh), ...balizasCarcel.map(b => b.b)]);
+  const dyn = new Set([RG.puerta, ZAUTOS.cacho, ...HOTEL.camas.map(k => k.zz), GOB.rueda, SUPER.pata, AER.faro, puerta.mesh, conoLuz, ...AGU.fuegos, ...PAQUETES.map(p => p.mesh), ...balizasCarcel.map(b => b.b)]);
   const grupos = new Map();
   for (const m of [...escena.children]) {
     if (!m.isMesh || m.isInstancedMesh || m.children.length || dyn.has(m) || Array.isArray(m.material) || !m.visible) continue;
@@ -2949,7 +3049,7 @@ async function abrirAdmin() {
     ADMIN.ok = true; }
   $("admin").style.display = "block"; pintarAdmin(); }
 const LUGARES = [["🚔 Cárcel", ZONAS.carcel], ["🏦 Banco", ZONAS.banco], ["🏚️ Guarida", ZONAS.guarida], ["💊 Casa narco", ZONAS.narco], ["🚤 Muelle", ZONAS.muelle],
-  ["🏨 Hotel", { x: -20, z: 61 }], ["🚗 Conce", { x: 96, z: 72 }], ["🦅 Halcón", { x: -84, z: 42 }]];
+  ["🏨 Hotel", { x: -20, z: 61 }], ["🚗 Conce", { x: 96, z: 72 }], ["🦅 Halcón", { x: -84, z: 42 }], ["🏛️ Mi residencia", { x: 159, z: -178 }]];
 function pintarAdmin() {
   const otros = Object.values(jug).filter(s => s !== yo && !s.bot), bt = (a, t, c = "#ffffff22") => `<button data-ad="${a}" style="margin:3px;padding:8px 10px;border:0;border-radius:10px;background:${c};color:#fff;font-weight:800">${t}</button>`;
   $("ad-cuerpo").innerHTML = `<b>💵 Plata y vos</b><br>${bt("plata", "+$10.000", "#1e7a3a")}${bt("vida", "❤️ Curarme")}${bt("rapido", ADMIN.rapido ? "🐢 Velocidad normal" : "⚡ Súper velocidad")}
