@@ -395,6 +395,8 @@ const edificios = [];   // { x1, z1, x2, z2, h }
 const BP = { x1: -124, x2: -50, z1: -150, puerta1: -60, puerta2: -52, garitaZ: -92, pasa: false };
 // Academia de Policía: afuera de la ciudad al suroeste (debajo de la base Halcón); se entra por el paredón oeste (z 76..82)
 const ACAD = { x1: -150, x2: -84, z1: 77, z2: 140, puerta1: 76, puerta2: 82, instX: -98, instZ: 84 };
+// Base de la Policía de la Ciudad: afuera de la ciudad al sureste, al final del camino del aeropuerto (pasando la zona de autos)
+const CIUD = { x1: 86, x2: 172, z1: 132, z2: 196, puerta1: 88, puerta2: 96 };
 // Puerta blindada de la Casa de Gobierno (b: cerrada; pasa: el que se está moviendo es el Presidente)
 const PGOB = { b: false, pasa: false };
 const ZONAS = { banco: { x: 4, z: -44, r: 5 } /* adentro del edificio del banco (manzana x -4..12, z -52..-36) */, guarida: { x: 40, z: 95, r: 5 } /* en el aguantadero, afuera de la ciudad (sur) */, carcel: { x: -44, z: 44, r: 5 },
@@ -448,6 +450,7 @@ function choca(x, z, r = RADIO, eq = null) {
   const mitad = CIUDAD.tam / 2;
   const enCiudad = x > -mitad - 1 && x < mitad + 1 && z > -mitad - 1 && z < mitad + 1;
   const enAer = x > mitad - 1 && x < AER.x2 - r && z > AER.z1 + r && z < AER.z2 - r;
+  if (x > CIUD.x1 + r && x < CIUD.x2 - r && z > CIUD.z1 + r && z < CIUD.z2 - r || (x > CIUD.puerta1 + r && x < CIUD.puerta2 - r && z > ZAUTOS.z2 - 2 && z < CIUD.z1 + 2)) return cercanos(x, z).some(e => x + r > e.x1 && x - r < e.x2 && z + r > e.z1 && z - r < e.z2);   // base de la Policía de la Ciudad
   if (x > ZAUTOS.x1 + r && x < ZAUTOS.x2 - r && z > ZAUTOS.z1 && z < ZAUTOS.z2 - r) return cercanos(x, z).some(e => x + r > e.x1 && x - r < e.x2 && z + r > e.z1 && z - r < e.z2);
   const enPuerto = x < -mitad + 1 && x > PUERTO.x1 + r && z > PUERTO.z1 + r && z < PUERTO.z2 - r &&
     (x > PUERTO.agua + r || (x > PUERTO.muelleX + r && z > PUERTO.muelleZ1 + r && z < PUERTO.muelleZ2 - r));   // al agua no se puede entrar, salvo por el muelle
@@ -1388,6 +1391,36 @@ function actualizarCurso(t) {
       if (Object.keys(CURSOS).every(k => INV.tiene("curso-" + k)) && !INV.tiene("diploma")) { INV.dar("diploma"); ganar(1000, "graduación"); setTimeout(() => grande("🎓 ¡TE RECIBISTE EN LA ACADEMIA DE POLICÍA!", "#ffd400"), 1500); } } }
   CURSO.texto = `${C.nom} · punto ${CURSO.k + 1}/${C.pts.length} · ⏱️ ${falta} s`;
 }
+// ================== BASE DE LA POLICÍA DE LA CIUDAD ==================
+// Edificio blanco y azul con franja celeste, playón con cocheras y patrulleros nuevos, mástil, garita y helipuerto.
+{
+  const B = CIUD, L = c => new THREE.MeshLambertMaterial({ color: c });
+  const plano = (x1, z1, x2, z2, c, y) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(x2 - x1, z2 - z1), L(c)); m.rotation.x = -Math.PI / 2; m.position.set((x1 + x2) / 2, y, (z1 + z2) / 2); escena.add(m); };
+  const caja = (x1, z1, x2, z2, h, c, choque = true) => { const m = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1, h, z2 - z1), typeof c === "number" ? L(c) : c); m.position.set((x1 + x2) / 2, h / 2, (z1 + z2) / 2); escena.add(m); if (choque) edificios.push({ x1, x2, z1, z2, h }); return m; };
+  plano(B.x1, B.z1, B.x2, B.z2, 0x3d5a32, .006);
+  plano(B.puerta1, ZAUTOS.z2 - 8, B.puerta2, B.z1 + 6, 0x2b2d33, .02);                 // camino
+  plano(96, 140, 160, 162, 0x24262c, .02);                                           // playón
+  const muro = L(0xe8e8e8);
+  caja(B.x1, B.z2, B.x2, B.z2 + .4, 2.4, muro); caja(B.x1 - .4, B.z1, B.x1, B.z2, 2.4, muro); caja(B.x2, B.z1, B.x2 + .4, B.z2, 2.4, muro);
+  caja(B.puerta2, B.z1 - .2, B.x2, B.z1 + .2, 2.4, muro);
+  // Líneas de las cocheras
+  for (let i = 0; i <= 5; i++) { const r = new THREE.Mesh(new THREE.BoxGeometry(.12, .02, 5.2), new THREE.MeshBasicMaterial({ color: 0xe8e8e8 })); r.position.set(107 + i * 6, .04, 150); escena.add(r); }
+  // Edificio principal
+  caja(100, 170, 150, 188, 9, 0xf4f4f4);
+  const fr = new THREE.Mesh(new THREE.BoxGeometry(50.2, 1.2, .1), L(0x4fb8e8)); fr.position.set(125, 4.5, 169.95); escena.add(fr);
+  const fr2 = new THREE.Mesh(new THREE.BoxGeometry(50.2, .3, .1), L(0x0d2a6a)); fr2.position.set(125, 3.75, 169.95); escena.add(fr2);
+  for (let i = 0; i < 10; i++) for (const y of [2.2, 6.8]) { const v = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.3, .06), L(0x9fd4ff)); v.position.set(103.5 + i * 4.8, y, 169.94); escena.add(v); }
+  const puerta = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.8, .1), L(0x2a3a5a)); puerta.position.set(125, 1.4, 169.93); escena.add(puerta);
+  const techo = new THREE.Mesh(new THREE.BoxGeometry(50.6, .5, 18.6), L(0x0d2a6a)); techo.position.set(125, 9.25, 179); escena.add(techo);
+  const cB = cartel("🚓 BASE · POLICÍA DE LA CIUDAD", "#0d2a6a"); cB.scale.set(10, 2, 1); cB.position.set(125, 11.5, 170); escena.add(cB);
+  const cE = cartel("🚓 BASE POLICÍA DE LA CIUDAD ↓", "#0d2a6a"); cE.scale.set(7, 1.6, 1); cE.position.set(B.puerta2 + 3, 5, ZAUTOS.z2 - 4); escena.add(cE);
+  // Mástil, garita y helipuerto
+  const mas = new THREE.Mesh(new THREE.CylinderGeometry(.08, .1, 9, 6), L(0xdddddd)); mas.position.set(98, 4.5, 166); escena.add(mas); edificios.push({ x1: 97.8, x2: 98.2, z1: 165.8, z2: 166.2, h: 9, arbol: true });
+  [0x75aadb, 0xffffff, 0x75aadb].forEach((c, k) => { const b = new THREE.Mesh(new THREE.BoxGeometry(2.2, .36, .04), L(c)); b.position.set(99.2, 8.6 - k * .36, 166); escena.add(b); });
+  caja(B.puerta2 + .6, B.z1 + 1, B.puerta2 + 3, B.z1 + 3.4, 2.5, 0x0d2a6a);
+  const h = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, .08, 28), L(0x2a2a2a)); h.position.set(160, .05, 184); escena.add(h);
+  const hl = cartel("H", "#2a2a2a"); hl.scale.set(2.4, 2.4, 1); hl.position.set(160, .35, 184); escena.add(hl);
+}
 // ================== AGUANTADERO (guarida de los ladrones) ==================
 // Un predio abandonado afuera de la ciudad: galpones viejos, desarmadero de autos, tachos con fuego y contenedor-oficina
 {
@@ -1626,6 +1659,14 @@ function crearPatrullero(estilo = "ciudad") {
       const filete = new THREE.Mesh(new THREE.PlaneGeometry(4.3, .06), new THREE.MeshBasicMaterial({ color: 0x5ec8f2 })); filete.position.set(s * 1.001, .81, 0); filete.rotation.y = s * Math.PI / 2; g.add(filete);
       const txt = new THREE.Mesh(new THREE.PlaneGeometry(1.6, .28), textoPlano("POLICÍA", null, "#ffffff", 1.6, .28)); txt.position.set(s * 1.002, .6, .1); txt.rotation.y = s * Math.PI / 2; g.add(txt);
       const txt2 = new THREE.Mesh(new THREE.PlaneGeometry(1.7, .2), textoPlano("PROVINCIA", null, "#0d3a8c", 1.7, .2)); txt2.position.set(s * 1.002, .92, .1); txt2.rotation.y = s * Math.PI / 2; g.add(txt2);
+    } else if (estilo === "ciudad2") {
+      // Inspirado en los patrulleros de la Policía de la Ciudad: blanco, banda celeste ancha con filete azul,
+      // "POLICÍA" grande y chevrones amarillo flúor atrás (sin escudos ni logos oficiales)
+      const banda = new THREE.Mesh(new THREE.PlaneGeometry(4.3, .34), new THREE.MeshBasicMaterial({ color: 0x4fb8e8 })); banda.position.set(s * 1.0, .64, 0); banda.rotation.y = s * Math.PI / 2; g.add(banda);
+      const filete = new THREE.Mesh(new THREE.PlaneGeometry(4.3, .07), new THREE.MeshBasicMaterial({ color: 0x0d2a6a })); filete.position.set(s * 1.001, .44, 0); filete.rotation.y = s * Math.PI / 2; g.add(filete);
+      const txt = new THREE.Mesh(new THREE.PlaneGeometry(1.8, .3), textoPlano("POLICÍA", null, "#ffffff", 1.8, .3)); txt.position.set(s * 1.002, .64, .15); txt.rotation.y = s * Math.PI / 2; g.add(txt);
+      const txt2 = new THREE.Mesh(new THREE.PlaneGeometry(1.4, .18), textoPlano("CIUDAD", null, "#0d2a6a", 1.4, .18)); txt2.position.set(s * 1.002, .92, -.3); txt2.rotation.y = s * Math.PI / 2; g.add(txt2);
+      for (let k = 0; k < 3; k++) { const ch = new THREE.Mesh(new THREE.PlaneGeometry(.12, .34), new THREE.MeshBasicMaterial({ color: 0xd8ff1a })); ch.position.set(s * 1.002, .64, -1.75 - k * .18); ch.rotation.set(0, s * Math.PI / 2, s * .5); g.add(ch); }
     } else {
     const f1 = new THREE.Mesh(new THREE.PlaneGeometry(4.2, .16), new THREE.MeshBasicMaterial({ color: 0x5ec8f2 })); f1.position.set(s * 1.0, .66, 0); f1.rotation.y = s * Math.PI / 2; g.add(f1);
     const f2 = new THREE.Mesh(new THREE.PlaneGeometry(4.2, .06), new THREE.MeshBasicMaterial({ color: 0x0f1d36 })); f2.position.set(s * 1.001, .55, 0); f2.rotation.y = s * Math.PI / 2; g.add(f2);
@@ -1799,7 +1840,9 @@ const autos = (() => {
     .concat([{ i: tipos.length + 6, tipo: "camioneta", presi: true, r: 1.6, max: 27, x0: 19, z0: 11, h0: Math.PI / 2, x: 19, z: 11, h: Math.PI / 2, vel: 0, conductor: null, sirena: false,
       tx: 19, tz: 11, th: Math.PI / 2, mesh: crearCamioneta("PRESIDENCIA DE LA NACIÓN") }])
     .concat([{ i: tipos.length + 7, tipo: "patrullero", academia: true, r: AUTO_R, max: 24, x0: -104, z0: 92, h0: -Math.PI / 2, x: -104, z: 92, h: -Math.PI / 2, vel: 0, conductor: null, sirena: true,
-      tx: -104, tz: 92, th: -Math.PI / 2, mesh: crearPatrullero("ciudad") }]);   // patrullero de práctica de la Academia   // auto blindado del Presidente, frente a la Casa de Gobierno   // motos del Grupo Halcón (galpón de la base) y camionetas policiales (cualquier poli)
+      tx: -104, tz: 92, th: -Math.PI / 2, mesh: crearPatrullero("ciudad") }])
+    .concat([110, 116, 122, 128, 134].map((x, k) => ({ i: tipos.length + 8 + k, tipo: k === 4 ? "camioneta" : "patrullero", pickup: k === 4, ciudad: true, r: k === 4 ? 1.5 : AUTO_R, max: 27, x0: x, z0: 150, h0: Math.PI, x, z: 150, h: Math.PI, vel: 0, conductor: null, sirena: true,
+      tx: x, tz: 150, th: Math.PI, mesh: k === 4 ? crearPickup() : crearPatrullero("ciudad2") })));   // patrulleros de la base de la Policía de la Ciudad   // auto blindado del Presidente, frente a la Casa de Gobierno   // motos del Grupo Halcón (galpón de la base) y camionetas policiales (cualquier poli)
 })();
 function resetAutos() { for (const a of autos) Object.assign(a, { x: a.x0, z: a.z0, tx: a.x0, tz: a.z0, h: a.h0, th: a.h0, vel: 0, conductor: null, sirena: true, balizas: false }); }
 let miAuto = null, sirenaT = 0, sirenaAlt = false, mirarAuto = 0;
@@ -2777,13 +2820,13 @@ const GOB = { x1: 22, x2: 34, z1: -2, z2: 6, alto: 8, cx: 28, cz: 2, puerta1: 26
 // En el auto blindado, el Presidente puede pedirle al chofer que lo lleve: el auto va solo por las calles hasta el destino.
 const CHOFER = { ruta: null, k: 0, destino: "", mesh: null };
 const DESTINOS = [["🏛️ Casa de Gobierno", 19, 11], ["🚔 Comisaría", -56, 20], ["🏦 Banco", 4, -32], ["⛓️ Cárcel", -44, 54], ["🏨 Hotel Plaza", -20, 64],
-  ["✈️ Aeropuerto", 100, 16], ["🌉 Puerto Madero", 64, -96], ["💵 Casa del Dólar", 142, -130], ["🏛️ Residencia", 159, -168], ["🦅 Base Halcón", -96, 40]];
+  ["✈️ Aeropuerto", 100, 16], ["🌉 Puerto Madero", 64, -96], ["💵 Casa del Dólar", 142, -130], ["🏛️ Residencia", 159, -168], ["🦅 Base Halcón", -96, 40], ["🚓 Base Policía de la Ciudad", 125, 160]];
 // Camino para el auto: por la cuadrícula de calles (esquinas) y los portones, nunca por puertas de edificios
 const CALLES_AUTO = { nodos: null, vec: null };
 function prepararCalles() {
   const L = [-80, -56, -32, -8, 16, 40, 64, 80], N = [];
   for (const x of L) for (const z of L) if (!choca(x, z, 1.2)) N.push({ x, z });
-  for (const p of [[84, 16], [100, 16], [-84, 40], [-96, 40], [64, -86], [64, -96], [64, -132], [64, -160], [100, -132], [142, -132], [100, -145], [142, -145], [100, -158], [142, -158], [159, -158], [159, -166], [120, -132], [120, -158], [76, -132], [88, -132], [82, -130], [-8, -86], [-8, -96], [-32, 86], [-32, 100], [40, 86], [40, 100]]) if (!choca(p[0], p[1], 1.2)) N.push({ x: p[0], z: p[1] });
+  for (const p of [[84, 16], [100, 16], [-84, 40], [-96, 40], [64, -86], [64, -96], [64, -132], [64, -160], [92, 24], [92, 56], [92, 90], [92, 112], [92, 128], [92, 140], [110, 146], [125, 160], [100, -132], [142, -132], [100, -145], [142, -145], [100, -158], [142, -158], [159, -158], [159, -166], [120, -132], [120, -158], [76, -132], [88, -132], [82, -130], [-8, -86], [-8, -96], [-32, 86], [-32, 100], [40, 86], [40, 100]]) if (!choca(p[0], p[1], 1.2)) N.push({ x: p[0], z: p[1] });
   CALLES_AUTO.nodos = N; CALLES_AUTO.vec = N.map((a, i) => N.map((b, j) => j !== i && Math.hypot(a.x - b.x, a.z - b.z) < 40 && lineaLibre(a, b, 1.1) ? j : -1).filter(j => j >= 0));
 }
 function rutaAuto(desde, hasta) {
@@ -3337,13 +3380,13 @@ function fondoMini() {
   const R = (x1, z1, x2, z2, col) => { g.fillStyle = col; g.fillRect((x1 - M.X0) * M.esc, (z1 - M.Z0) * M.esc, (x2 - x1) * M.esc, (z2 - z1) * M.esc); };
   const m = CIUDAD.tam / 2;
   R(-m, -m, m, m, "#3a3f4a");                                     // ciudad (calles)
-  for (const Z of [AER, ZAUTOS, AGU, SUPER, HALCON, PUERTO, GANG, { x1: BP.x1, x2: BP.x2, z1: BP.z1, z2: -CIUDAD.tam / 2 }, { x1: ACAD.x1, x2: -CIUDAD.tam / 2, z1: ACAD.z1, z2: ACAD.z2 }]) R(Z.x1, Z.z1, Z.x2 ?? m, Z.z2 ?? -m, "#343a44");
+  for (const Z of [AER, ZAUTOS, AGU, SUPER, HALCON, PUERTO, GANG, { x1: BP.x1, x2: BP.x2, z1: BP.z1, z2: -CIUDAD.tam / 2 }, { x1: ACAD.x1, x2: -CIUDAD.tam / 2, z1: ACAD.z1, z2: ACAD.z2 }, CIUD]) R(Z.x1, Z.z1, Z.x2 ?? m, Z.z2 ?? -m, "#343a44");
   R(PM.x1, PM.z1, PM.x2, -m, "#3d3a36"); R(PM.x1, PM.aguaZ1, PM.x2, PM.aguaZ2, "#1d5a8a"); R(PUERTO.x1, PUERTO.z1, PUERTO.agua, PUERTO.z2, "#1d5a8a");
   R(-m, AUTOPISTA.z1, m, AUTOPISTA.z2, "#555a66");
   for (const e of edificios) if (!e.arbol && e.h > 1) R(e.x1, e.z1, e.x2, e.z2, "#8a93a6");
   M.fondo = c;
 }
-const LUGARES_MINI = [[ZONAS.banco, "🏦"], [ZONAS.carcel, "⛓️"], [ZONAS.guarida, "🏚️"], [ZONAS.narco, "💊"], [ZONAS.muelle, "🚤"], [{ x: CAMBIO.mostX, z: CAMBIO.mostZ }, "💵"], [{ x: 159, z: -190 }, "🏛️"], [{ x: -20, z: 52 }, "🏨"], [{ x: GANG.jefeX, z: GANG.jefeZ }, "🐺"], [{ x: GOB.cx, z: GOB.cz }, "🏛️"], [{ x: -84, z: -120 }, "🏡"], [{ x: -94, z: 110 }, "🎓"], [{ x: 100, z: 72 }, "🚗"]];
+const LUGARES_MINI = [[ZONAS.banco, "🏦"], [ZONAS.carcel, "⛓️"], [ZONAS.guarida, "🏚️"], [ZONAS.narco, "💊"], [ZONAS.muelle, "🚤"], [{ x: CAMBIO.mostX, z: CAMBIO.mostZ }, "💵"], [{ x: 159, z: -190 }, "🏛️"], [{ x: -20, z: 52 }, "🏨"], [{ x: GANG.jefeX, z: GANG.jefeZ }, "🐺"], [{ x: GOB.cx, z: GOB.cz }, "🏛️"], [{ x: -84, z: -120 }, "🏡"], [{ x: -94, z: 110 }, "🎓"], [{ x: 125, z: 165 }, "🚓"], [{ x: 100, z: 72 }, "🚗"]];
 function dibujarMini(t) {
   const cv = $("minimapa"); cv.style.display = jugando && MINI.modo < 2 ? "block" : "none"; cv.classList.toggle("chico", MINI.modo === 1);
   if (!jugando || MINI.modo === 2 || t - MINI.ult < 100 || !yo) return; MINI.ult = t;
@@ -3806,7 +3849,7 @@ async function abrirAdmin() {
     ADMIN.ok = true; }
   $("admin").style.display = "block"; pintarAdmin(); }
 const LUGARES = [["🚔 Cárcel", ZONAS.carcel], ["🏦 Banco", ZONAS.banco], ["🏚️ Guarida", ZONAS.guarida], ["💊 Casa narco", ZONAS.narco], ["🚤 Muelle", ZONAS.muelle],
-  ["🏨 Hotel", { x: -20, z: 61 }], ["🚗 Conce", { x: 96, z: 72 }], ["🦅 Halcón", { x: -84, z: 42 }], ["🏛️ Mi residencia", { x: 159, z: -178 }], ["🐺 Los Lobos", { x: -32, z: 100 }], ["🏛️ Casa de Gobierno", { x: 28, z: 11 }], ["🏡 Barrio privado", { x: -56, z: -104 }], ["🎓 Academia", { x: -96, z: 88 }]];
+  ["🏨 Hotel", { x: -20, z: 61 }], ["🚗 Conce", { x: 96, z: 72 }], ["🦅 Halcón", { x: -84, z: 42 }], ["🏛️ Mi residencia", { x: 159, z: -178 }], ["🐺 Los Lobos", { x: -32, z: 100 }], ["🏛️ Casa de Gobierno", { x: 28, z: 11 }], ["🏡 Barrio privado", { x: -56, z: -104 }], ["🎓 Academia", { x: -96, z: 88 }], ["🚓 Base Policía de la Ciudad", { x: 125, z: 160 }]];
 function pintarAdmin() {
   const todos = Object.values(jug).filter(s => s !== yo), bt = (a, t, c = "#ffffff22") => `<button data-ad="${a}" style="margin:3px;padding:8px 10px;border:0;border-radius:10px;background:${c};color:#fff;font-weight:800">${t}</button>`;
   $("ad-cuerpo").innerHTML = `${bt("modo", ADMIN.modo ? "🛠️ Modo admin: PRENDIDO (tag en la cabeza)" : "🛠️ Modo admin: apagado", ADMIN.modo ? "#b8860b" : "#ffffff22")}<br><b>💵 Plata y vos</b><br>${bt("plata", "+$10.000", "#1e7a3a")}${bt("vida", "❤️ Curarme")}${bt("rapido", ADMIN.rapido ? "🐢 Velocidad normal" : "⚡ Súper velocidad")}
