@@ -13,6 +13,7 @@
   #reloj { font-size:26px; text-align:center; }
   #botin { font-size:18px; color:#7dff8a; }
   #equipos { font-size:14px; text-align:right; }
+  body.tactil .b-presi { right:calc(12px + var(--b) * .8 + 16px) !important; }
   #minimapa { position:fixed; left:12px; bottom:12px; width:150px; height:150px; z-index:4; border-radius:50%; border:2px solid #ffffff55; background:#0b1222cc; opacity:.85; display:none; cursor:pointer; }
   #minimapa.chico { width:90px; height:90px; }
   body.tactil #minimapa { left:auto; bottom:auto; right:calc(12px + env(safe-area-inset-right)); top:calc(62px + var(--b) * .8 + env(safe-area-inset-top)); width:96px; height:96px; }
@@ -201,8 +202,9 @@
     <button id="ad-x" style="margin-top:10px;width:100%;padding:8px;border:0;border-radius:10px;background:#ffffff22;color:#fff;font-weight:800">Cerrar</button>
   </div>
 </div>
-<button id="b-orden" style="display:none;position:fixed;left:12px;top:168px;z-index:6;border:0;border-radius:12px;padding:6px 12px;background:#1a5a9a;color:#fff;font-weight:900">🕴️ Síganme</button>
-<button id="b-chofer" style="display:none;position:fixed;left:12px;top:204px;z-index:6;border:0;border-radius:12px;padding:6px 12px;background:#2a3a5a;color:#fff;font-weight:900">🚘 Chofer</button>
+<button id="b-orden" class="b-presi" style="display:none;position:fixed;right:12px;top:90px;z-index:6;border:0;border-radius:12px;padding:6px 12px;background:#1a5a9a;color:#fff;font-weight:900">🕴️ Síganme</button>
+<button id="b-chofer" class="b-presi" style="display:none;position:fixed;right:12px;top:126px;z-index:6;border:0;border-radius:12px;padding:6px 12px;background:#2a3a5a;color:#fff;font-weight:900">🚘 Chofer</button>
+<button id="b-convoy" class="b-presi" style="display:none;position:fixed;right:12px;top:162px;z-index:6;border:0;border-radius:12px;padding:6px 12px;background:#7a1020;color:#fff;font-weight:900">🚨 Caravana</button>
 <button id="b-mochila" title="Inventario (I)" style="display:none;position:fixed;left:12px;top:132px;z-index:6;border:0;border-radius:12px;padding:6px 12px;background:#2a3a5a;color:#fff;font-weight:900">🎒 Inventario</button>
 <div id="inv" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
   <div style="max-width:420px;margin:0 auto;background:#141e33;border:2px solid #5ec8f2;border-radius:16px;padding:16px">
@@ -2120,7 +2122,7 @@ function recibirPos(p) {
     s._rt = ahora; }
   s.tx = p.x; s.tz = p.z; s.rot = p.rot + Math.PI;   // la cámara mira hacia -z y el muñeco hacia +z
   // (antes esta parte había quedado adentro del comentario: no se actualizaba preso/bolsa/auto y los jugadores "se iban" a los 8 s)
-  if (p.res !== undefined) s.res = p.res; s.preso = !!p.preso; s.bolsa = !!p.bolsa; s.paquete = !!p.paq; s.visto = Date.now(); s.auto = p.auto ?? null; s.esposado = s.preso ? (p.esp || null) : null; s.adm = !!p.adm && /^gonza/i.test(s.nombre || ""); s.pres = !!p.pres && /^gonza/i.test(s.nombre || ""); s.ng = +p.ng || 0; s.orden = ["seguir", "quietos", "perimetro"].includes(p.po) ? p.po : "seguir"; s.ancla = Array.isArray(p.pa) ? { x: +p.pa[0], z: +p.pa[1] } : null;
+  if (p.res !== undefined) s.res = p.res; s.preso = !!p.preso; s.bolsa = !!p.bolsa; s.paquete = !!p.paq; s.visto = Date.now(); s.auto = p.auto ?? null; s.esposado = s.preso ? (p.esp || null) : null; s.adm = !!p.adm && /^gonza/i.test(s.nombre || ""); s.pres = !!p.pres && /^gonza/i.test(s.nombre || ""); s.ng = +p.ng || 0; s.cv = !!p.cv; s.orden = ["seguir", "quietos", "perimetro"].includes(p.po) ? p.po : "seguir"; s.ancla = Array.isArray(p.pa) ? { x: +p.pa[0], z: +p.pa[1] } : null;
   autoRemoto(s, p.pc, p);
   if (s.auto !== null && autos[s.auto] && autos[s.auto] !== miAuto) { const a = autos[s.auto]; a.conductor = p.id; { const ahora = performance.now(), d = (ahora - (a._rt || 0)) / 1000;
     if (d > .03 && d < 1) { a.vx = Math.max(-60, Math.min(60, (p.x - a.tx) / d)); a.vz = Math.max(-60, Math.min(60, (p.z - a.tz) / d)); } else a.vx = a.vz = 0; a._rt = ahora; }
@@ -2130,7 +2132,7 @@ function recibirPos(p) {
 function enviarPos() {
       const npcs = soyHost ? Object.values(jug).filter(b => b.bot).map(b => ({ id: b.id, nombre: b.nombre, equipo: "ladron", clase: "ladron", res: Math.round(b.res), x: +b.x.toFixed(2), z: +b.z.toFixed(2), rot: +((b.rot || 0) - Math.PI).toFixed(2), preso: b.preso, esp: b.esposado || null, bolsa: b.bolsa, paq: !!b.paquete, auto: null })) : [];
       const danos = danosPend.splice(0);
-      enviar("pos", { npcs, danos, id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, uni: yo.uni, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, adm: ADMIN.modo ? 1 : 0, pres: ADMIN.pres ? 1 : 0, ng: ADMIN.extra, po: ADMIN.orden, pa: ADMIN.ancla ? [+ADMIN.ancla.x.toFixed(1), +ADMIN.ancla.z.toFixed(1)] : null, esp: yo.esposado || null, bolsa: yo.bolsa, paq: !!yo.paquete,
+      enviar("pos", { npcs, danos, id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, uni: yo.uni, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, adm: ADMIN.modo ? 1 : 0, pres: ADMIN.pres ? 1 : 0, ng: ADMIN.extra, cv: CONVOY.activo ? 1 : 0, po: ADMIN.orden, pa: ADMIN.ancla ? [+ADMIN.ancla.x.toFixed(1), +ADMIN.ancla.z.toFixed(1)] : null, esp: yo.esposado || null, bolsa: yo.bolsa, paq: !!yo.paquete,
       auto: miAuto && !miAuto.propio ? miAuto.i : null, pc: miAuto && miAuto.propio ? { m: miAuto.modeloId, c: miAuto.color, n: miAuto.neon || 0 } : null, ah: miAuto ? +miAuto.h.toFixed(2) : 0, av: miAuto ? +miAuto.vel.toFixed(1) : 0, sir: miAuto ? miAuto.sirena : false, sp: miAuto ? (miAuto.patron || "alterno") : "" });
 }
 // Si la pestaña queda en segundo plano el juego se pausa, pero igual avisamos que seguimos (antes a los 8 s te daban por ido)
@@ -2718,11 +2720,13 @@ function pintarSegPres() {
     + b("despedir", "👋 Despedir un guardaespaldas", ADMIN.extra > 0)
     + b("puerta", PGOB.b ? "🔓 Abrir la puerta blindada" : "🔒 Cerrar la puerta blindada", true, "#7a1020")
     + b("heli", "🚁 Pedir el helicóptero")
-    + b("caravana", "🚗 Sacar la caravana presidencial ahora", !online || soyHost);
+    + b("caravana", "🚗 Sacar la caravana presidencial ahora", !online || soyHost)
+    + b("convoy", "🚨 Caravana de escolta a la Residencia", true, "#7a1020");
   $("sp-lista").querySelectorAll("[data-sp]").forEach(x => x.onclick = () => { const k = x.dataset.sp;
     if (k === "contratar" && ADMIN.extra < 6 && BILLE.plata >= PRECIO_GUARDA) { BILLE.plata = BILLE.plata - PRECIO_GUARDA; ADMIN.extra++; grande("🕴️ Nuevo guardaespaldas contratado", "#75aadb"); beep(700, .1, "triangle"); }
     else if (k === "despedir" && ADMIN.extra > 0) { ADMIN.extra--; feed("👋 Despediste a un guardaespaldas"); }
     else if (k === "puerta") { const p = { c: !PGOB.b, de: yo.id }; enviar("gobpuerta", p); puertaGob(p); }
+    else if (k === "convoy") { $("segpres").style.display = "none"; llamarCaravana(); return; }
     else if (k === "heli") { $("segpres").style.display = "none"; pedirHeli(); return; }
     else if (k === "caravana" && (!online || soyHost)) { if (!CAR.activa) { CAR.prox = Date.now() - 1; grande("🚗 La caravana presidencial sale en 20 segundos", "#75aadb"); } else grande("🚗 La caravana ya está en la calle", "#aaaaaa"); }
     pintarSegPres(); });
@@ -2730,6 +2734,48 @@ function pintarSegPres() {
 $("sp-x").onclick = () => { $("segpres").style.display = "none"; };
 function puertaGob(p) { const de = jug[p.de]; if (!de || de.clase !== "presidente") return; PGOB.b = !!p.c;
   feed(PGOB.b ? "🔒 Se cerró la puerta blindada de la Casa de Gobierno" : "🔓 Se abrió la puerta blindada de la Casa de Gobierno"); beep(PGOB.b ? 200 : 400, .25, "square", .05); }
+// ================== CARAVANA DE ESCOLTA A LA RESIDENCIA ==================
+// El Presidente la llama cuando quiere (botón 🚨 o tecla K): llega su auto blindado, se sube y el chofer lo lleva a la
+// Residencia con 2 motos y 2 patrulleros de escolta con sirenas. Los demás jugadores ven la caravana en el online.
+const CONVOY = { activo: false, escoltas: null, rastro: [] };
+function crearEscoltas() { const E = [crearMoto(), crearMoto(), crearPatrullero("ciudad"), crearPatrullero("provincia")];
+  return E.map((m, k) => ({ mesh: m, atras: [5, 8.5, 13, 18.5][k], x: 0, z: 0, h: 0 })); }
+function llamarCaravana() {
+  if (yo.clase !== "presidente" || !jugando) return;
+  if (CONVOY.activo) { CONVOY.activo = false; CHOFER.ruta = null; grande("🚨 Caravana cancelada", "#aaaaaa"); return; }
+  const a = autos.find(q => q.presi); if (!a) return;
+  if (a.conductor && a.conductor !== yo.id) { grande("🚘 El auto presidencial está ocupado", "#ff8a3b"); return; }
+  if (miAuto !== a) {   // el auto viene a buscarlo
+    if (miAuto) bajarAuto();
+    if (!CALLES_AUTO.nodos) prepararCalles();   // el auto espera en la esquina más cercana (nunca adentro de un edificio)
+    let n = CALLES_AUTO.nodos[0], dn = 1e9; for (const q of CALLES_AUTO.nodos) { const d = Math.hypot(q.x - yo.x, q.z - yo.z); if (d < dn && CALLES_AUTO.vec[CALLES_AUTO.nodos.indexOf(q)].length) { dn = d; n = q; } }
+    a.x = a.tx = n.x; a.z = a.tz = n.z; a.vel = 0; a.conductor = null; yo.x = n.x + 2; yo.z = n.z; subirAuto(a); }
+  if (miAuto !== a) return;
+  const ruta = rutaAuto({ x: a.x, z: a.z }, { x: 159, z: -168 });
+  if (!ruta) { grande("🚨 \"No encontramos camino a la Residencia desde acá\"", "#ff8a3b"); return; }
+  CHOFER.ruta = ruta.concat([{ x: 159, z: -168 }]); CHOFER.k = 0; CHOFER.destino = "🏛️ Residencia"; CONVOY.activo = true; CONVOY.rastro = [];
+  a.sirena = true; a.balizas = true; grande("🚨 ¡CARAVANA PRESIDENCIAL! Rumbo a la Residencia", "#75aadb"); sirena();
+}
+$("b-convoy").onclick = e => { e.stopPropagation(); llamarCaravana(); };
+addEventListener("keydown", e => { if (e.code === "KeyK" && !e.repeat && yo && yo.clase === "presidente") llamarCaravana(); });
+function actualizarConvoy(t) {
+  const a = autos.find(q => q.presi); if (!a) return;
+  // Hay caravana si la llamé yo, o si el presidente que maneja el auto avisa que está en caravana
+  if (CONVOY.activo && (miAuto !== a || !CHOFER.ruta)) CONVOY.activo = false;   // llegó (el chofer avisa) o el presidente se puso a manejar
+  const remoto = Object.values(jug).find(s => s !== yo && s.cv && s.auto === a.i);
+  const hay = CONVOY.activo || !!remoto;
+  if (!hay) { if (CONVOY.escoltas) { for (const e of CONVOY.escoltas) escena.remove(e.mesh); CONVOY.escoltas = null; } return; }
+  if (!CONVOY.escoltas) { CONVOY.escoltas = crearEscoltas(); CONVOY.rastro = []; }
+  // Rastro del auto: las escoltas van atrás siguiendo exactamente el mismo camino
+  const R = CONVOY.rastro, u = R[R.length - 1]; if (!u || Math.hypot(u.x - a.x, u.z - a.z) > .5) { R.push({ x: a.x, z: a.z, h: a.h }); if (R.length > 80) R.shift(); }
+  for (const e of CONVOY.escoltas) { let d = 0, p = R[R.length - 1];
+    for (let i = R.length - 1; i > 0; i--) { d += Math.hypot(R[i].x - R[i - 1].x, R[i].z - R[i - 1].z); p = R[i - 1]; if (d >= e.atras) break; }
+    if (d < e.atras) { p = { x: a.x - Math.sin(a.h) * e.atras, z: a.z - Math.cos(a.h) * e.atras, h: a.h }; if (choca(p.x, p.z, .8)) p = R[0] || { x: a.x, z: a.z, h: a.h }; }
+    e.x += (p.x - e.x) * .25 || 0; e.z += (p.z - e.z) * .25 || 0; if (Math.hypot(e.x - p.x, e.z - p.z) > 15) { e.x = p.x; e.z = p.z; }
+    e.h += Math.atan2(Math.sin(p.h - e.h), Math.cos(p.h - e.h)) * .2;
+    e.mesh.position.set(e.x, 0, e.z); e.mesh.rotation.y = e.h;
+    const on = Math.floor(t / 140) % 2, U = e.mesh.userData; if (U.rojo) U.rojo.visible = !!on; if (U.azul) U.azul.visible = !on; }
+}
 // ================== DESPACHO PRESIDENCIAL: DECRETOS ==================
 // El Presidente (Gonza) firma decretos desde el escritorio de la Casa de Gobierno; le llegan a todos los jugadores.
 const DECRETOS = {
@@ -3071,6 +3117,7 @@ function buscarCamino(desde, hasta, peaton = false) {
 
 // ================== PARTIDA ==================
 function empezar(finTs) {
+  CONVOY.activo = false;
   ADMIN.extra = 0; PGOB.b = false;
   ADMIN.pres = clase === "presidente" && esGonza(); if (clase === "presidente" && !ADMIN.pres) { clase = "poli"; equipo = "poli"; } ADMIN.orden = "seguir"; ADMIN.ancla = null;
   $("menu").classList.add("oculto"); $("sala").classList.add("oculto"); $("fin").classList.add("oculto");
@@ -3311,7 +3358,7 @@ function loop(t) {
     if (autoPedido) { if (miAuto) bajarAuto(); else if (autoCerca) subirAuto(autoCerca); }
     autoPedido = false;
     if (!miAuto) CHOFER.ruta = null;
-    actualizarChofer();
+    actualizarChofer(); actualizarConvoy(t);
     if (miAuto) { if (!(miAuto.presi && CHOFER.ruta && conduceChofer(miAuto, dt))) manejar(miAuto, dt); }
     else if (!yo.preso && Date.now() >= aturdidoHasta && Date.now() >= dormirHasta) {
       const f = (teclas.KeyW || teclas.ArrowUp ? 1 : 0) - (teclas.KeyS || teclas.ArrowDown ? 1 : 0) - joy.y;
@@ -3358,6 +3405,7 @@ function loop(t) {
     if (!pista && autoCerca && autoCerca.propio) pista = "🔑 F: subirte a tu auto";
     accionPedida = false;
     $("b-chofer").style.display = miAuto && miAuto.presi ? "block" : "none"; $("b-chofer").textContent = CHOFER.ruta ? "🚘 Manejar yo" : "🚘 Chofer";
+    $("b-convoy").style.display = ADMIN.pres ? "block" : "none"; $("b-convoy").textContent = CONVOY.activo ? "🚨 Cancelar caravana" : "🚨 Caravana a la Residencia";
     $("b-orden").style.display = ADMIN.pres ? "block" : "none"; $("b-orden").textContent = { seguir: "🕴️ Síganme", quietos: "🕴️ Quietos acá", perimetro: "🕴️ Perímetro" }[ADMIN.orden];
     $("b-admin").style.display = esGonza() ? "block" : "none"; $("b-mochila").style.display = "block"; $("b-mochila").style.top = esGonza() ? "132px" : "96px";
     if (performance.now() - pistaGuardas < 1500) pista = "🕴️ Guardaespaldas: \"¡Atrás! ¡Atrás del presidente!\"";
