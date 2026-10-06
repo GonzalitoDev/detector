@@ -419,6 +419,7 @@ function choca(x, z, r = RADIO, eq = null) {
   if (Math.abs(x + mitad) < r + .3 && !(z > PUERTO.puerta1 + r && z < PUERTO.puerta2 - r) && !(z > HALCON.puerta1 + r && z < HALCON.puerta2 - r)) return true;   // paredón oeste con portones al puerto y a la base Halcón
   if (Math.abs(x - mitad) < r + .3 && !(z > AER.puerta1 + r && z < AER.puerta2 - r) && !(z > AUTOPISTA.z1 + r && z < AUTOPISTA.z2 - r)) return true;   // paredón con portón hacia el aeropuerto
   if (!RG.pasa && x + r > RG.p1 && x - r < RG.p2 && z + r > RG.cz2 - .5 && z - r < RG.cz2 + .2) return true;   // puerta de la residencia: solo Gonza
+  if (!RG.pasa && x + r > RG.rejaP1 && x - r < RG.rejaP2 && z + r > RG.z2 - .4 && z - r < RG.z2 + .2) return true;   // portón: la seguridad no deja pasar a nadie más
   if (puerta.cerrada && eq !== "ladron" && x + r > CASA.x1 - .3 && x - r < CASA.x1 + .3 && z + r > CASA.puertaZ1 && z - r < CASA.puertaZ2) return true;
   return cercanos(x, z).some(e => x + r > e.x1 && x - r < e.x2 && z + r > e.z1 && z - r < e.z2);
 }
@@ -1087,6 +1088,18 @@ const RG = { x1: 144, x2: 174, z1: -204, z2: -172, cx1: 148, cx2: 170, cz1: -198
   { const x = RG.cx2 - 4, z = RG.cz2 - 4.5; deco(3.2, .6, 4, 0xf2f2f2, x, .3, z); deco(3.2, 1.2, .3, 0x5a3a1a, x, .6, z - 2); edificios.push({ x1: x - 1.6, x2: x + 1.6, z1: z - 2.1, z2: z + 2, h: .6 }); }
   RG.caja = deco(1, 1.2, .8, 0x4a4f57, RG.cajaX, .6, RG.cajaZ); deco(.3, .3, .05, 0xd4af37, RG.cajaX, .7, RG.cajaZ + .42);
   edificios.push({ x1: RG.cajaX - .5, x2: RG.cajaX + .5, z1: RG.cajaZ - .4, z2: RG.cajaZ + .4, h: 1.2 });
+  // Seguridad: dos custodios en el portón de entrada y dos en la puerta de la casa (traje oscuro, anteojos y auricular), más una garita
+  { const g = new THREE.Group(); g.position.set(RG.rejaP1 - 3, 0, RG.z2 + 2); escena.add(g);
+    const b = new THREE.Mesh(new THREE.BoxGeometry(1.8, 2.5, 1.8), L(0x1a1a2a)); b.position.y = 1.25; g.add(b);
+    const v = new THREE.Mesh(new THREE.BoxGeometry(1.84, .7, 1.84), L(0x9fd4ff)); v.position.y = 1.7; g.add(v);
+    edificios.push({ x1: RG.rejaP1 - 3.9, x2: RG.rejaP1 - 2.1, z1: RG.z2 + 1.1, z2: RG.z2 + 2.9, h: 2.5 }); }
+  RG.custodios = [[RG.rejaP1 - 1, RG.z2 + .9, 0], [RG.rejaP2 + 1, RG.z2 + .9, 0], [RG.p1 - 1, RG.cz2 + .8, 0], [RG.p2 + 1, RG.cz2 + .8, 0]];
+  for (const [x, z] of RG.custodios) edificios.push({ x1: x - .3, x2: x + .3, z1: z - .3, z2: z + .3, h: 1.8, arbol: true });
+  setTimeout(() => { for (const [x, z, ry] of RG.custodios) { const c = crearCivil(5), m = c.mesh || c;
+    const lentes = new THREE.Mesh(new THREE.BoxGeometry(.3, .07, .05), new THREE.MeshBasicMaterial({ color: 0x050505 })); lentes.position.set(0, 1.78, .2); m.add(lentes);
+    const cable = new THREE.Mesh(new THREE.CylinderGeometry(.01, .01, .3, 4), new THREE.MeshBasicMaterial({ color: 0xdddddd })); cable.position.set(.17, 1.6, .05); m.add(cable);
+    m.position.set(x, 0, z); m.rotation.y = ry; m.scale.setScalar(1.08); escena.add(m); } }, 0);
+  const cS = cartel("💂 SEGURIDAD PRESIDENCIAL", "#1a1a2a"); cS.scale.set(5, 1, 1); cS.position.set((RG.rejaP1 + RG.rejaP2) / 2, 3.6, RG.z2); escena.add(cS);
   const c = cartel("🏛️ RESIDENCIA PRESIDENCIAL · GONZA", "#1a3a7a"); c.scale.set(9, 1.8, 1); c.position.set((RG.cx1 + RG.cx2) / 2, H + 5.5, RG.cz2); escena.add(c);
 }
 // ================== SUPERMERCADO ==================
@@ -3021,6 +3034,9 @@ function loop(t) {
     { const dP = Math.hypot(yo.x - (RG.p1 + RG.p2) / 2, yo.z - RG.cz2), soy = esGonza(), abierta = soy && dP < 3.5;
       RG.puerta.position.x = (RG.p1 + RG.p2) / 2 + (abierta ? (RG.p2 - RG.p1) * .9 : 0);
       if (!miAuto && dP < 2.5 && !soy) pistaDepto = "🔒 Residencia presidencial: solo entra Gonza";
+      const dG = Math.hypot(yo.x - (RG.rejaP1 + RG.rejaP2) / 2, yo.z - RG.z2);
+      if (!miAuto && dG < 3) { pistaDepto = soy ? "💂 Seguridad: \"Adelante, Presidente\"" : "💂 Seguridad: \"Propiedad privada. No puede pasar.\"";
+        if (soy && !RG.saludo) { RG.saludo = true; beep(880, .1, "triangle"); } } else if (dG > 6) RG.saludo = false;
       const adentro = yo.x > RG.cx1 && yo.x < RG.cx2 && yo.z > RG.cz1 && yo.z < RG.cz2;
       if (adentro && !RG.adentro) { RG.adentro = true; if (soy) grande("🏛️ ¡Bienvenido a casa, Presidente Gonza!", "#75aadb"); } else if (!adentro) RG.adentro = false;
       if (soy && !miAuto && Math.hypot(yo.x - RG.cajaX, yo.z - (RG.cajaZ + 1.2)) < 1.6) {
