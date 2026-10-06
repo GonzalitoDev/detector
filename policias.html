@@ -353,7 +353,7 @@ const META = 10000, DURACION = 240, ATRAPA = 2.2, RADIO = 0.45;
 // Cuadrícula de manzanas: edificios en las celdas, calles entre medio
 const CIUDAD = { tam: 168, cuadra: 16, calle: 8 };
 const edificios = [];   // { x1, z1, x2, z2, h }
-const ZONAS = { banco: { x: 0, z: -40, r: 6 }, guarida: { x: 40, z: 95, r: 5 } /* en el aguantadero, afuera de la ciudad (sur) */, carcel: { x: -44, z: 44, r: 5 },
+const ZONAS = { banco: { x: 4, z: -44, r: 5 } /* adentro del edificio del banco (manzana x -4..12, z -52..-36) */, guarida: { x: 40, z: 95, r: 5 } /* en el aguantadero, afuera de la ciudad (sur) */, carcel: { x: -44, z: 44, r: 5 },
                 narco: { x: 44, z: -44, r: 6 }, muelle: { x: -110, z: -32, r: 5 } };   // el muelle está en el puerto, afuera de la ciudad (oeste)
 // Casa narco: paredes con una puerta blindada que solo el SWAT puede romper
 const CASA = { x1: 39, x2: 49, z1: -48, z2: -40, alto: 3.6, grosor: .4, puertaZ1: -45.1, puertaZ2: -42.9 };
@@ -443,7 +443,7 @@ function lugarLibre(cerca, rad = 6) {
 // Bolsas de plata alrededor del banco (siempre en el mismo lugar para todos)
 // Paquetes de contrabando arriba de la mesa de la casa narco
 const PAQUETES = Array.from({ length: 6 }, (_, i) => ({ i, x: 44 + (i % 3) * 1, z: -44.4 + Math.floor(i / 3) * .8, hasta: 0 }));
-const BOLSAS = Array.from({ length: 10 }, (_, i) => { const a = i / 10 * Math.PI * 2; return { i, x: ZONAS.banco.x + Math.cos(a) * 4.5, z: ZONAS.banco.z + Math.sin(a) * 4.5, hasta: 0 }; });
+const BOLSAS = Array.from({ length: 10 }, (_, i) => { const a = i / 10 * Math.PI * 2; return { i, x: ZONAS.banco.x + Math.cos(a) * 3.4, z: ZONAS.banco.z + Math.sin(a) * 3.4, hasta: 0 }; });
 
 // ================== 3D ==================
 // Rendimiento: en celulares se dibuja a menor resolución y sin antialias; además la calidad baja sola si los FPS caen
@@ -598,6 +598,29 @@ function zona(Z, color, texto) {
   return anillo;
 }
 zona(ZONAS.banco, 0x2e9e4f, "🏦 BANCO");
+// Edificio del banco: ocupa solo su manzana (no toca calles ni veredas), con dos entradas anchas (sur y oeste) para ladrones, polis y bots
+const BANCO = { x1: -2, x2: 10, z1: -50, z2: -38, alto: 7 };
+{
+  const B = BANCO, L = c => new THREE.MeshLambertMaterial({ color: c }), piedra = L(0xd8cfb8), g = .5;
+  const muro = (x1, z1, x2, z2) => { const m = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1, B.alto, z2 - z1), piedra); m.position.set((x1 + x2) / 2, B.alto / 2, (z1 + z2) / 2); escena.add(m); edificios.push({ x1, x2, z1, z2, h: B.alto }); };
+  muro(B.x1, B.z1, B.x2, B.z1 + g);                              // fondo (norte), con la bóveda
+  muro(B.x2 - g, B.z1, B.x2, B.z2);                              // este
+  muro(B.x1, B.z1, B.x1 + g, -46); muro(B.x1, -42, B.x1 + g, B.z2);   // oeste con entrada (z -46..-42)
+  muro(B.x1, B.z2 - g, 2, B.z2); muro(6, B.z2 - g, B.x2, B.z2);       // frente (sur) con entrada (x 2..6)
+  for (const [x, z, lx, lz] of [[4, B.z2 - g / 2, 4, g], [B.x1 + g / 2, -44, g, 4]]) { const d = new THREE.Mesh(new THREE.BoxGeometry(lx, B.alto - 4, lz), piedra); d.position.set(x, 4 + (B.alto - 4) / 2, z); escena.add(d); }   // dinteles sobre las puertas
+  const techo = new THREE.Mesh(new THREE.BoxGeometry(B.x2 - B.x1 + 1, .5, B.z2 - B.z1 + 1), L(0x8a8070)); techo.position.set((B.x1 + B.x2) / 2, B.alto + .25, (B.z1 + B.z2) / 2); escena.add(techo);
+  const fronton = new THREE.Mesh(new THREE.CylinderGeometry(0, 3, 1.6, 3), piedra); fronton.rotation.set(Math.PI / 2, 0, Math.PI / 2); fronton.scale.set(1, .4, 2.2); fronton.position.set(4, B.alto + 1, B.z2 + .1); escena.add(fronton);
+  // Columnas en el frente (afuera de la puerta, sin tapar la entrada)
+  for (const x of [-1, 1, 7, 9]) { const c = new THREE.Mesh(new THREE.CylinderGeometry(.3, .35, B.alto, 12), L(0xf2ece0)); c.position.set(x, B.alto / 2, B.z2 + .5); escena.add(c); edificios.push({ x1: x - .35, x2: x + .35, z1: B.z2 + .15, z2: B.z2 + .85, h: B.alto }); }
+  const esc = new THREE.Mesh(new THREE.BoxGeometry(12, .15, 1.4), L(0xc8bfa8)); esc.position.set(4, .07, B.z2 + .6); escena.add(esc);
+  // Piso de mármol, mostradores de cajas y la bóveda en el fondo
+  const piso = new THREE.Mesh(new THREE.PlaneGeometry(B.x2 - B.x1, B.z2 - B.z1), L(0xe8e2d6)); piso.rotation.x = -Math.PI / 2; piso.position.set(4, .025, -44); escena.add(piso);
+  const most = new THREE.Mesh(new THREE.BoxGeometry(6, 1.1, .6), L(0x5a3a1a)); most.position.set(4, .55, B.z1 + 1.6); escena.add(most); edificios.push({ x1: 1, x2: 7, z1: B.z1 + 1.3, z2: B.z1 + 1.9, h: 1.1 });
+  const vid = new THREE.Mesh(new THREE.BoxGeometry(6, .9, .05), new THREE.MeshLambertMaterial({ color: 0xbfe8ff, transparent: true, opacity: .4 })); vid.position.set(4, 1.55, B.z1 + 1.6); escena.add(vid);
+  const boveda = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, .3, 24), L(0x8a8f99)); boveda.rotation.x = Math.PI / 2; boveda.position.set(8.2, 2, B.z1 + g + .16); escena.add(boveda);
+  for (let k = 0; k < 6; k++) { const r = new THREE.Mesh(new THREE.BoxGeometry(.08, 1, .08), L(0xd4af37)); r.position.set(8.2, 2, B.z1 + g + .35); r.rotation.z = k * Math.PI / 6; escena.add(r); }
+  const lc = cartel("🏦 BANCO GONZALITO", "#1b6e3a"); lc.scale.set(7, 1.5, 1); lc.position.set(4, B.alto + 2.6, B.z2 + .5); escena.add(lc);
+}
 zona(ZONAS.guarida, 0x9b30ff, "🏚️ GUARIDA");
 zona(ZONAS.carcel, 0x1e4fd8, "🚔 CÁRCEL");
 zona(ZONAS.muelle, 0x0aa0b0, "🚤 MUELLE");
