@@ -213,6 +213,14 @@
 </div>
 <button id="b-admin" style="display:none;position:fixed;left:12px;top:96px;z-index:6;border:0;border-radius:12px;padding:6px 12px;background:#ffd400;color:#000;font-weight:900">🛠️ Admin</button>
 <canvas id="minimapa" width="150" height="150" title="Mini mapa (tocá para achicar u ocultar)"></canvas>
+<div id="segpres" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
+  <div style="max-width:440px;margin:0 auto;background:#0b1a2a;border:2px solid #3dd1ff;border-radius:16px;padding:16px;text-align:center;font-family:monospace">
+    <h2 style="margin:0 0 4px">💻 Seguridad Presidencial</h2>
+    <div id="sp-info" style="font-size:13px;margin-bottom:10px;opacity:.85"></div>
+    <div id="sp-lista" style="display:grid;gap:6px"></div>
+    <button id="sp-x" style="margin-top:12px;width:100%;padding:8px;border:0;border-radius:10px;background:#ffffff22;color:#fff;font-weight:800">Cerrar</button>
+  </div>
+</div>
 <div id="chofer" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
   <div style="max-width:420px;margin:0 auto;background:#141e33;border:2px solid #75aadb;border-radius:16px;padding:16px;text-align:center">
     <h2 style="margin:0 0 4px">🚘 Chofer presidencial</h2>
@@ -381,6 +389,8 @@ const META = 10000, DURACION = 240, ATRAPA = 2.2, RADIO = 0.45;
 // Cuadrícula de manzanas: edificios en las celdas, calles entre medio
 const CIUDAD = { tam: 168, cuadra: 16, calle: 8 };
 const edificios = [];   // { x1, z1, x2, z2, h }
+// Puerta blindada de la Casa de Gobierno (b: cerrada; pasa: el que se está moviendo es el Presidente)
+const PGOB = { b: false, pasa: false };
 const ZONAS = { banco: { x: 4, z: -44, r: 5 } /* adentro del edificio del banco (manzana x -4..12, z -52..-36) */, guarida: { x: 40, z: 95, r: 5 } /* en el aguantadero, afuera de la ciudad (sur) */, carcel: { x: -44, z: 44, r: 5 },
                 narco: { x: 44, z: -44, r: 6 }, muelle: { x: -110, z: -32, r: 5 } };   // el muelle está en el puerto, afuera de la ciudad (oeste)
 // Casa narco: paredes con una puerta blindada que solo el SWAT puede romper
@@ -447,6 +457,7 @@ function choca(x, z, r = RADIO, eq = null) {
   if (Math.abs(x + mitad) < r + .3 && z > -mitad - 1 && z < mitad + 1 && !(z > PUERTO.puerta1 + r && z < PUERTO.puerta2 - r) && !(z > HALCON.puerta1 + r && z < HALCON.puerta2 - r)) return true;   // paredón oeste con portones al puerto y a la base Halcón
   if (Math.abs(x - mitad) < r + .3 && z > -mitad - 1 && z < mitad + 1 && !(z > AER.puerta1 + r && z < AER.puerta2 - r) && !(z > AUTOPISTA.z1 + r && z < AUTOPISTA.z2 - r)) return true;   // paredón con portón hacia el aeropuerto
   if (!RG.pasa && x + r > RG.p1 && x - r < RG.p2 && z + r > RG.cz2 - .5 && z - r < RG.cz2 + .2) return true;   // puerta de la residencia: solo Gonza
+  if (PGOB.b && !PGOB.pasa && x + r > 26.8 && x - r < 29.2 && z + r > 5.5 && z - r < 6.1) return true;   // puerta blindada de la Casa de Gobierno
   if (!RG.porton && x + r > RG.rejaP1 && x - r < RG.rejaP2 && z + r > RG.z2 - .4 && z - r < RG.z2 + .2) return true;   // portón: la seguridad no deja pasar a nadie más
   if (puerta.cerrada && eq !== "ladron" && x + r > CASA.x1 - .3 && x - r < CASA.x1 + .3 && z + r > CASA.puertaZ1 && z - r < CASA.puertaZ2) return true;
   return cercanos(x, z).some(e => x + r > e.x1 && x - r < e.x2 && z + r > e.z1 && z - r < e.z2);
@@ -2067,6 +2078,7 @@ function conectar(cod, host) {
     .on("broadcast", { event: "dano" }, ({ payload: p }) => recibirDano(p.ladron, p.de, p.dmg, Math.min(4000, +p.at || 0)))
     .on("broadcast", { event: "atrapa" }, ({ payload: p }) => atrapado(p.ladron, p.poli))
     .on("broadcast", { event: "admin" }, ({ payload: p }) => accionAdmin(p))
+    .on("broadcast", { event: "gobpuerta" }, ({ payload: p }) => puertaGob(p))
     .on("broadcast", { event: "decreto" }, ({ payload: p }) => decreto(p))
     .on("broadcast", { event: "libera" }, ({ payload: p }) => liberar(p.quien))
     .on("broadcast", { event: "entregaPreso" }, ({ payload: p }) => { const s = jug[p.id]; if (s && p.poli === "") { s.esposado = null; return; } entregarPreso(p.id, p.poli); })
@@ -2108,7 +2120,7 @@ function recibirPos(p) {
     s._rt = ahora; }
   s.tx = p.x; s.tz = p.z; s.rot = p.rot + Math.PI;   // la cámara mira hacia -z y el muñeco hacia +z
   // (antes esta parte había quedado adentro del comentario: no se actualizaba preso/bolsa/auto y los jugadores "se iban" a los 8 s)
-  if (p.res !== undefined) s.res = p.res; s.preso = !!p.preso; s.bolsa = !!p.bolsa; s.paquete = !!p.paq; s.visto = Date.now(); s.auto = p.auto ?? null; s.esposado = s.preso ? (p.esp || null) : null; s.adm = !!p.adm && /^gonza/i.test(s.nombre || ""); s.pres = !!p.pres && /^gonza/i.test(s.nombre || ""); s.orden = ["seguir", "quietos", "perimetro"].includes(p.po) ? p.po : "seguir"; s.ancla = Array.isArray(p.pa) ? { x: +p.pa[0], z: +p.pa[1] } : null;
+  if (p.res !== undefined) s.res = p.res; s.preso = !!p.preso; s.bolsa = !!p.bolsa; s.paquete = !!p.paq; s.visto = Date.now(); s.auto = p.auto ?? null; s.esposado = s.preso ? (p.esp || null) : null; s.adm = !!p.adm && /^gonza/i.test(s.nombre || ""); s.pres = !!p.pres && /^gonza/i.test(s.nombre || ""); s.ng = +p.ng || 0; s.orden = ["seguir", "quietos", "perimetro"].includes(p.po) ? p.po : "seguir"; s.ancla = Array.isArray(p.pa) ? { x: +p.pa[0], z: +p.pa[1] } : null;
   autoRemoto(s, p.pc, p);
   if (s.auto !== null && autos[s.auto] && autos[s.auto] !== miAuto) { const a = autos[s.auto]; a.conductor = p.id; { const ahora = performance.now(), d = (ahora - (a._rt || 0)) / 1000;
     if (d > .03 && d < 1) { a.vx = Math.max(-60, Math.min(60, (p.x - a.tx) / d)); a.vz = Math.max(-60, Math.min(60, (p.z - a.tz) / d)); } else a.vx = a.vz = 0; a._rt = ahora; }
@@ -2118,7 +2130,7 @@ function recibirPos(p) {
 function enviarPos() {
       const npcs = soyHost ? Object.values(jug).filter(b => b.bot).map(b => ({ id: b.id, nombre: b.nombre, equipo: "ladron", clase: "ladron", res: Math.round(b.res), x: +b.x.toFixed(2), z: +b.z.toFixed(2), rot: +((b.rot || 0) - Math.PI).toFixed(2), preso: b.preso, esp: b.esposado || null, bolsa: b.bolsa, paq: !!b.paquete, auto: null })) : [];
       const danos = danosPend.splice(0);
-      enviar("pos", { npcs, danos, id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, uni: yo.uni, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, adm: ADMIN.modo ? 1 : 0, pres: ADMIN.pres ? 1 : 0, po: ADMIN.orden, pa: ADMIN.ancla ? [+ADMIN.ancla.x.toFixed(1), +ADMIN.ancla.z.toFixed(1)] : null, esp: yo.esposado || null, bolsa: yo.bolsa, paq: !!yo.paquete,
+      enviar("pos", { npcs, danos, id: yo.id, nombre: yo.nombre, equipo: yo.equipo, clase: yo.clase, div: yo.div, uni: yo.uni, res: Math.round(yo.res), x: +yo.x.toFixed(2), z: +yo.z.toFixed(2), rot: +yaw.toFixed(2), preso: yo.preso, adm: ADMIN.modo ? 1 : 0, pres: ADMIN.pres ? 1 : 0, ng: ADMIN.extra, po: ADMIN.orden, pa: ADMIN.ancla ? [+ADMIN.ancla.x.toFixed(1), +ADMIN.ancla.z.toFixed(1)] : null, esp: yo.esposado || null, bolsa: yo.bolsa, paq: !!yo.paquete,
       auto: miAuto && !miAuto.propio ? miAuto.i : null, pc: miAuto && miAuto.propio ? { m: miAuto.modeloId, c: miAuto.color, n: miAuto.neon || 0 } : null, ah: miAuto ? +miAuto.h.toFixed(2) : 0, av: miAuto ? +miAuto.vel.toFixed(1) : 0, sir: miAuto ? miAuto.sirena : false, sp: miAuto ? (miAuto.patron || "alterno") : "" });
 }
 // Si la pestaña queda en segundo plano el juego se pausa, pero igual avisamos que seguimos (antes a los 8 s te daban por ido)
@@ -2159,14 +2171,18 @@ function actualizarPresidente(dt, t) {
   for (const s of Object.values(jug)) {
     const es = s === yo ? ADMIN.pres : !!s.pres;
     if (!es) { if (s.guardas) { for (const g of s.guardas) escena.remove(g.mesh); s.guardas = null; } if (s.tagPres) s.tagPres.visible = false; continue; }
-    if (!s.guardas) s.guardas = [crearGuardaespaldas(), crearGuardaespaldas()];
+    if (!s.guardas) s.guardas = [];
+    { const n = 2 + Math.max(0, Math.min(6, s === yo ? ADMIN.extra : (s.ng || 0)));
+      while (s.guardas.length < n) s.guardas.push(crearGuardaespaldas());
+      while (s.guardas.length > n) escena.remove(s.guardas.pop().mesh); }
     if (s.mesh) { if (!s.tagPres) { s.tagPres = cartel("🇦🇷 PRESIDENTE", "#1a5a9a"); s.tagPres.scale.set(2.6, .6, 1); s.tagPres.position.y = 3.7; } if (s.tagPres.parent !== s.mesh) s.mesh.add(s.tagPres); s.tagPres.visible = true; }
     const ya = s === yo ? yaw : (s.rot || 0) - Math.PI, fx = -Math.sin(ya), fz = -Math.cos(ya), rx = Math.cos(ya), rz = -Math.sin(ya);
     const enAuto = s === yo ? !!miAuto : (s.auto !== null && s.auto !== undefined) || !!s.enPropio;
     const orden = s === yo ? ADMIN.orden : (s.orden || "seguir"), ancla = s === yo ? ADMIN.ancla : s.ancla;
-    s.guardas.forEach((g, i) => { const lado = i ? 1 : -1; let tx = s.x - fx * 1.1 + rx * lado * 1.1, tz = s.z - fz * 1.1 + rz * lado * 1.1;
-      if (orden === "quietos" && ancla) { tx = ancla.x + lado * 1.3; tz = ancla.z; }
-      else if (orden === "perimetro" && ancla) { const a = t / 3500 + i * Math.PI; let px = ancla.x + Math.cos(a) * 6, pz = ancla.z + Math.sin(a) * 6; if (choca(px, pz, .4)) { px = ancla.x + Math.cos(a) * 3; pz = ancla.z + Math.sin(a) * 3; } tx = px; tz = pz; }
+    const nG = s.guardas.length;
+    s.guardas.forEach((g, i) => { const lado = i % 2 ? 1 : -1, fila = Math.floor(i / 2); let tx = s.x - fx * (1.1 + fila * 1.3) + rx * lado * 1.1, tz = s.z - fz * (1.1 + fila * 1.3) + rz * lado * 1.1;
+      if (orden === "quietos" && ancla) { tx = ancla.x + lado * 1.3 * (fila + 1); tz = ancla.z + (fila % 2) * 1.3; }
+      else if (orden === "perimetro" && ancla) { const a = t / 3500 + i * Math.PI * 2 / nG; let px = ancla.x + Math.cos(a) * 6, pz = ancla.z + Math.sin(a) * 6; if (choca(px, pz, .4)) { px = ancla.x + Math.cos(a) * 3; pz = ancla.z + Math.sin(a) * 3; } tx = px; tz = pz; }
       if (!g.listo || Math.hypot(g.x - tx, g.z - tz) > 12) { g.x = tx; g.z = tz; g.listo = true; }
       const ox = g.x, oz = g.z; g.x += (tx - g.x) * Math.min(1, dt * 6); g.z += (tz - g.z) * Math.min(1, dt * 6);
       const v = Math.hypot(g.x - ox, g.z - oz) / Math.max(dt, .001);
@@ -2321,9 +2337,9 @@ $("b-cam").addEventListener("touchstart", e => { e.preventDefault(); cambiarCama
 function mover(s, dx, dz, vel, dt) {
   const l = Math.hypot(dx, dz); if (!l) return; dx /= l; dz /= l;
   const nx = s.x + dx * vel * dt, nz = s.z + dz * vel * dt;
-  RG.pasa = s === yo && esGonza(); RG.porton = RG.pasa || (s === yo && INV.tiene("llave-rg"));
+  PGOB.pasa = s === yo && yo.clase === "presidente"; RG.pasa = s === yo && esGonza(); RG.porton = RG.pasa || (s === yo && INV.tiene("llave-rg"));
   if (!choca(nx, s.z, RADIO, s.equipo)) s.x = nx; if (!choca(s.x, nz, RADIO, s.equipo)) s.z = nz;
-  RG.pasa = RG.porton = false;
+  RG.pasa = RG.porton = PGOB.pasa = false;
 }
 const dentro = (s, Z, extra = 0) => Math.hypot(s.x - Z.x, s.z - Z.z) < Z.r + extra;
 
@@ -2604,6 +2620,14 @@ const GOB = { x1: 22, x2: 34, z1: -2, z2: 6, alto: 8, cx: 28, cz: 2, puerta1: 26
     const penacho = new THREE.Mesh(new THREE.ConeGeometry(.07, .3, 8), L(0xc81e1e)); penacho.position.set(0, 2.42, .05); g.add(penacho);
     const sable = new THREE.Mesh(new THREE.BoxGeometry(.03, .9, .04), L(0xdddddd)); sable.position.set(.42, 1.3, .1); g.add(sable);
     edificios.push({ x1: x - .3, x2: x + .3, z1: G.z2 + .25, z2: G.z2 + .85, h: 2, arbol: true }); }
+  // Computadora de seguridad (contra la pared este) y puerta blindada de acero en la entrada
+  { const m = new THREE.Mesh(new THREE.BoxGeometry(1.4, .8, .7), new THREE.MeshLambertMaterial({ color: 0x2a2a2a })); m.position.set(G.x2 - 1, .4, G.cz + 1.2); escena.add(m);
+    edificios.push({ x1: G.x2 - 1.7, x2: G.x2 - .3, z1: G.cz + .85, z2: G.cz + 1.55, h: .8 });
+    const pan = new THREE.Mesh(new THREE.BoxGeometry(.08, .6, .9), new THREE.MeshBasicMaterial({ color: 0x3dd1ff })); pan.position.set(G.x2 - .7, 1.15, G.cz + 1.2); escena.add(pan);
+    const cS = cartel("💻 Seguridad", "#0b1a2a"); cS.scale.set(2, .5, 1); cS.position.set(G.x2 - 1, 2.1, G.cz + 1.2); escena.add(cS); }
+  GOB.puerta = new THREE.Mesh(new THREE.BoxGeometry(G.puerta2 - G.puerta1, 3.2, .25), new THREE.MeshLambertMaterial({ color: 0x4a4f57 })); GOB.puerta.position.set(G.cx, 1.6, G.z2 - .2); escena.add(GOB.puerta);
+  for (let k = 0; k < 3; k++) { const r = new THREE.Mesh(new THREE.BoxGeometry(G.puerta2 - G.puerta1 - .2, .08, .05), new THREE.MeshLambertMaterial({ color: 0x2a2d33 })); r.position.set(0, -1 + k, .14); GOB.puerta.add(r); }
+  PGOB.b = false;
   const cD = cartel("🏛️ Despacho del Presidente", "#7a1020"); cD.scale.set(3.6, .8, 1); cD.position.set(G.x1 + 2, 2.6, G.cz); escena.add(cD);
 }
 // ================== CHOFER PRESIDENCIAL ==================
@@ -2664,6 +2688,30 @@ function actualizarChofer() {
     if (adentro) { m.position.set(a.x + Math.cos(a.h) * .45 + Math.sin(a.h) * .3, .35, a.z - Math.sin(a.h) * .45 + Math.cos(a.h) * .3); m.rotation.y = a.h; } }
   else { m.visible = true; m.position.set(a.x - Math.sin(a.h + Math.PI / 2) * 1.8, 0, a.z - Math.cos(a.h + Math.PI / 2) * 1.8); m.rotation.y = a.h + Math.PI / 2; }   // espera al lado del auto
 }
+// ================== COMPUTADORA DE SEGURIDAD PRESIDENCIAL ==================
+// En la Casa de Gobierno: contratar o despedir guardaespaldas, cerrar la puerta blindada, cámaras, helicóptero y caravana.
+const PRECIO_GUARDA = 1500;
+function abrirSegPres() { document.exitPointerLock?.(); $("segpres").style.display = "block"; pintarSegPres(); }
+function pintarSegPres() {
+  const cerca = Object.values(jug).filter(o => o.equipo === "ladron" && !o.preso && Math.hypot(o.x - GOB.cx, o.z - GOB.cz) < 30).length;
+  $("sp-info").innerHTML = `🕴️ Guardaespaldas: <b>${2 + ADMIN.extra}</b> / 8 · 💵 $${BILLE.plata.toLocaleString("es-AR")}<br>🚪 Puerta blindada: <b>${PGOB.b ? "🔒 CERRADA" : "🔓 abierta"}</b><br>📹 Cámaras: ${cerca ? `<b style="color:#ff6a6a">${cerca} sospechoso${cerca > 1 ? "s" : ""} cerca de la Casa de Gobierno</b>` : "todo tranquilo"}`;
+  const b = (k, t, ok = true, c = "#1a5a9a") => `<button data-sp="${k}" ${ok ? "" : "disabled"} style="padding:10px;border:0;border-radius:10px;background:${ok ? c : "#ffffff14"};color:#fff;font-weight:800;opacity:${ok ? 1 : .5}">${t}</button>`;
+  $("sp-lista").innerHTML = b("contratar", `🕴️ Contratar guardaespaldas ($${PRECIO_GUARDA.toLocaleString("es-AR")})`, ADMIN.extra < 6 && BILLE.plata >= PRECIO_GUARDA, "#1e7a3a")
+    + b("despedir", "👋 Despedir un guardaespaldas", ADMIN.extra > 0)
+    + b("puerta", PGOB.b ? "🔓 Abrir la puerta blindada" : "🔒 Cerrar la puerta blindada", true, "#7a1020")
+    + b("heli", "🚁 Pedir el helicóptero")
+    + b("caravana", "🚗 Sacar la caravana presidencial ahora", !online || soyHost);
+  $("sp-lista").querySelectorAll("[data-sp]").forEach(x => x.onclick = () => { const k = x.dataset.sp;
+    if (k === "contratar" && ADMIN.extra < 6 && BILLE.plata >= PRECIO_GUARDA) { BILLE.plata = BILLE.plata - PRECIO_GUARDA; ADMIN.extra++; grande("🕴️ Nuevo guardaespaldas contratado", "#75aadb"); beep(700, .1, "triangle"); }
+    else if (k === "despedir" && ADMIN.extra > 0) { ADMIN.extra--; feed("👋 Despediste a un guardaespaldas"); }
+    else if (k === "puerta") { const p = { c: !PGOB.b, de: yo.id }; enviar("gobpuerta", p); puertaGob(p); }
+    else if (k === "heli") { $("segpres").style.display = "none"; pedirHeli(); return; }
+    else if (k === "caravana" && (!online || soyHost)) { if (!CAR.activa) { CAR.prox = Date.now() - 1; grande("🚗 La caravana presidencial sale en 20 segundos", "#75aadb"); } else grande("🚗 La caravana ya está en la calle", "#aaaaaa"); }
+    pintarSegPres(); });
+}
+$("sp-x").onclick = () => { $("segpres").style.display = "none"; };
+function puertaGob(p) { const de = jug[p.de]; if (!de || de.clase !== "presidente") return; PGOB.b = !!p.c;
+  feed(PGOB.b ? "🔒 Se cerró la puerta blindada de la Casa de Gobierno" : "🔓 Se abrió la puerta blindada de la Casa de Gobierno"); beep(PGOB.b ? 200 : 400, .25, "square", .05); }
 // ================== DESPACHO PRESIDENCIAL: DECRETOS ==================
 // El Presidente (Gonza) firma decretos desde el escritorio de la Casa de Gobierno; le llegan a todos los jugadores.
 const DECRETOS = {
@@ -2916,7 +2964,7 @@ function pensarBot(b, dt) {
     else if (b.paquete) b.objetivo = ZONAS.muelle;
     else if (b.bolsa) b.objetivo = ZONAS.guarida;
     else if (CAR.activa && (b.asalta ??= Math.random() < .35)) b.objetivo = { x: CAR.x, z: CAR.z };
-    else if (Date.now() > GOB.listo && (b.vaGob ??= Math.random() < .3)) { b.objetivo = { x: GOB.bovX, z: GOB.bovZ };
+    else if (Date.now() > GOB.listo && !PGOB.b && (b.vaGob ??= Math.random() < .3)) { b.objetivo = { x: GOB.bovX, z: GOB.bovZ };
       if (Math.hypot(b.x - GOB.bovX, b.z - GOB.bovZ) < 1.6) { enviar("maletin", { quien: b.id }); robarMaletin(b.id); b.vaGob = undefined; } }
     else if (b.narco === undefined ? (b.narco = Math.random() < .5) : b.narco) b.objetivo = { x: 45, z: -45.5 };
     else if (presos && (b.rescata ??= Math.random() < .5)) b.objetivo = ZONAS.carcel;   // decide una vez (antes cambiaba de idea en cada cuadro y temblaba en el lugar)
@@ -3005,6 +3053,7 @@ function buscarCamino(desde, hasta, peaton = false) {
 
 // ================== PARTIDA ==================
 function empezar(finTs) {
+  ADMIN.extra = 0; PGOB.b = false;
   ADMIN.pres = clase === "presidente" && esGonza(); if (clase === "presidente" && !ADMIN.pres) { clase = "poli"; equipo = "poli"; } ADMIN.orden = "seguir"; ADMIN.ancla = null;
   $("menu").classList.add("oculto"); $("sala").classList.add("oculto"); $("fin").classList.add("oculto");
   for (const s of Object.values(jug)) if (s.mesh) escena.remove(s.mesh);
@@ -3189,6 +3238,11 @@ function loop(t) {
     // Bóveda de la Casa de Gobierno (solo ladrones)
     { const adentro = yo.x > GOB.x1 && yo.x < GOB.x2 && yo.z > GOB.z1 && yo.z < GOB.z2;
       if (adentro && !GOB.adentro && yo.clase === "presidente") grande("🏛️ Bienvenido a la Casa de Gobierno, Presidente", "#75aadb"); GOB.adentro = adentro;
+      if (GOB.puerta) { const abierta = !PGOB.b || (yo.clase === "presidente" && Math.hypot(yo.x - GOB.cx, yo.z - GOB.z2) < 3); GOB.puerta.position.y += ((abierta ? 4.6 : 1.6) - GOB.puerta.position.y) * .15; }
+      if (PGOB.b && yo.clase !== "presidente" && !miAuto && Math.hypot(yo.x - GOB.cx, yo.z - (GOB.z2 + .6)) < 2) pistaDepto = "🔒 Puerta blindada cerrada por orden del Presidente";
+      if (!miAuto && !yo.preso && Math.hypot(yo.x - (GOB.x2 - 1), yo.z - (GOB.cz - .3)) < 1.4) {
+        if (yo.clase === "presidente") { pistaDepto = "💻 E: computadora de seguridad (guardaespaldas, puerta blindada, cámaras)"; if (accionPedida) { accionPedida = false; abrirSegPres(); } }
+        else pistaDepto = "💻 Computadora de la seguridad presidencial (bloqueada)"; }
       if (!miAuto && !yo.preso && Math.hypot(yo.x - (GOB.x1 + 3.3), yo.z - GOB.cz) < 1.6) {
         if (yo.clase === "presidente") { pistaDepto = "🏛️ E: sentarte en el despacho y firmar decretos"; if (accionPedida) { accionPedida = false; abrirDespacho(); } }
         else pistaDepto = "🏛️ El despacho del Presidente (solo él firma decretos)"; }
@@ -3388,7 +3442,7 @@ function loop(t) {
 }
 // Junta en una sola malla todos los objetos fijos que comparten material (veredas, rayas, carteles pintados, aeropuerto...)
 function fusionarEstaticos() {
-  const dyn = new Set([...(GANG.fuegos || []), RG.puerta, ZAUTOS.cacho, ...HOTEL.camas.map(k => k.zz), GOB.rueda, SUPER.pata, AER.faro, puerta.mesh, conoLuz, ...AGU.fuegos, ...PAQUETES.map(p => p.mesh), ...balizasCarcel.map(b => b.b)]);
+  const dyn = new Set([GOB.puerta, ...(GANG.fuegos || []), RG.puerta, ZAUTOS.cacho, ...HOTEL.camas.map(k => k.zz), GOB.rueda, SUPER.pata, AER.faro, puerta.mesh, conoLuz, ...AGU.fuegos, ...PAQUETES.map(p => p.mesh), ...balizasCarcel.map(b => b.b)]);
   const grupos = new Map();
   for (const m of [...escena.children]) {
     if (!m.isMesh || m.isInstancedMesh || m.children.length || dyn.has(m) || Array.isArray(m.material) || !m.visible) continue;
@@ -3539,7 +3593,7 @@ function autoRemoto(s, pc, p) {
 let pestañaConce = "normales";
 // ================== MENÚ ADMIN (solo Gonza, con PIN) ==================
 // Se abre con la tecla P (a pie) o el botón 🛠️. La primera vez Gonza elige un PIN que queda guardado en este dispositivo.
-const ADMIN = { ok: false, rapido: false, modo: false, pres: false, orden: "seguir", ancla: null };
+const ADMIN = { ok: false, rapido: false, modo: false, pres: false, orden: "seguir", ancla: null, extra: 0 };
 const esGonza = () => /^gonza/i.test((DB.nombre || "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));   // Gonza, Gonzalito, GonzaDev…
 async function hashPin(p) { try { const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("polis:" + p)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); } catch (e) { return "x" + p; } }
 async function abrirAdmin() {
