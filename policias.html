@@ -393,6 +393,8 @@ const CIUDAD = { tam: 168, cuadra: 16, calle: 8 };
 const edificios = [];   // { x1, z1, x2, z2, h }
 // Barrio privado "Los Aromos" (inventado): afuera de la ciudad al noroeste; se entra por un portón con guardia en la calle x = -56
 const BP = { x1: -124, x2: -50, z1: -150, puerta1: -60, puerta2: -52, garitaZ: -92, pasa: false };
+// Academia de Policía: afuera de la ciudad al suroeste (debajo de la base Halcón); se entra por el paredón oeste (z 76..82)
+const ACAD = { x1: -150, x2: -84, z1: 77, z2: 140, puerta1: 76, puerta2: 82, instX: -98, instZ: 84 };
 // Puerta blindada de la Casa de Gobierno (b: cerrada; pasa: el que se está moviendo es el Presidente)
 const PGOB = { b: false, pasa: false };
 const ZONAS = { banco: { x: 4, z: -44, r: 5 } /* adentro del edificio del banco (manzana x -4..12, z -52..-36) */, guarida: { x: 40, z: 95, r: 5 } /* en el aguantadero, afuera de la ciudad (sur) */, carcel: { x: -44, z: 44, r: 5 },
@@ -458,9 +460,10 @@ function choca(x, z, r = RADIO, eq = null) {
     !(z > PM.aguaZ1 - r && z < PM.aguaZ2 + r && !PM.puentes.some(([a, b]) => x > a + r && x < b - r));   // al dique no se entra, salvo por los puentes
   if (Math.abs(z + mitad) < r + .3 && x > -mitad && x < mitad && !(x > SUPER.puerta1 + r && x < SUPER.puerta2 - r) && !(x > BP.puerta1 + r && x < BP.puerta2 - r) && !(x > PM.puerta1 + r && x < PM.puerta2 - r)) return true;   // paredón norte con portones al súper y a Puerto Madero
   const enHalcon = x < -mitad + 1 && x > HALCON.x1 + r && z > HALCON.z1 + r && z < HALCON.z2 - r;
-  if (!enCiudad && !enAer && !enPuerto && !enAgu && !enGang && !enSuper && !enBP && !enPM && !enHalcon) return true;
+  const enAcad = x < -mitad + 1 && x > ACAD.x1 + r && z > ACAD.z1 + r && z < ACAD.z2 - r || (x < -mitad + 1 && x > -mitad - 3 && z > ACAD.puerta1 + r && z < ACAD.puerta2 - r);
+  if (!enCiudad && !enAer && !enPuerto && !enAgu && !enGang && !enSuper && !enBP && !enPM && !enHalcon && !enAcad) return true;
   if (Math.abs(z - mitad) < r + .3 && x > -mitad && x < mitad && !(x > AGU.puerta1 + r && x < AGU.puerta2 - r) && !(x > GANG.puerta1 + r && x < GANG.puerta2 - r)) return true;   // paredón sur con portones al aguantadero y a la banda
-  if (Math.abs(x + mitad) < r + .3 && z > -mitad - 1 && z < mitad + 1 && !(z > PUERTO.puerta1 + r && z < PUERTO.puerta2 - r) && !(z > HALCON.puerta1 + r && z < HALCON.puerta2 - r)) return true;   // paredón oeste con portones al puerto y a la base Halcón
+  if (Math.abs(x + mitad) < r + .3 && z > -mitad - 1 && z < mitad + 1 && !(z > PUERTO.puerta1 + r && z < PUERTO.puerta2 - r) && !(z > HALCON.puerta1 + r && z < HALCON.puerta2 - r) && !(z > ACAD.puerta1 + r && z < ACAD.puerta2 - r)) return true;   // paredón oeste con portones al puerto y a la base Halcón
   if (Math.abs(x - mitad) < r + .3 && z > -mitad - 1 && z < mitad + 1 && !(z > AER.puerta1 + r && z < AER.puerta2 - r) && !(z > AUTOPISTA.z1 + r && z < AUTOPISTA.z2 - r)) return true;   // paredón con portón hacia el aeropuerto
   if (!RG.pasa && x + r > RG.p1 && x - r < RG.p2 && z + r > RG.cz2 - .5 && z - r < RG.cz2 + .2) return true;   // puerta de la residencia: solo Gonza
   if (PGOB.b && !PGOB.pasa && x + r > 26.8 && x - r < 29.2 && z + r > 5.5 && z - r < 6.1) return true;   // puerta blindada de la Casa de Gobierno
@@ -615,7 +618,7 @@ const coloresEd = [0x8a8fa3, 0xa38a7a, 0x7a8fa3, 0x9a9a9a, 0xb0a080, 0x6f7f8f];
     for (const [a, b] of cortes) borde.push([(a + b) / 2, 1.2, -mitad - .3, 0, (b - a) / T, 1, 1]); }
   { const T = CIUDAD.tam + 1, cortes = [[-mitad, GANG.puerta1], [GANG.puerta2, AGU.puerta1], [AGU.puerta2, mitad]];   // lado sur: portones a la banda y al aguantadero
     for (const [a, b] of cortes) borde.push([(a + b) / 2, 1.2, mitad + .3, 0, (b - a) / T, 1, 1]); }
-  { const T = CIUDAD.tam + 1, cortes = [[-mitad, PUERTO.puerta1], [PUERTO.puerta2, HALCON.puerta1], [HALCON.puerta2, mitad]];   // lado oeste: portones al puerto y a la base Halcón
+  { const T = CIUDAD.tam + 1, cortes = [[-mitad, PUERTO.puerta1], [PUERTO.puerta2, HALCON.puerta1], [HALCON.puerta2, ACAD.puerta1], [ACAD.puerta2, mitad]];   // lado oeste: portones al puerto y a la base Halcón
     for (const [a, b] of cortes) borde.push([-mitad - .3, 1.2, (a + b) / 2, Math.PI / 2, (b - a) / T, 1, 1]); }
   { const T = CIUDAD.tam + 1, cortes = [[-mitad, AUTOPISTA.z1], [AUTOPISTA.z2, AER.puerta1], [AER.puerta2, mitad]];   // lado este: autopista y portón del aeropuerto
     for (const [a, b] of cortes) borde.push([mitad + .3, 1.2, (a + b) / 2, Math.PI / 2, (b - a) / T, 1, 1]); }
@@ -1336,6 +1339,55 @@ function actualizarBarrio(dt, t) {
   const abre = yo && yo.equipo === "poli" && Math.hypot(yo.x - (BP.puerta1 + BP.puerta2) / 2, yo.z - BP.garitaZ) < 9;
   BP.barrera.rotation.z += ((abre ? -1.35 : 0) - BP.barrera.rotation.z) * Math.min(1, dt * 4);
 }
+// ================== ACADEMIA DE POLICÍA ==================
+// Edificio de aulas, plaza de armas con mástil, pista de obstáculos y circuito de manejo con conos.
+// El instructor da dos cursos con tiempo (obstáculos a pie y manejo con el patrullero de práctica); aprobando los dos te recibís 🎓.
+const CURSOS = {
+  obstaculos: { nom: "🏃 Pista de obstáculos", seg: 45, premio: 400, auto: false, pts: [[-108, 100], [-108, 112], [-108, 124], [-101, 132], [-90, 120], [-90, 104], [-98, 90]] },
+  manejo:     { nom: "🚓 Curso de manejo", seg: 60, premio: 600, auto: true, pts: [[-120, 92], [-140, 96], [-142, 116], [-132, 132], [-118, 124], [-128, 108], [-112, 100], [-104, 92]] } };
+const CURSO = { id: null, k: 0, hasta: 0, marca: null };
+{
+  const A = ACAD, mitad = CIUDAD.tam / 2, L = c => new THREE.MeshLambertMaterial({ color: c });
+  const plano = (x1, z1, x2, z2, c, y) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(x2 - x1, z2 - z1), L(c)); m.rotation.x = -Math.PI / 2; m.position.set((x1 + x2) / 2, y, (z1 + z2) / 2); escena.add(m); };
+  const caja = (x1, z1, x2, z2, h, c, choque = true) => { const m = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1, h, z2 - z1), typeof c === "number" ? L(c) : c); m.position.set((x1 + x2) / 2, h / 2, (z1 + z2) / 2); escena.add(m); if (choque) edificios.push({ x1, x2, z1, z2, h }); return m; };
+  plano(A.x1, A.z1, -mitad, A.z2, 0x4a7a3a, .01);
+  plano(-mitad - 14, A.puerta1, -mitad, A.puerta2, 0x2b2d33, .015);                 // entrada
+  plano(-146, 88, -100, 136, 0x2b2d33, .015);                                       // playón del circuito de manejo
+  const muro = L(0x2a3a5a);
+  caja(A.x1, A.z1 - .4, -mitad, A.z1, 2.4, muro); caja(A.x1, A.z2, -mitad, A.z2 + .4, 2.4, muro); caja(A.x1 - .4, A.z1, A.x1, A.z2, 2.4, muro);
+  caja(-mitad - .4, A.puerta2, -mitad, A.z2, 2.4, muro);
+  // Edificio de aulas (macizo) con techo azul y cartel
+  caja(-96, 124, -86, 138, 6, 0xe8e2d4); const t = new THREE.Mesh(new THREE.BoxGeometry(10.6, .4, 14.6), L(0x1e4fd8)); t.position.set(-91, 6.2, 131); escena.add(t);
+  for (let i = 0; i < 4; i++) { const v = new THREE.Mesh(new THREE.BoxGeometry(.06, 1.2, 1.6), L(0x9fd4ff)); v.position.set(-96.04, 3, 126.5 + i * 3); escena.add(v); }
+  const c1 = cartel("🎓 ACADEMIA DE POLICÍA", "#1e4fd8"); c1.scale.set(7, 1.6, 1); c1.position.set(-91, 8.2, 131); escena.add(c1);
+  const c2 = cartel("🎓 ACADEMIA ←", "#1e4fd8"); c2.scale.set(5, 1.25, 1); c2.position.set(-mitad + 2, 5, ACAD.puerta2 + 2); escena.add(c2);
+  // Plaza de armas con mástil y bandera
+  plano(-100, 84, -88, 96, 0xbdb5a6, .02);
+  const mas = new THREE.Mesh(new THREE.CylinderGeometry(.08, .1, 8, 6), L(0xdddddd)); mas.position.set(-94, 4, 90); escena.add(mas); edificios.push({ x1: -94.2, x2: -93.8, z1: 89.8, z2: 90.2, h: 8, arbol: true });
+  [0x75aadb, 0xffffff, 0x75aadb].forEach((c, k) => { const b = new THREE.Mesh(new THREE.BoxGeometry(2.2, .36, .04), L(c)); b.position.set(-92.8, 7.6 - k * .36, 90); escena.add(b); });
+  // Pista de obstáculos: vallas bajas y neumáticos (no frenan, son de adorno) y conos del circuito de manejo
+  for (const [x, z] of [[-108, 106], [-108, 118], [-102, 132], [-90, 112]]) { const v = new THREE.Mesh(new THREE.BoxGeometry(2.4, .5, .15), L(0xd8a020)); v.position.set(x, .25, z); escena.add(v); }
+  for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2, x = -126 + Math.cos(a) * 12, z = 112 + Math.sin(a) * 15; const c = new THREE.Mesh(new THREE.ConeGeometry(.22, .6, 8), L(0xff6a10)); c.position.set(x, .3, z); escena.add(c); }
+  // Marca del punto siguiente del curso (anillo que brilla)
+  CURSO.marca = new THREE.Mesh(new THREE.TorusGeometry(1.6, .12, 8, 24), new THREE.MeshBasicMaterial({ color: 0xffd400 })); CURSO.marca.rotation.x = Math.PI / 2; CURSO.marca.visible = false; escena.add(CURSO.marca);
+}
+let instructor = null;
+function empezarCurso(id) { const C = CURSOS[id];
+  if (C.auto) { const a = autos.find(q => q.academia); if (miAuto !== a) { grande("🚓 Subite al patrullero de práctica (al lado del instructor) y volvé a hablarle", "#5ec8f2"); return; } }
+  CURSO.id = id; CURSO.k = 0; CURSO.hasta = Date.now() + C.seg * 1000; grande(`${C.nom}: ¡YA! (${C.seg} s)`, "#ffd400"); beep(880, .2, "triangle"); }
+function actualizarCurso(t) {
+  if (!instructor) { const c = crearCivil(1), m = c.mesh || c; const gorra = new THREE.Mesh(new THREE.CylinderGeometry(.22, .2, .14, 14), new THREE.MeshLambertMaterial({ color: 0x0f1d36 })); gorra.position.y = 2.0; m.add(gorra);
+    m.position.set(ACAD.instX, 0, ACAD.instZ); m.rotation.y = Math.PI / 2; escena.add(m); instructor = m;
+    const c2 = cartel("👮 Instructor", "#1e4fd8"); c2.scale.set(2.6, .65, 1); c2.position.y = 2.7; m.add(c2); }
+  CURSO.texto = ""; if (!CURSO.id) { CURSO.marca.visible = false; return; }
+  const C = CURSOS[CURSO.id], p = C.pts[CURSO.k], falta = Math.ceil((CURSO.hasta - Date.now()) / 1000);
+  CURSO.marca.visible = true; CURSO.marca.position.set(p[0], 1.2 + Math.sin(t / 200) * .2, p[1]);
+  if (falta <= 0 || (C.auto && !miAuto)) { grande(falta <= 0 ? "⏱️ Se acabó el tiempo. Probá de nuevo" : "🚓 Te bajaste del patrullero: curso cancelado", "#ff6a6a"); CURSO.id = null; return; }
+  if (Math.hypot(yo.x - p[0], yo.z - p[1]) < (C.auto ? 3.2 : 2)) { CURSO.k++; beep(1000, .08, "triangle");
+    if (CURSO.k >= C.pts.length) { const id = CURSO.id; CURSO.id = null; ganar(C.premio, "curso de la Academia"); INV.dar("curso-" + id); grande(`✅ ¡APROBASTE ${C.nom}!`, "#7dff8a");
+      if (Object.keys(CURSOS).every(k => INV.tiene("curso-" + k)) && !INV.tiene("diploma")) { INV.dar("diploma"); ganar(1000, "graduación"); setTimeout(() => grande("🎓 ¡TE RECIBISTE EN LA ACADEMIA DE POLICÍA!", "#ffd400"), 1500); } } }
+  CURSO.texto = `${C.nom} · punto ${CURSO.k + 1}/${C.pts.length} · ⏱️ ${falta} s`;
+}
 // ================== AGUANTADERO (guarida de los ladrones) ==================
 // Un predio abandonado afuera de la ciudad: galpones viejos, desarmadero de autos, tachos con fuego y contenedor-oficina
 {
@@ -1745,7 +1797,9 @@ const autos = (() => {
     .concat([-72, -66.4, -60.8].map((x, k) => ({ i: tipos.length + 3 + k, tipo: "camioneta", pickup: true, r: 1.5, max: 25, x0: x, z0: ESTAC.filaC, h0: Math.PI / 2, x, z: ESTAC.filaC, h: Math.PI / 2, vel: 0, conductor: null, sirena: true,
       tx: x, tz: ESTAC.filaC, th: Math.PI / 2, mesh: crearPickup() })))
     .concat([{ i: tipos.length + 6, tipo: "camioneta", presi: true, r: 1.6, max: 27, x0: 19, z0: 11, h0: Math.PI / 2, x: 19, z: 11, h: Math.PI / 2, vel: 0, conductor: null, sirena: false,
-      tx: 19, tz: 11, th: Math.PI / 2, mesh: crearCamioneta("PRESIDENCIA DE LA NACIÓN") }]);   // auto blindado del Presidente, frente a la Casa de Gobierno   // motos del Grupo Halcón (galpón de la base) y camionetas policiales (cualquier poli)
+      tx: 19, tz: 11, th: Math.PI / 2, mesh: crearCamioneta("PRESIDENCIA DE LA NACIÓN") }])
+    .concat([{ i: tipos.length + 7, tipo: "patrullero", academia: true, r: AUTO_R, max: 24, x0: -104, z0: 92, h0: -Math.PI / 2, x: -104, z: 92, h: -Math.PI / 2, vel: 0, conductor: null, sirena: true,
+      tx: -104, tz: 92, th: -Math.PI / 2, mesh: crearPatrullero("ciudad") }]);   // patrullero de práctica de la Academia   // auto blindado del Presidente, frente a la Casa de Gobierno   // motos del Grupo Halcón (galpón de la base) y camionetas policiales (cualquier poli)
 })();
 function resetAutos() { for (const a of autos) Object.assign(a, { x: a.x0, z: a.z0, tx: a.x0, tz: a.z0, h: a.h0, th: a.h0, vel: 0, conductor: null, sirena: true, balizas: false }); }
 let miAuto = null, sirenaT = 0, sirenaAlt = false, mirarAuto = 0;
@@ -3186,6 +3240,7 @@ function buscarCamino(desde, hasta, peaton = false) {
 
 // ================== PARTIDA ==================
 function empezar(finTs) {
+  CURSO.id = null;
   CONVOY.activo = false;
   ADMIN.extra = 0; PGOB.b = false;
   ADMIN.pres = clase === "presidente" && esGonza(); if (clase === "presidente" && !ADMIN.pres) { clase = "poli"; equipo = "poli"; } ADMIN.orden = "seguir"; ADMIN.ancla = null;
@@ -3282,13 +3337,13 @@ function fondoMini() {
   const R = (x1, z1, x2, z2, col) => { g.fillStyle = col; g.fillRect((x1 - M.X0) * M.esc, (z1 - M.Z0) * M.esc, (x2 - x1) * M.esc, (z2 - z1) * M.esc); };
   const m = CIUDAD.tam / 2;
   R(-m, -m, m, m, "#3a3f4a");                                     // ciudad (calles)
-  for (const Z of [AER, ZAUTOS, AGU, SUPER, HALCON, PUERTO, GANG, { x1: BP.x1, x2: BP.x2, z1: BP.z1, z2: -CIUDAD.tam / 2 }]) R(Z.x1, Z.z1, Z.x2 ?? m, Z.z2 ?? -m, "#343a44");
+  for (const Z of [AER, ZAUTOS, AGU, SUPER, HALCON, PUERTO, GANG, { x1: BP.x1, x2: BP.x2, z1: BP.z1, z2: -CIUDAD.tam / 2 }, { x1: ACAD.x1, x2: -CIUDAD.tam / 2, z1: ACAD.z1, z2: ACAD.z2 }]) R(Z.x1, Z.z1, Z.x2 ?? m, Z.z2 ?? -m, "#343a44");
   R(PM.x1, PM.z1, PM.x2, -m, "#3d3a36"); R(PM.x1, PM.aguaZ1, PM.x2, PM.aguaZ2, "#1d5a8a"); R(PUERTO.x1, PUERTO.z1, PUERTO.agua, PUERTO.z2, "#1d5a8a");
   R(-m, AUTOPISTA.z1, m, AUTOPISTA.z2, "#555a66");
   for (const e of edificios) if (!e.arbol && e.h > 1) R(e.x1, e.z1, e.x2, e.z2, "#8a93a6");
   M.fondo = c;
 }
-const LUGARES_MINI = [[ZONAS.banco, "🏦"], [ZONAS.carcel, "⛓️"], [ZONAS.guarida, "🏚️"], [ZONAS.narco, "💊"], [ZONAS.muelle, "🚤"], [{ x: CAMBIO.mostX, z: CAMBIO.mostZ }, "💵"], [{ x: 159, z: -190 }, "🏛️"], [{ x: -20, z: 52 }, "🏨"], [{ x: GANG.jefeX, z: GANG.jefeZ }, "🐺"], [{ x: GOB.cx, z: GOB.cz }, "🏛️"], [{ x: -84, z: -120 }, "🏡"], [{ x: 100, z: 72 }, "🚗"]];
+const LUGARES_MINI = [[ZONAS.banco, "🏦"], [ZONAS.carcel, "⛓️"], [ZONAS.guarida, "🏚️"], [ZONAS.narco, "💊"], [ZONAS.muelle, "🚤"], [{ x: CAMBIO.mostX, z: CAMBIO.mostZ }, "💵"], [{ x: 159, z: -190 }, "🏛️"], [{ x: -20, z: 52 }, "🏨"], [{ x: GANG.jefeX, z: GANG.jefeZ }, "🐺"], [{ x: GOB.cx, z: GOB.cz }, "🏛️"], [{ x: -84, z: -120 }, "🏡"], [{ x: -94, z: 110 }, "🎓"], [{ x: 100, z: 72 }, "🚗"]];
 function dibujarMini(t) {
   const cv = $("minimapa"); cv.style.display = jugando && MINI.modo < 2 ? "block" : "none"; cv.classList.toggle("chico", MINI.modo === 1);
   if (!jugando || MINI.modo === 2 || t - MINI.ult < 100 || !yo) return; MINI.ult = t;
@@ -3389,6 +3444,12 @@ function loop(t) {
     if (GOB.rueda) GOB.rueda.rotation.z += dt * (Date.now() < GOB.listo ? 3 : .2);
     if (!miAuto && Math.hypot(yo.x - (BP.puerta1 + BP.puerta2) / 2, yo.z - (BP.garitaZ + 1.5)) < 4 && !pistaDepto)
       pistaDepto = yo.equipo === "poli" ? (yo.clase === "presidente" ? "🛂 Guardia: \"¡Bienvenido a Los Aromos, señor Presidente!\"" : "🛂 Guardia: \"Adelante, oficial\"") : "🛂 Guardia: \"Solo vecinos y policía. No puede pasar.\"";
+    if (!CURSO.id && Math.hypot(yo.x - ACAD.instX, yo.z - ACAD.instZ) < 3 && !pistaDepto) {
+      if (yo.equipo !== "poli") pistaDepto = "👮 Instructor: \"La Academia es para la policía\"";
+      else { const prox = Object.keys(CURSOS).find(k => !INV.tiene("curso-" + k)) || "obstaculos";
+        pistaDepto = (INV.tiene("diploma") ? "🎓 Ya te recibiste. " : "") + `👮 E: hacer el ${CURSOS[prox].nom} (+$${CURSOS[prox].premio})` + (Object.keys(CURSOS).length > 1 ? " · R: el otro curso" : "");
+        if (accionPedida) { accionPedida = false; empezarCurso(prox); }
+        if (teclas.KeyR) { teclas.KeyR = false; empezarCurso(Object.keys(CURSOS).find(k => k !== prox)); } } }
     // La banda: polis detienen miembros; ladrones hablan con el jefe (le venden el botín o hacen una changa)
     if (!miAuto && !yo.preso) {
       if (yo.equipo === "poli") { const m = BANDA.miembros.find(m => !m.vuelve && Math.hypot(m.x - yo.x, m.z - yo.z) < 1.9);
@@ -3429,7 +3490,7 @@ function loop(t) {
     if (autoPedido) { if (miAuto) bajarAuto(); else if (autoCerca) subirAuto(autoCerca); }
     autoPedido = false;
     if (!miAuto) CHOFER.ruta = null;
-    actualizarChofer(); actualizarConvoy(t); actualizarBarrio(dt, t);
+    actualizarChofer(); actualizarConvoy(t); actualizarBarrio(dt, t); actualizarCurso(t);
     if (miAuto) { if (!(miAuto.presi && CHOFER.ruta && conduceChofer(miAuto, dt))) manejar(miAuto, dt); }
     else if (!yo.preso && Date.now() >= aturdidoHasta && Date.now() >= dormirHasta) {
       const f = (teclas.KeyW || teclas.ArrowUp ? 1 : 0) - (teclas.KeyS || teclas.ArrowDown ? 1 : 0) - joy.y;
@@ -3480,7 +3541,7 @@ function loop(t) {
     $("b-orden").style.display = ADMIN.pres ? "block" : "none"; $("b-orden").textContent = { seguir: "🕴️ Síganme", quietos: "🕴️ Quietos acá", perimetro: "🕴️ Perímetro" }[ADMIN.orden];
     $("b-admin").style.display = esGonza() ? "block" : "none"; $("b-mochila").style.display = "block"; $("b-mochila").style.top = esGonza() ? "132px" : "96px";
     if (performance.now() - pistaGuardas < 1500) pista = "🕴️ Guardaespaldas: \"¡Atrás! ¡Atrás del presidente!\"";
-    $("pista").textContent = pistaDepto || pista; $("mira").classList.toggle("cerca", !!objetivo);
+    $("pista").textContent = CURSO.texto || pistaDepto || pista; $("mira").classList.toggle("cerca", !!objetivo);
     $("radar").style.display = yo.equipo === "poli" && yo.div === "comunicaciones" ? "block" : "none";
     if (yo.equipo === "poli" && yo.div === "comunicaciones") { const P = ["N","NE","E","SE","S","SO","O","NO"];
       const L = Object.values(jug).filter(s => s.equipo === "ladron" && !s.preso && (s.bolsa || s.paquete));
@@ -3645,7 +3706,9 @@ const INV = {
   tiene(id) { return this.items.includes(id) || (id === "llave-rg" && esGonza()); },
   dar(id) { const a = this.items; if (!a.includes(id)) { a.push(id); this.items = a; } },
   quitar(id) { this.items = this.items.filter(x => x !== id); } };
-const OBJETOS = { "llave-rg": { ico: "🔑", nom: "Llave del portón", d: "Abre el portón de la Residencia Presidencial (la casa es solo de Gonza)." } };
+const OBJETOS = { "llave-rg": { ico: "🔑", nom: "Llave del portón", d: "Abre el portón de la Residencia Presidencial (la casa es solo de Gonza)." },
+  "curso-obstaculos": { ico: "🏃", nom: "Curso de obstáculos", d: "Aprobado en la Academia de Policía." }, "curso-manejo": { ico: "🚓", nom: "Curso de manejo", d: "Aprobado en la Academia de Policía." },
+  "diploma": { ico: "🎓", nom: "Diploma de la Academia", d: "Te recibiste de policía." } };
 function abrirInv() { if (!jugando) return; document.exitPointerLock?.(); $("inv").style.display = "block"; pintarInv(); }
 function pintarInv() {
   const casilla = (ico, nom, d, c = "#ffffff14") => `<div style="background:${c};border-radius:12px;padding:10px;text-align:center"><div style="font-size:28px">${ico}</div><b>${nom}</b><div style="font-size:12px;opacity:.75">${d}</div></div>`;
@@ -3655,7 +3718,7 @@ function pintarInv() {
   if (yo.paquete) L.push(casilla("📦", "Paquete", "Llevalo al muelle", "#5a4a1a"));
   for (const id of BILLE.garage.tengo) { const m = MODELO(id); if (m) L.push(casilla("🚗", m.nom, "Tu auto (sacalo en la conce)")); }
   if (esGonza()) L.push(casilla("🗝️", "Llaves de la residencia", "Portón y casa: sos el dueño", "#5a4a10"));
-  else for (const id of INV.items) { const o = OBJETOS[id]; if (o) L.push(casilla(o.ico, o.nom, o.d, "#5a4a10")); }
+  for (const id of INV.items) if (!(esGonza() && id === "llave-rg")) { const o = OBJETOS[id]; if (o) L.push(casilla(o.ico, o.nom, o.d, "#5a4a10")); }
   $("inv-lista").innerHTML = L.join("");
 }
 $("inv-x").onclick = () => { $("inv").style.display = "none"; };
@@ -3743,7 +3806,7 @@ async function abrirAdmin() {
     ADMIN.ok = true; }
   $("admin").style.display = "block"; pintarAdmin(); }
 const LUGARES = [["🚔 Cárcel", ZONAS.carcel], ["🏦 Banco", ZONAS.banco], ["🏚️ Guarida", ZONAS.guarida], ["💊 Casa narco", ZONAS.narco], ["🚤 Muelle", ZONAS.muelle],
-  ["🏨 Hotel", { x: -20, z: 61 }], ["🚗 Conce", { x: 96, z: 72 }], ["🦅 Halcón", { x: -84, z: 42 }], ["🏛️ Mi residencia", { x: 159, z: -178 }], ["🐺 Los Lobos", { x: -32, z: 100 }], ["🏛️ Casa de Gobierno", { x: 28, z: 11 }], ["🏡 Barrio privado", { x: -56, z: -104 }]];
+  ["🏨 Hotel", { x: -20, z: 61 }], ["🚗 Conce", { x: 96, z: 72 }], ["🦅 Halcón", { x: -84, z: 42 }], ["🏛️ Mi residencia", { x: 159, z: -178 }], ["🐺 Los Lobos", { x: -32, z: 100 }], ["🏛️ Casa de Gobierno", { x: 28, z: 11 }], ["🏡 Barrio privado", { x: -56, z: -104 }], ["🎓 Academia", { x: -96, z: 88 }]];
 function pintarAdmin() {
   const todos = Object.values(jug).filter(s => s !== yo), bt = (a, t, c = "#ffffff22") => `<button data-ad="${a}" style="margin:3px;padding:8px 10px;border:0;border-radius:10px;background:${c};color:#fff;font-weight:800">${t}</button>`;
   $("ad-cuerpo").innerHTML = `${bt("modo", ADMIN.modo ? "🛠️ Modo admin: PRENDIDO (tag en la cabeza)" : "🛠️ Modo admin: apagado", ADMIN.modo ? "#b8860b" : "#ffffff22")}<br><b>💵 Plata y vos</b><br>${bt("plata", "+$10.000", "#1e7a3a")}${bt("vida", "❤️ Curarme")}${bt("rapido", ADMIN.rapido ? "🐢 Velocidad normal" : "⚡ Súper velocidad")}
