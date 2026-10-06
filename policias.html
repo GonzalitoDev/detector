@@ -13,6 +13,10 @@
   #reloj { font-size:26px; text-align:center; }
   #botin { font-size:18px; color:#7dff8a; }
   #equipos { font-size:14px; text-align:right; }
+  #minimapa { position:fixed; left:12px; bottom:12px; width:150px; height:150px; z-index:4; border-radius:50%; border:2px solid #ffffff55; background:#0b1222cc; opacity:.85; display:none; cursor:pointer; }
+  #minimapa.chico { width:90px; height:90px; }
+  body.tactil #minimapa { left:auto; bottom:auto; right:calc(12px + env(safe-area-inset-right)); top:calc(62px + var(--b) * .8 + env(safe-area-inset-top)); width:96px; height:96px; }
+  body.tactil #minimapa.chico { width:64px; height:64px; }
   #mira { position:fixed; left:50%; top:50%; width:22px; height:22px; margin:-11px 0 0 -11px; pointer-events:none; z-index:5; }
   #mira::before, #mira::after { content:""; position:absolute; background:#fff; box-shadow:0 0 3px #000; }
   #mira::before { left:10px; top:0; width:2px; height:22px; } #mira::after { top:10px; left:0; height:2px; width:22px; }
@@ -198,6 +202,17 @@
   </div>
 </div>
 <button id="b-admin" style="display:none;position:fixed;left:12px;top:96px;z-index:6;border:0;border-radius:12px;padding:6px 12px;background:#ffd400;color:#000;font-weight:900">🛠️ Admin</button>
+<canvas id="minimapa" width="150" height="150" title="Mini mapa (tocá para achicar u ocultar)"></canvas>
+<div id="cambio" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
+  <div style="max-width:440px;margin:0 auto;background:#0f2a1a;border:2px solid #4caf50;border-radius:16px;padding:16px;text-align:center">
+    <h2 style="margin:0 0 4px">💵 Casa del Dólar</h2>
+    <div style="font-size:12px;opacity:.7;margin-bottom:8px">Dólares de juego (ficticios). La cotización sube y baja con el tiempo: comprá barato y vendé caro.</div>
+    <div id="cm-cot" style="font-size:18px;font-weight:900;margin:6px 0"></div>
+    <div id="cm-bille" style="font-weight:800;color:#7dff8a;margin-bottom:10px"></div>
+    <div id="cm-botones" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center"></div>
+    <button id="cm-x" style="margin-top:12px;width:100%;padding:8px;border:0;border-radius:10px;background:#ffffff22;color:#fff;font-weight:800">Cerrar</button>
+  </div>
+</div>
 <div id="conce" style="display:none;position:fixed;inset:0;z-index:20;background:#000c;overflow:auto;padding:16px">
   <div style="max-width:620px;margin:0 auto;background:#0f1d36;border:2px solid #5ec8f2;border-radius:16px;padding:16px">
     <h2 style="margin:0 0 4px;text-align:center">🚗 Concesionaria Gonzalito</h2>
@@ -956,6 +971,44 @@ const TAQUILLAS = { x: DEPTO.x1 + 2.5, z: DEPTO.z1 + 1.6 }, ARMERIA = { x: DEPTO
       caja(.9, .7, .9, 0xeeeeee, x + dx, .35, z); }
     const c = cartel(["🍝 TRATTORIA", "🥩 PARRILLA", "🍣 SUSHI"][[52, 88, 134].indexOf(x)], "#7a2a1a"); c.scale.set(4, 1, 1); c.position.set(x, 3.6, z); escena.add(c); }
 }
+// ================== CASA DEL DÓLAR (Puerto Madero, costanera sur) ==================
+// Casa de cambio con dólares de juego: la cotización cambia con la hora (igual para todos los jugadores)
+const CAMBIO = { x1: 136, x2: 148, z1: -124, z2: -114, p1: 140.8, p2: 143.2, mostX: 142, mostZ: -119.5 };
+{
+  const C = CAMBIO, L = c => new THREE.MeshLambertMaterial({ color: c }), H = 4.5, pared = L(0xe9e4d4);
+  const muro = (x1, z1, x2, z2) => { const m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(.3, x2 - x1), H, Math.max(.3, z2 - z1)), pared); m.position.set((x1 + x2) / 2, H / 2, (z1 + z2) / 2); escena.add(m);
+    edificios.push({ x1: Math.min(x1, x2 - .3), x2: Math.max(x2, x1 + .3), z1: Math.min(z1, z2 - .3), z2: Math.max(z2, z1 + .3), h: H }); };
+  muro(C.x1, C.z2 - .3, C.x2, C.z2); muro(C.x1, C.z1, C.x1 + .3, C.z2); muro(C.x2 - .3, C.z1, C.x2, C.z2);
+  muro(C.x1, C.z1, C.p1, C.z1 + .3); muro(C.p2, C.z1, C.x2, C.z1 + .3);   // frente (norte) con puerta hacia la costanera
+  const techo = new THREE.Mesh(new THREE.BoxGeometry(C.x2 - C.x1 + .6, .3, C.z2 - C.z1 + .6), L(0x2e7d32)); techo.position.set((C.x1 + C.x2) / 2, H + .15, (C.z1 + C.z2) / 2); escena.add(techo);
+  const piso = new THREE.Mesh(new THREE.PlaneGeometry(C.x2 - C.x1, C.z2 - C.z1), L(0xcfc6a8)); piso.rotation.x = -Math.PI / 2; piso.position.set((C.x1 + C.x2) / 2, .03, (C.z1 + C.z2) / 2); escena.add(piso);
+  // Mostrador con vidrio y el cajero
+  const most = new THREE.Mesh(new THREE.BoxGeometry(8, 1.1, .7), L(0x5a3a1a)); most.position.set(C.mostX, .55, C.mostZ); escena.add(most);
+  const vid = new THREE.Mesh(new THREE.BoxGeometry(8, .9, .05), new THREE.MeshLambertMaterial({ color: 0xbfe8ff, transparent: true, opacity: .4 })); vid.position.set(C.mostX, 1.55, C.mostZ); escena.add(vid);
+  edificios.push({ x1: C.mostX - 4, x2: C.mostX + 4, z1: C.mostZ - .35, z2: C.mostZ + .35, h: 1.1 });
+  setTimeout(() => { const c = crearCivil(5), m = c.mesh || c; m.position.set(C.mostX, 0, C.mostZ + 1.2); m.rotation.y = Math.PI; escena.add(m); }, 0);   // el cajero (después de que existan los muñecos)
+  // Pila de billetes verdes y pizarra con la cotización
+  for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(.5, .08 + i * .02, .25), L(0x3f9a4a)); b.position.set(C.mostX - 3 + i * .4, 1.15 + i * .01, C.mostZ); escena.add(b); }
+  const piz = cartel("💵 DÓLAR · COMPRA / VENTA", "#1b5e20"); piz.scale.set(5, 1, 1); piz.position.set(C.mostX, 3.2, C.z2 - .5); escena.add(piz);
+  const c = cartel("💵 CASA DEL DÓLAR", "#2e7d32"); c.scale.set(6, 1.4, 1); c.position.set((C.x1 + C.x2) / 2, H + 1.6, C.z1); escena.add(c);
+}
+// Cotización: sube y baja suave según la hora (todos ven la misma). Valores de juego.
+function cotizacion() { const t = Date.now() / 1000; return Math.round(1000 + 140 * Math.sin(t / 240) + 60 * Math.sin(t / 53 + 1.3) + 25 * Math.sin(t / 11)); }
+const DOLAR = { get us() { try { return +(localStorage.getItem("polis-dolares") || 0); } catch (e) { return 0; } }, set us(v) { try { localStorage.setItem("polis-dolares", Math.max(0, Math.round(v))); } catch (e) {} } };
+function abrirCambio() { document.exitPointerLock?.(); $("cambio").style.display = "block"; pintarCambio(); clearInterval(abrirCambio.t); abrirCambio.t = setInterval(() => { if ($("cambio").style.display === "block") pintarCambio(); else clearInterval(abrirCambio.t); }, 1000); }
+function pintarCambio() {
+  const base = cotizacion(), compra = Math.round(base * 1.03), venta = Math.round(base * .97), ant = pintarCambio.ant || base; pintarCambio.ant = base;
+  $("cm-cot").innerHTML = `Comprás a <span style="color:#ff8a8a">$${compra.toLocaleString("es-AR")}</span> · Vendés a <span style="color:#7dff8a">$${venta.toLocaleString("es-AR")}</span> ${base > ant ? "📈" : base < ant ? "📉" : ""}`;
+  $("cm-bille").textContent = `💵 $${BILLE.plata.toLocaleString("es-AR")} pesos · 💲 US$ ${DOLAR.us.toLocaleString("es-AR")}`;
+  const b = (t, ok, f) => `<button ${ok ? "" : "disabled"} data-f="${f}" style="padding:9px 12px;border:0;border-radius:10px;font-weight:800;background:${f[0] === "c" ? "#c62828" : "#2e7d32"};color:#fff;opacity:${ok ? 1 : .4}">${t}</button>`;
+  $("cm-botones").innerHTML = [10, 50, 100].map(n => b(`Comprar US$${n}`, BILLE.plata >= n * compra, "c" + n)).join("") + "<br>" + [10, 50, 100].map(n => b(`Vender US$${n}`, DOLAR.us >= n, "v" + n)).join("") + b("Vender todo", DOLAR.us > 0, "vT");
+  $("cm-botones").querySelectorAll("button").forEach(x => x.onclick = () => {
+    const f = x.dataset.f, n = f === "vT" ? DOLAR.us : +f.slice(1);
+    if (f[0] === "c" && BILLE.plata >= n * compra) { BILLE.plata = BILLE.plata - n * compra; DOLAR.us = DOLAR.us + n; beep(700, .08, "triangle"); }
+    else if (f[0] === "v" && DOLAR.us >= n && n > 0) { DOLAR.us = DOLAR.us - n; BILLE.plata = BILLE.plata + n * venta; beep(900, .08, "triangle"); }
+    pintarCambio(); });
+}
+$("cm-x").onclick = () => { $("cambio").style.display = "none"; };
 // ================== RESIDENCIA PRESIDENCIAL DE GONZA (Puerto Madero) ==================
 // Casa blanca con columnas, jardín, pileta y helipuerto. La puerta solo se abre para Gonza; adentro tiene caja fuerte y su despacho.
 const RG = { x1: 144, x2: 174, z1: -204, z2: -172, cx1: 148, cx2: 170, cz1: -198, cz2: -184, p1: 157.6, p2: 160.4, rejaP1: 155, rejaP2: 163, cajaX: 166, cajaZ: -195.5, pasa: false };
@@ -2696,6 +2749,49 @@ function aplicarAntilag() {
   escena.traverse(o => { if (o.isPointLight || o.isSpotLight) { if (o.userData.antes === undefined) o.userData.antes = o.visible; o.visible = on ? false : o.userData.antes; } });
 }
 aplicarAntilag();
+// ================== MINI MAPA ==================
+// Redondo, en una esquina, gira con la cámara (arriba = hacia donde mirás). Tocalo para achicarlo u ocultarlo.
+const MINI = { modo: 0, fondo: null, ult: 0, X0: -154, Z0: -210, X1: 180, Z1: 142, esc: 2 };   // esc: píxeles por metro del fondo
+try { MINI.modo = +(localStorage.getItem("polis-minimapa") || 0); } catch (e) {}
+function fondoMini() {
+  const M = MINI, c = document.createElement("canvas"); c.width = (M.X1 - M.X0) * M.esc; c.height = (M.Z1 - M.Z0) * M.esc; const g = c.getContext("2d");
+  const R = (x1, z1, x2, z2, col) => { g.fillStyle = col; g.fillRect((x1 - M.X0) * M.esc, (z1 - M.Z0) * M.esc, (x2 - x1) * M.esc, (z2 - z1) * M.esc); };
+  const m = CIUDAD.tam / 2;
+  R(-m, -m, m, m, "#3a3f4a");                                     // ciudad (calles)
+  for (const Z of [AER, ZAUTOS, AGU, SUPER, HALCON, PUERTO]) R(Z.x1, Z.z1, Z.x2 ?? m, Z.z2 ?? -m, "#343a44");
+  R(PM.x1, PM.z1, PM.x2, -m, "#3d3a36"); R(PM.x1, PM.aguaZ1, PM.x2, PM.aguaZ2, "#1d5a8a"); R(PUERTO.x1, PUERTO.z1, PUERTO.agua, PUERTO.z2, "#1d5a8a");
+  R(-m, AUTOPISTA.z1, m, AUTOPISTA.z2, "#555a66");
+  for (const e of edificios) if (!e.arbol && e.h > 1) R(e.x1, e.z1, e.x2, e.z2, "#8a93a6");
+  M.fondo = c;
+}
+const LUGARES_MINI = [[ZONAS.banco, "🏦"], [ZONAS.carcel, "⛓️"], [ZONAS.guarida, "🏚️"], [ZONAS.narco, "💊"], [ZONAS.muelle, "🚤"], [{ x: CAMBIO.mostX, z: CAMBIO.mostZ }, "💵"], [{ x: 159, z: -190 }, "🏛️"], [{ x: -20, z: 52 }, "🏨"], [{ x: 100, z: 72 }, "🚗"]];
+function dibujarMini(t) {
+  const cv = $("minimapa"); cv.style.display = jugando && MINI.modo < 2 ? "block" : "none"; cv.classList.toggle("chico", MINI.modo === 1);
+  if (!jugando || MINI.modo === 2 || t - MINI.ult < 100 || !yo) return; MINI.ult = t;
+  if (!MINI.fondo) fondoMini();
+  const g = cv.getContext("2d"), W = cv.width, R = W / 2, metros = 70, k = W / metros, M = MINI;   // se ven 70 m de punta a punta
+  g.save(); g.clearRect(0, 0, W, W); g.beginPath(); g.arc(R, R, R, 0, Math.PI * 2); g.clip();
+  g.fillStyle = "#1a2a1a"; g.fillRect(0, 0, W, W);
+  g.translate(R, R); g.rotate(yaw); g.scale(k / M.esc, k / M.esc); g.translate(-(yo.x - M.X0) * M.esc, -(yo.z - M.Z0) * M.esc);
+  g.drawImage(M.fondo, 0, 0);
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  const pt = (x, z) => { const dx = (x - yo.x) * k, dz = (z - yo.z) * k, c = Math.cos(yaw), s = Math.sin(yaw); return [R + dx * c - dz * s, R + dx * s + dz * c]; };
+  g.font = "13px system-ui"; g.textAlign = "center"; g.textBaseline = "middle";
+  for (const [Z, ico] of LUGARES_MINI) { let [x, y] = pt(Z.x, Z.z); const d = Math.hypot(x - R, y - R); if (d > R - 9) { x = R + (x - R) / d * (R - 9); y = R + (y - R) / d * (R - 9); } g.fillText(ico, x, y); }
+  for (const s of Object.values(jug)) { if (s === yo) continue; const mio = s.equipo === yo.equipo;
+    if (!mio && Math.hypot(s.x - yo.x, s.z - yo.z) > 25 && !((capturas[s.id] || 0) > Date.now())) continue;   // a los rivales solo los ves de cerca (o con pedido de captura)
+    const [x, y] = pt(s.x, s.z); if (Math.hypot(x - R, y - R) > R - 3) continue;
+    g.fillStyle = s.preso ? "#999" : s.equipo === "poli" ? "#4d8aff" : "#ff4d4d"; g.beginPath(); g.arc(x, y, 3.5, 0, Math.PI * 2); g.fill(); }
+  g.fillStyle = "#ffd400"; g.beginPath(); g.moveTo(R, R - 7); g.lineTo(R - 5, R + 5); g.lineTo(R + 5, R + 5); g.closePath(); g.fill();
+  g.strokeStyle = "#ffffff88"; g.lineWidth = 2; g.beginPath(); g.arc(R, R, R - 1, 0, Math.PI * 2); g.stroke();
+  // La "N" del norte gira con el mapa
+  const [nx, ny] = (() => { const c = Math.cos(yaw), s = Math.sin(yaw); return [R + (R - 8) * s, R - (R - 8) * c]; })();
+  g.fillStyle = "#fff"; g.font = "bold 11px system-ui"; g.fillText("N", nx, ny);
+  g.restore();
+}
+$("minimapa").addEventListener("click", e => { e.stopPropagation(); MINI.modo = MINI.modo === 0 ? 1 : 0; try { localStorage.setItem("polis-minimapa", MINI.modo); } catch (er) {} });
+$("minimapa").addEventListener("touchstart", e => e.stopPropagation(), { passive: true });
+addEventListener("keydown", e => { if (e.code === "KeyU" && !e.repeat && jugando) { MINI.modo = (MINI.modo + 1) % 3; try { localStorage.setItem("polis-minimapa", MINI.modo); } catch (er) {} } });
 function ajustarCalidad(dt) {
   FPS.acum += dt; FPS.n++; if (FPS.acum < 3) return;
   const fps = FPS.n / FPS.acum; FPS.acum = 0; FPS.n = 0;
@@ -2707,7 +2803,7 @@ function ajustarCalidad(dt) {
 }
 function loop(t) {
   requestAnimationFrame(loop);
-  const dt = Math.min(.05, (t - ult) / 1000); ult = t; ajustarCalidad(dt);
+  const dt = Math.min(.05, (t - ult) / 1000); ult = t; ajustarCalidad(dt); try { dibujarMini(t); } catch (e) {}
   if (jugando) {
     // Yo
     // Departamento: taquillas (división) y armería (recargar)
@@ -2756,6 +2852,9 @@ function loop(t) {
       if (accionPedida && e <= 0 && !yo.bolsa && !yo.paquete) { accionPedida = false; enviar("maletin", { quien: yo.id }); robarMaletin(yo.id); }
     }
     if (GOB.rueda) GOB.rueda.rotation.z += dt * (Date.now() < GOB.listo ? 3 : .2);
+    if (!miAuto && !yo.preso && Math.hypot(yo.x - CAMBIO.mostX, yo.z - (CAMBIO.mostZ - 1.2)) < 2.2) {
+      pistaDepto = "💵 E: cambiar dólares en la Casa del Dólar";
+      if (accionPedida) { accionPedida = false; abrirCambio(); } }
     // Residencia de Gonza: la puerta se abre sola para él; los demás la encuentran cerrada
     { const dP = Math.hypot(yo.x - (RG.p1 + RG.p2) / 2, yo.z - RG.cz2), soy = esGonza(), abierta = soy && dP < 3.5;
       RG.puerta.position.x = (RG.p1 + RG.p2) / 2 + (abierta ? (RG.p2 - RG.p1) * .9 : 0);
@@ -2875,7 +2974,7 @@ function loop(t) {
     // HUD
     const quedan = Math.max(0, Math.ceil((fin - Date.now()) / 1000));
     $("reloj").textContent = isFinite(fin) ? `⏱️ ${Math.floor(quedan / 60)}:${String(quedan % 60).padStart(2, "0")}` : `♾️ 👮${rondas.poli} · 🦹${rondas.ladron}`;
-    $("rol").textContent = (yo.equipo === "poli" ? `${ICONO(yo.clase)} ${yo.nombre} · 🚔 ${yo.atrapados}` : `🦹 ${yo.nombre}${yo.bolsa ? " · 💰" : ""}`) + ` · 💵 $${BILLE.plata.toLocaleString("es-AR")}`;
+    $("rol").textContent = (yo.equipo === "poli" ? `${ICONO(yo.clase)} ${yo.nombre} · 🚔 ${yo.atrapados}` : `🦹 ${yo.nombre}${yo.bolsa ? " · 💰" : ""}`) + ` · 💵 $${BILLE.plata.toLocaleString("es-AR")}` + (DOLAR.us ? ` · 💲US$${DOLAR.us}` : "");
     $("botin").textContent = `💰 Botín: $${botin.toLocaleString("es-AR")} / $${META.toLocaleString("es-AR")}`;
     const L = Object.values(jug).filter(s => s.equipo === "ladron");
     $("equipos").innerHTML = `👮 ${Object.values(jug).filter(s => s.equipo === "poli").length} polis<br>🦹 ${L.filter(s => !s.preso).length} libres · ⛓️ ${L.filter(s => s.preso).length} presos`;
