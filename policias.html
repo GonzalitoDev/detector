@@ -1233,6 +1233,27 @@ $("su-ok").onclick = () => { $("super").style.display = "none"; if (!document.bo
   for (let i = 0; i < 6; i++) { const n = new THREE.Mesh(new THREE.TorusGeometry(.4, .14, 6, 12), negro); n.rotation.x = Math.PI / 2; n.position.set(-104 + (i % 3) * 1.1, .14, 70 + Math.floor(i / 3) * 1.1); escena.add(n); }
   // Camionetas negras estacionadas (de adorno)
   for (const z of [26, 30, 50, 54]) { const c = crearCamioneta("GRUPO HALCÓN"); c.position.set(-98, 0, z); c.rotation.y = -Math.PI / 2; edificios.push({ x1: -100.6, x2: -95.4, z1: z - 1.2, z2: z + 1.2, h: 2.2, arbol: true }); }
+  // Galpón de motos: techo negro sobre postes (las motos Halcón se estacionan acá)
+  { const t = new THREE.Mesh(new THREE.BoxGeometry(6, .25, 11), negro); t.position.set(-91, 3.2, 52.5); escena.add(t);
+    for (const [x, z] of [[-93.8, 47.3], [-88.2, 47.3], [-93.8, 57.7], [-88.2, 57.7]]) { const p = new THREE.Mesh(new THREE.BoxGeometry(.25, 3.2, .25), gris); p.position.set(x, 1.6, z); escena.add(p); edificios.push({ x1: x - .15, x2: x + .15, z1: z - .15, z2: z + .15, h: 3.2, arbol: true }); }
+    plano(-94, 47, -88, 58, 0x1c1c1c, .02);
+    for (const z of [50.75, 54.25]) { const l = new THREE.Mesh(new THREE.BoxGeometry(1.4, .02, .08), new THREE.MeshBasicMaterial({ color: 0x3dff6a })); l.position.set(-91, .04, z); escena.add(l); }
+    const c = cartel("🏍️ MOTOS HALCÓN", "#0a0a0a"); c.scale.set(4, 1, 1); c.position.set(-91, 4.2, 47); escena.add(c); }
+  // Sala de situación dentro del cuartel: mesa de planificación con mapa, pantalla grande y cuchetas
+  { const mesa = new THREE.Mesh(new THREE.BoxGeometry(4.2, .9, 2.2), L(0x2a2a2a)); mesa.position.set(-121, .45, 40); escena.add(mesa); edificios.push({ x1: -123.1, x2: -118.9, z1: 38.9, z2: 41.1, h: .9 });
+    const mapa = textura((c, w, h) => { c.fillStyle = "#1a3a2a"; c.fillRect(0, 0, w, h); c.strokeStyle = "#3dff6a"; c.lineWidth = 2; for (let i = 0; i < 8; i++) { c.beginPath(); c.moveTo(i * 32, 0); c.lineTo(i * 32, h); c.stroke(); c.beginPath(); c.moveTo(0, i * 16); c.lineTo(w, i * 16); c.stroke(); }
+      c.fillStyle = "#ff4d4d"; for (let i = 0; i < 4; i++) { c.beginPath(); c.arc(30 + i * 55, 40 + (i % 2) * 40, 6, 0, 7); c.fill(); } }, 256, 128);
+    const mp = new THREE.Mesh(new THREE.PlaneGeometry(4, 2), new THREE.MeshBasicMaterial({ map: mapa })); mp.rotation.x = -Math.PI / 2; mp.position.set(-121, .91, 40); escena.add(mp);
+    for (const [x, z] of [[-123.8, 40], [-118.2, 40], [-121, 37.6], [-121, 42.4]]) { const si = new THREE.Mesh(new THREE.BoxGeometry(.5, .5, .5), L(0x111111)); si.position.set(x, .25, z); escena.add(si); }
+    const pant = new THREE.Mesh(new THREE.PlaneGeometry(5, 2.6), new THREE.MeshBasicMaterial({ map: textura((c, w, h) => { c.fillStyle = "#03140a"; c.fillRect(0, 0, w, h); c.fillStyle = "#3dff6a"; c.font = "bold 22px monospace";
+      c.fillText("SALA DE SITUACIÓN", 14, 30); c.font = "16px monospace"; ["OBJETIVOS ACTIVOS ......", "UNIDADES EN ZONA .......", "HELICÓPTERO .... LISTO", "MOTOS HALCÓN ... 3"].forEach((t, i) => c.fillText(t, 14, 64 + i * 24)); }, 256, 160) }));
+    pant.position.set(-129.75, 2.6, 40); pant.rotation.y = Math.PI / 2; escena.add(pant);
+    for (let i = 0; i < 3; i++) { const x = -128 + i * 3; for (const y of [.5, 1.6]) { const cama = new THREE.Mesh(new THREE.BoxGeometry(2.2, .2, 1), L(0x2f3a2a)); cama.position.set(x, y, 48.8); escena.add(cama); }
+      edificios.push({ x1: x - 1.1, x2: x + 1.1, z1: 48.3, z2: 49.6, h: 2 }); } }
+  // Mástil con bandera y muro de bolsas de arena en la entrada
+  { const m = new THREE.Mesh(new THREE.CylinderGeometry(.08, .1, 9, 6), L(0xcccccc)); m.position.set(-106, 4.5, 33); escena.add(m); edificios.push({ x1: -106.2, x2: -105.8, z1: 32.8, z2: 33.2, h: 9, arbol: true });
+    [0x75aadb, 0xffffff, 0x75aadb].forEach((c, k) => { const b = new THREE.Mesh(new THREE.BoxGeometry(2.2, .36, .04), L(c)); b.position.set(-104.8, 8.6 - k * .36, 33); escena.add(b); });
+    for (const z of [31, 49]) { const a = new THREE.Mesh(new THREE.BoxGeometry(1, .9, 3), L(0x8a7a50)); a.position.set(-104, .45, z); escena.add(a); edificios.push({ x1: -104.5, x2: -103.5, z1: z - 1.5, z2: z + 1.5, h: .9, arbol: true }); } }
   // Torre de vigilancia y alambrado
   const torre = new THREE.Mesh(new THREE.BoxGeometry(2, 7, 2), negro); torre.position.set(-146, 3.5, 10); escena.add(torre); edificios.push({ x1: -147, x2: -145, z1: 9, z2: 11, h: 7 });
   const foco = new THREE.Mesh(new THREE.BoxGeometry(.6, .4, .4), new THREE.MeshBasicMaterial({ color: 0xffffe0 })); foco.position.set(-145, 7.2, 10.8); escena.add(foco);
@@ -1388,8 +1409,9 @@ function crearPatrullero(estilo = "ciudad") {
 }
 // Lugares fijos (iguales para todos) cerca de la comisaría
 // Moto policial
-function crearMoto() {
-  const g = new THREE.Group(), blanco = new THREE.MeshLambertMaterial({ color: 0xf2f2f2 }), negro = new THREE.MeshLambertMaterial({ color: 0x111111 }), cel = new THREE.MeshLambertMaterial({ color: 0x5ec8f2 });
+function crearMoto(halcon = false) {
+  // La del Grupo Halcón: toda negra con franja verde y cartel propio (diseño inspirado, sin escudos oficiales)
+  const g = new THREE.Group(), blanco = new THREE.MeshLambertMaterial({ color: halcon ? 0x161616 : 0xf2f2f2 }), negro = new THREE.MeshLambertMaterial({ color: 0x111111 }), cel = new THREE.MeshLambertMaterial({ color: halcon ? 0x3dff6a : 0x5ec8f2 });
   const cuadro = new THREE.Group(); g.add(cuadro);
   const ruedasM = [.75, -.75].map(z => rueda(cuadro, 0, .42, z, .4, .12, 0xb0b0b0));
   const escape = new THREE.Mesh(new THREE.CylinderGeometry(.06, .07, .8, 8), new THREE.MeshLambertMaterial({ color: 0x9a9a9a })); escape.rotation.x = Math.PI / 2; escape.position.set(.2, .45, -.45); cuadro.add(escape);
@@ -1402,7 +1424,9 @@ function crearMoto() {
   const faro = new THREE.Mesh(new THREE.BoxGeometry(.2, .14, .05), new THREE.MeshBasicMaterial({ color: 0xffffff })); faro.position.set(0, .95, .85); cuadro.add(faro);
   const rojo = new THREE.Mesh(new THREE.BoxGeometry(.12, .12, .12), new THREE.MeshBasicMaterial({ color: 0x550000 })); rojo.position.set(-.18, 1.12, -.7); cuadro.add(rojo);
   const azulL = new THREE.Mesh(new THREE.BoxGeometry(.12, .12, .12), new THREE.MeshBasicMaterial({ color: 0x000055 })); azulL.position.set(.18, 1.12, -.7); cuadro.add(azulL);
-  const c = cartel("🏍️ MOTORIZADA", "#0f1d36"); c.scale.set(2.4, .6, 1); c.position.y = 2.2; c.visible = false; g.add(c);
+  if (halcon) { for (const x of [-.26, .26]) { const alf = new THREE.Mesh(new THREE.BoxGeometry(.14, .34, .6), negro); alf.position.set(x, .72, -.55); cuadro.add(alf); }   // alforjas
+    const ant = new THREE.Mesh(new THREE.CylinderGeometry(.01, .01, 1, 4), negro); ant.position.set(.15, 1.6, -.75); cuadro.add(ant); }
+  const c = cartel(halcon ? "🦅 HALCÓN" : "🏍️ MOTORIZADA", halcon ? "#0a0a0a" : "#0f1d36"); c.scale.set(2.4, .6, 1); c.position.y = 2.2; c.visible = false; g.add(c);
   g.userData = { rojo, azul: azulL, cartel: c, cuadro, ruedas: ruedasM, radio: .4 };
   escena.add(g); return g;
 }
@@ -1495,7 +1519,9 @@ const autos = (() => {
   const orden = [0, 2, 4, 6, 1, 3, 5, 7, 8, 9].map(k => lugares[k]);   // patrulleros adelante, camionetas atrás, motos en la punta
   return tipos.map((tipo, i) => { const p = orden[i];
     return { i, tipo, r: tipo === "camioneta" ? 1.6 : tipo === "moto" ? .7 : AUTO_R, max: tipo === "camioneta" ? 23 : tipo === "moto" ? 31 : 26, x0: p.x0, z0: p.z0, h0: p.h0, x: p.x0, z: p.z0, h: p.h0, vel: 0, conductor: null, sirena: true,
-      tx: p.x0, tz: p.z0, th: p.h0, mesh: tipo === "camioneta" ? crearCamioneta() : tipo === "moto" ? crearMoto() : crearPatrullero(i >= 2 ? "provincia" : "ciudad") }; });
+      tx: p.x0, tz: p.z0, th: p.h0, mesh: tipo === "camioneta" ? crearCamioneta() : tipo === "moto" ? crearMoto() : crearPatrullero(i >= 2 ? "provincia" : "ciudad") }; })
+    .concat([49, 52.5, 56].map((z, k) => ({ i: tipos.length + k, tipo: "moto", halcon: true, r: .7, max: 34, x0: -91, z0: z, h0: Math.PI, x: -91, z, h: Math.PI, vel: 0, conductor: null, sirena: true,
+      tx: -91, tz: z, th: Math.PI, mesh: crearMoto(true) })));   // motos del Grupo Halcón, en el galpón de la base
 })();
 function resetAutos() { for (const a of autos) Object.assign(a, { x: a.x0, z: a.z0, tx: a.x0, tz: a.z0, h: a.h0, th: a.h0, vel: 0, conductor: null, sirena: true, balizas: false }); }
 let miAuto = null, sirenaT = 0, sirenaAlt = false, mirarAuto = 0;
@@ -1531,9 +1557,10 @@ function subirAuto(a) { setTimeout(pintarPanel, 0);
   if (a.propio) { if (yo.preso) return; a.conductor = yo.id; miAuto = a; yaw = a.h + Math.PI; pitch = -.05; grande(`🔑 ${MODELO(a.modeloId).nom}`, "#7dff8a"); beep(500, .1); return; }
   if (a.conductor || yo.equipo !== "poli" || yo.preso) return;
   if (a.tipo === "camioneta" && !ARMADO(yo.clase)) { grande("🚙 Solo para SWAT y Grupo Halcón", "#f2c200"); return; }
+  if (a.halcon && yo.clase !== "halcon") { grande("🦅 Moto del Grupo Halcón: solo para el Halcón", "#3dff6a"); return; }
   a.conductor = yo.id; miAuto = a; yaw = a.h + Math.PI; pitch = -.05;
   enviar("auto", { i: a.i, quien: yo.id, sube: true });
-  grande(a.tipo === "camioneta" ? "🚙 GRUPO ESPECIAL TÁCTICO" : a.tipo === "moto" ? "🏍️ ¡MOTORIZADA!" : "🚓 ¡A PATRULLAR!", a.tipo === "camioneta" ? "#f2c200" : "#5a8aff"); beep(500, .1); setTimeout(() => beep(800, .1), 120);
+  grande(a.tipo === "camioneta" ? "🚙 GRUPO ESPECIAL TÁCTICO" : a.tipo === "moto" ? (a.halcon ? "🦅 ¡HALCÓN EN MOTO!" : "🏍️ ¡MOTORIZADA!") : "🚓 ¡A PATRULLAR!", a.tipo === "camioneta" ? "#f2c200" : "#5a8aff"); beep(500, .1); setTimeout(() => beep(800, .1), 120);
 }
 function bajarAuto() { setTimeout(pintarPanel, 0);
   const a = miAuto; if (!a) return;
@@ -2904,7 +2931,7 @@ function loop(t) {
       else if (autoCerca && autoCerca.propio) pista = "🔑 F: subirte a tu auto";
       else if (autoCerca) pista = autoCerca.tipo === "camioneta"
         ? (ARMADO(yo.clase) ? "🚙 Tocá F para subirte a la camioneta del Grupo Especial Táctico" : "🚙 Camioneta del Grupo Especial Táctico: solo SWAT y Grupo Halcón")
-        : autoCerca.tipo === "moto" ? "🏍️ Tocá F para subirte a la moto" : "🚓 Tocá F para subirte al patrullero";
+        : autoCerca.tipo === "moto" ? (autoCerca.halcon ? (yo.clase === "halcon" ? "🦅 Tocá F para subirte a la moto Halcón" : "🦅 Moto del Grupo Halcón: solo para el Halcón") : "🏍️ Tocá F para subirte a la moto") : "🚓 Tocá F para subirte al patrullero";
       const llevo = Object.values(jug).filter(s => s.esposado === yo.id);
       if (llevo.length && dentro(yo, ZONAS.carcel, 3)) for (const s of llevo) { enviar("entregaPreso", { id: s.id, poli: yo.id }); entregarPreso(s.id, yo.id); }
       else if (llevo.length && !pista && !objetivo) pista = `🔗 Llevás a ${llevo.map(s => s.nombre).join(", ")}: andá a la ⛓️ CÁRCEL (${Math.round(Math.hypot(yo.x - ZONAS.carcel.x, yo.z - ZONAS.carcel.z))} m)`;
