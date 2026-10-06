@@ -108,7 +108,13 @@
   #tiempos button.on { border-color:#ffd400; background:#ffd40033; }
   #b-salir { position:fixed; left:50%; top:44px; transform:translateX(-50%); z-index:6; display:none; padding:4px 12px; border:0; border-radius:10px; font-weight:800; background:#000a; color:#fff; font-size:12px; cursor:pointer; }
   body.libre.jugando #b-salir { display:block; }
-  #feed { position:fixed; left:12px; bottom:12px; font-size:14px; pointer-events:none; z-index:5; }
+  #chat { position:fixed; left:50%; transform:translateX(-50%); bottom:70px; z-index:9; display:none; gap:6px; align-items:center; }
+  #chat input { width:min(70vw, 380px); padding:9px 12px; border-radius:10px; border:2px solid #5ec8f2; background:#0b1222ee; color:#fff; font-size:15px; }
+  #chat button { padding:8px 10px; border:0; border-radius:10px; font-weight:800; background:#2a3a5a; color:#fff; }
+  #tabla { position:fixed; left:50%; top:70px; transform:translateX(-50%); z-index:9; display:none; background:#0b1222ee; border:2px solid #5ec8f2; border-radius:14px; padding:12px 16px; min-width:min(90vw, 420px); font-size:14px; }
+  #tabla td { padding:3px 8px; }
+  #ping { position:fixed; right:12px; bottom:12px; z-index:4; font-size:12px; opacity:.75; pointer-events:none; }
+  #feed { position:fixed; left:12px; bottom:172px; font-size:14px; pointer-events:none; z-index:5; }
   #feed div { background:#0009; padding:4px 10px; border-radius:8px; margin-top:4px; animation:sale 5s forwards; }
   @keyframes sale { 85%{opacity:1} 100%{opacity:0} }
   #sirena { position:fixed; inset:0; pointer-events:none; z-index:4; opacity:0; }
@@ -312,7 +318,7 @@
   </div>
 </div>
 <div id="megafono"></div>
-<div id="b-extra"><button id="b-luz">🔦</button><button id="b-rec">🔄</button></div><div id="girar">📱↻<div>Girá el celular para jugar mejor</div><button id="girar-ok" style="padding:10px 18px;border:0;border-radius:10px;font-weight:800;background:#ffd400">Jugar igual</button></div><button id="b-salir">🚪 Terminar</button><div id="disturbio"></div><div id="caravana"></div><div id="poli-extras"></div><div id="b-poli"><button id="b-inv">🕵️</button><button id="b-heli">🚁</button><button id="b-valla">🚧</button><button id="b-ref">📻</button></div><div id="radar"></div><div id="mira"></div><div id="pista"></div><div id="grande"></div><div id="feed"></div>
+<div id="b-extra"><button id="b-luz">🔦</button><button id="b-rec">🔄</button></div><div id="girar">📱↻<div>Girá el celular para jugar mejor</div><button id="girar-ok" style="padding:10px 18px;border:0;border-radius:10px;font-weight:800;background:#ffd400">Jugar igual</button></div><button id="b-salir">🚪 Terminar</button><div id="disturbio"></div><div id="caravana"></div><div id="poli-extras"></div><div id="b-poli"><button id="b-inv">🕵️</button><button id="b-heli">🚁</button><button id="b-valla">🚧</button><button id="b-ref">📻</button></div><div id="radar"></div><div id="mira"></div><div id="pista"></div><div id="grande"></div><div id="feed"></div><div id="chat"><button id="chat-modo">📢 Todos</button><input id="chat-in" maxlength="90" placeholder="Escribí y apretá Enter (Tab: todos / equipo)"></div><div id="tabla"></div><div id="ping"></div><button id="b-chat" class="b-presi" style="display:none;position:fixed;right:12px;top:200px;z-index:6;border:0;border-radius:12px;padding:6px 12px;background:#2a3a5a;color:#fff;font-weight:900">💬</button>
 <div id="sirena"></div><div id="rejas"></div>
 <div class="stick" id="stick"><b></b></div><button id="b-accion">🚔</button><button id="b-auto">🚓</button><button id="b-cam">🎥</button>
 <div id="velocimetro"></div>
@@ -2260,7 +2266,7 @@ function crearMuneco(equipo, nombre, clase, div, uni) {
     perro.position.set(.8, 0, .2); g.add(perro); }
   const bolsa = new THREE.Mesh(geoBolsa, matBolsa); bolsa.scale.setScalar(.6); bolsa.position.set(0, 1.25, -.4); bolsa.visible = false; g.add(bolsa); g.userData.bolsa = bolsa;
   g.userData.piernas = piernas; g.userData.brazos = brazos;
-  const n = cartel(ICONO(clase || equipo) + " " + nombre + (div && DIVISIONES[div] && equipo === "poli" && !ARMADO(clase) ? " · " + DIVISIONES[div].ico : ""), halcon ? "#000000" : swat ? "#3a4a1a" : equipo === "poli" ? "#1e4fd8" : "#333333"); n.scale.set(3, .75, 1); n.position.y = 2.6; g.add(n);
+  const n = cartel(ICONO(clase || equipo) + " " + nombre + (div && DIVISIONES[div] && equipo === "poli" && !ARMADO(clase) ? " · " + DIVISIONES[div].ico : ""), halcon ? "#000000" : swat ? "#3a4a1a" : equipo === "poli" ? "#1e4fd8" : "#333333"); n.scale.set(3, .75, 1); n.position.y = 2.6; g.add(n); g.userData.nombre = n;
   escena.add(g); return g;
 }
 // Animación de caminar: balancea piernas y brazos según la velocidad
@@ -2345,6 +2351,9 @@ function conectar(cod, host) {
     .on("broadcast", { event: "gobpuerta" }, ({ payload: p }) => puertaGob(p))
     .on("broadcast", { event: "penal" }, ({ payload: p }) => trasladarPenal(p.id, p.poli))
     .on("broadcast", { event: "liberaPenal" }, ({ payload: p }) => liberarPenal(p.quien))
+    .on("broadcast", { event: "chat" }, ({ payload: p }) => recibirChat(p))
+    .on("broadcast", { event: "ping" }, ({ payload: p }) => { if (yo) enviar("pong", { a: p.de, t: p.t, de: yo.id }); })
+    .on("broadcast", { event: "pong" }, ({ payload: p }) => { if (yo && p.a === yo.id) { const ms = performance.now() - p.t; RED.ping[p.de] = Math.round(ms); RED.ultimo = Date.now(); } })
     .on("broadcast", { event: "decreto" }, ({ payload: p }) => decreto(p))
     .on("broadcast", { event: "libera" }, ({ payload: p }) => liberar(p.quien))
     .on("broadcast", { event: "entregaPreso" }, ({ payload: p }) => { const s = jug[p.id]; if (s && p.poli === "") { s.esposado = null; return; } entregarPreso(p.id, p.poli); })
@@ -2404,6 +2413,50 @@ setInterval(() => { if (online && jugando && yo && document.hidden) enviarPos();
 // Estado de la conexión en pantalla
 addEventListener("offline", () => { if (online) grande("📡 Sin internet: reconectando...", "#ff6a6a"); });
 addEventListener("online", () => { if (online) { feed("📡 Volvió la conexión"); if (jugando) enviarPos(); } });
+// ================== MULTIJUGADOR: CHAT, TABLA, PING Y NOMBRES REALISTAS ==================
+// Enter abre el chat (Tab cambia entre todos y solo tu equipo: la policía lo escucha por 📻 radio). Arriba de la cabeza del
+// que habla aparece un globo. Tab (sin chat abierto) muestra la tabla de jugadores con el ping. Los nombres de los rivales
+// solo se ven de cerca y si no hay paredes en el medio.
+const RED = { ping: {}, ultimo: 0, chatEquipo: false, abierto: false };
+function abrirChat() { if (!jugando) return; RED.abierto = true; document.exitPointerLock?.(); $("chat").style.display = "flex"; $("chat-in").value = ""; setTimeout(() => $("chat-in").focus(), 0); }
+function cerrarChat() { RED.abierto = false; $("chat").style.display = "none"; $("chat-in").blur(); }
+function pintarModoChat() { $("chat-modo").textContent = RED.chatEquipo ? (yo && yo.equipo === "poli" ? "📻 Radio" : "🤫 Equipo") : "📢 Todos"; }
+$("chat-modo").onclick = () => { RED.chatEquipo = !RED.chatEquipo; pintarModoChat(); $("chat-in").focus(); };
+$("b-chat").onclick = e => { e.stopPropagation(); abrirChat(); };
+$("chat-in").addEventListener("keydown", e => { e.stopPropagation();
+  if (e.key === "Tab") { e.preventDefault(); RED.chatEquipo = !RED.chatEquipo; pintarModoChat(); }
+  else if (e.key === "Escape") cerrarChat();
+  else if (e.key === "Enter") { const t = $("chat-in").value.trim().slice(0, 90); if (t) { const p = { de: yo.id, t, eq: RED.chatEquipo ? yo.equipo : null }; enviar("chat", p); recibirChat(p); } cerrarChat(); } });
+function recibirChat(p) {
+  const s = jug[p.de]; if (!s || (p.eq && yo.equipo !== p.eq)) return;
+  const t = String(p.t || "").slice(0, 90); if (!t) return;
+  const ico = p.eq ? (p.eq === "poli" ? "📻" : "🤫") : "💬";
+  feed(`${ico} ${s.nombre}: ${t}`); if (s !== yo) beep(p.eq === "poli" ? 1400 : 900, .05, p.eq === "poli" ? "square" : "triangle", .03);
+  if (s.mesh) { if (s.globo) s.mesh.remove(s.globo); const g = cartel(`${ico} ${t.length > 28 ? t.slice(0, 27) + "…" : t}`, p.eq === "poli" ? "#0f1d36" : "#222222"); g.scale.set(Math.min(6, 1.2 + t.length * .12), .55, 1); g.position.y = 3.25; s.mesh.add(g); s.globo = g;
+    clearTimeout(s.globoT); s.globoT = setTimeout(() => { if (s.mesh && s.globo) { s.mesh.remove(s.globo); s.globo = null; } }, 5000); }
+}
+addEventListener("keydown", e => {
+  if (!jugando || RED.abierto) return;
+  if (e.key === "Enter" && document.activeElement?.tagName !== "INPUT") { e.preventDefault(); abrirChat(); }
+  if (e.code === "Tab") { e.preventDefault(); $("tabla").style.display = "block"; pintarTabla(); }
+});
+addEventListener("keyup", e => { if (e.code === "Tab") $("tabla").style.display = "none"; });
+function pintarTabla() {
+  const fila = s => `<tr><td>${ICONO(s.clase || s.equipo)} ${esc(s.nombre)}${s === yo ? " <b>(vos)</b>" : ""}${s.bot ? " 🤖" : ""}</td><td>${s.equipo === "poli" ? `🚔 ${s.atrapados || 0}` : `💰 $${(s.robado || 0).toLocaleString("es-AR")}`}</td><td>${s.preso ? "⛓️" : ""}</td><td>${s === yo || s.bot ? "" : RED.ping[s.id] ? RED.ping[s.id] + " ms" : "…"}</td></tr>`;
+  const L = Object.values(jug), polis = L.filter(s => s.equipo === "poli"), ladrones = L.filter(s => s.equipo === "ladron");
+  $("tabla").innerHTML = `<b>👥 Jugadores ${online ? "· sala " + esc(codigo) : "(práctica)"}</b><table><tr><td colspan="4"><b>👮 Policía</b></td></tr>${polis.map(fila).join("")}<tr><td colspan="4"><b>🦹 Ladrones</b></td></tr>${ladrones.map(fila).join("")}</table>`;
+}
+setInterval(() => { if (online && jugando && yo) enviar("ping", { de: yo.id, t: performance.now() }); }, 3000);
+let ultNombres = 0;
+function actualizarRed(t) {
+  $("b-chat").style.display = online && jugando ? "block" : "none";
+  const ps = Object.values(RED.ping); $("ping").textContent = online && ps.length ? `📶 ${Math.round(ps.reduce((a, b) => a + b, 0) / ps.length)} ms${Date.now() - RED.ultimo > 8000 ? " ⚠️" : ""}` : "";
+  if ($("tabla").style.display === "block") pintarTabla();
+  if (t - ultNombres < 400) return; ultNombres = t;
+  for (const s of Object.values(jug)) { if (s === yo || !s.mesh?.userData?.nombre) continue;
+    const mio = s.equipo === yo.equipo, d = Math.hypot(s.x - yo.x, s.z - yo.z);
+    s.mesh.userData.nombre.visible = mio || (d < 25 && lineaLibre(yo, s, .05)); }
+}
 // ================== REGLAS ==================
 function feed(t) { const d = document.createElement("div"); d.textContent = t; $("feed").prepend(d); setTimeout(() => d.remove(), 5000); }
 function grande(t, c = "#ffd400") { const g = $("grande"); g.textContent = t; g.style.color = c; g.classList.remove("ver"); void g.offsetWidth; g.classList.add("ver"); }
@@ -3407,7 +3460,7 @@ function empezar(finTs) {
     const n = equipo === "poli" ? [["ladron", "Ladrón Bot 1"], ["ladron", "Ladrón Bot 2"], ["ladron", "Ladrón Bot 3"], ["poli", "Poli Bot"]]
                                : [["poli", "Poli Bot"], ["swat", "SWAT Bot"], ["halcon", "Halcón Bot"], ["ladron", "Ladrón Bot"]];
     // Más bots según lo elegido en el menú (se agregan de a uno por equipo, empezando por el contrario)
-    const extraP = ["poli", "swat", "halcon"]; let k = 2;
+    const extraP = ["poli", "swat", "halcon"]; let k = 4;   // empieza en 4 para no repetir los nombres de arriba
     while (n.length < cantBots) { const contrario = equipo === "poli" ? "ladron" : "poli", eq = n.length % 2 ? (contrario === "poli" ? "ladron" : "poli") : contrario;
       const cl = eq === "poli" ? extraP[k % 3] : "ladron"; n.push([cl, `${cl === "ladron" ? "Ladrón" : cl === "poli" ? "Poli" : cl === "swat" ? "SWAT" : "Halcón"} Bot ${k++}`]); }
     n.forEach(([cl, nom], i) => { const id = "bot" + i, eq = ARMADO(cl) ? "poli" : cl; jug[id] = nuevoJug(id, nom, eq, true, cl); jug[id].mesh = crearMuneco(eq, nom, cl); });
@@ -3641,7 +3694,7 @@ function loop(t) {
     if (autoPedido) { if (miAuto) bajarAuto(); else if (autoCerca) subirAuto(autoCerca); }
     autoPedido = false;
     if (!miAuto) CHOFER.ruta = null;
-    actualizarChofer(); actualizarConvoy(t); actualizarBarrio(dt, t); actualizarCurso(t);
+    actualizarRed(t); actualizarChofer(); actualizarConvoy(t); actualizarBarrio(dt, t); actualizarCurso(t);
     if (miAuto) { if (!(miAuto.presi && CHOFER.ruta && conduceChofer(miAuto, dt))) manejar(miAuto, dt); }
     else if (!yo.preso && Date.now() >= aturdidoHasta && Date.now() >= dormirHasta) {
       const f = (teclas.KeyW || teclas.ArrowUp ? 1 : 0) - (teclas.KeyS || teclas.ArrowDown ? 1 : 0) - joy.y;
