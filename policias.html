@@ -738,6 +738,9 @@ zona(ZONAS.muelle, 0x0aa0b0, "🚤 MUELLE");
 }
 // ================== AEROPUERTO ==================
 // Pista, plataforma con aviones estacionados, terminal, torre de control y hangar. Un avión aterriza y despega cada tanto.
+const TEX_ALAMBRE = textura((c, w, h) => { c.clearRect(0, 0, w, h); c.strokeStyle = "#b8bec6"; c.lineWidth = 2; for (let i = -h; i < w; i += 12) { c.beginPath(); c.moveTo(i, 0); c.lineTo(i + h, h); c.stroke(); c.beginPath(); c.moveTo(i + h, 0); c.lineTo(i, h); c.stroke(); }
+  c.fillStyle = "#8a8f99"; c.fillRect(0, 0, w, 4); c.fillRect(0, h - 4, w, 4); }, 64, 64);
+TEX_ALAMBRE.wrapS = THREE.RepeatWrapping;
 function crearAvion(color = 0x1e4fd8, escala = 1) {
   const g = new THREE.Group(), L = c => new THREE.MeshLambertMaterial({ color: c }), blanco = L(0xf2f4f7), gris = L(0x9aa0a8);
   const fus = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 20, 16), blanco); fus.rotation.x = Math.PI / 2; fus.position.y = 2.6; g.add(fus);
@@ -773,13 +776,42 @@ const PISTA = { x1: 98, x2: 170, z: -26, ancho: 12 };
   const luces = []; for (let x = PISTA.x1; x <= PISTA.x2; x += 6) for (const dz of [-1, 1]) luces.push([x, .15, PISTA.z + dz * (PISTA.ancho / 2 + .3)]);
   { const m = new THREE.InstancedMesh(new THREE.SphereGeometry(.18, 6, 4), new THREE.MeshBasicMaterial({ color: 0x9fd0ff }), luces.length), o = new THREE.Object3D();
     luces.forEach((f, i) => { o.position.set(...f); o.updateMatrix(); m.setMatrixAt(i, o.matrix); }); escena.add(m); }
-  // Terminal
-  const texTerm = textura((c, w, h) => { c.fillStyle = "#b9c3cc"; c.fillRect(0, 0, w, h); for (let i = 0; i < 16; i++) { c.fillStyle = i % 2 ? "#9fd8ff" : "#7cc4f2"; c.fillRect(4 + i * 16, 14, 13, h - 28); } }, 256, 64);
-  const term = new THREE.Mesh(new THREE.BoxGeometry(22, 7, 14), [L(0xb9c3cc), new THREE.MeshLambertMaterial({ map: texTerm, emissive: 0x334455 }), L(0x8a929c), L(0x8a929c), L(0xb9c3cc), L(0xb9c3cc)]);
-  term.position.set(155, 3.5, 22); escena.add(term);
-  const techoT = new THREE.Mesh(new THREE.BoxGeometry(24, .5, 16), L(0xe8ecf0)); techoT.position.set(155, 7.25, 22); escena.add(techoT);
-  const cT = cartel("✈️ AEROPUERTO", "#0a6aa8"); cT.scale.set(9, 2.25, 1); cT.position.set(155, 10, 22); escena.add(cT);
-  edificios.push({ x1: 144, x2: 166, z1: 15, z2: 29, h: 7 });
+  // Terminal (se puede entrar): frente de vidrio, puerta del lado oeste (z 16..20) que da al camino de acceso
+  const T = AER.term = { x1: 144, x2: 166, z1: 9, z2: 29, alto: 7, p1: 16, p2: 20 };
+  const texVidrio = textura((c, w, h) => { c.fillStyle = "#b9c3cc"; c.fillRect(0, 0, w, h); for (let i = 0; i < 16; i++) { c.fillStyle = i % 2 ? "#9fd8ff" : "#7cc4f2"; c.fillRect(4 + i * 16, 10, 13, h - 20); } }, 256, 64);
+  const matV = new THREE.MeshLambertMaterial({ map: texVidrio, emissive: 0x334455 }), gT = L(0xb9c3cc), g4 = .4;
+  const paredT = (x1, z1, x2, z2, y1, y2, vid) => { const m = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1, y2 - y1, z2 - z1), vid ? [matV, matV, gT, gT, matV, matV] : gT); m.position.set((x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2); escena.add(m); if (y1 < 1) edificios.push({ x1, z1, x2, z2, h: T.alto }); };
+  paredT(T.x1, T.z1, T.x1 + g4, T.p1, 0, T.alto, true); paredT(T.x1, T.p2, T.x1 + g4, T.z2, 0, T.alto, true); paredT(T.x1, T.p1, T.x1 + g4, T.p2, 3.4, T.alto, true);
+  paredT(T.x2 - g4, T.z1, T.x2, T.z2, 0, T.alto); paredT(T.x1, T.z1, T.x2, T.z1 + g4, 0, T.alto, true); paredT(T.x1, T.z2 - g4, T.x2, T.z2, 0, T.alto, true);
+  const techoT = new THREE.Mesh(new THREE.BoxGeometry(T.x2 - T.x1 + 2, .5, T.z2 - T.z1 + 2), L(0xe8ecf0)); techoT.position.set((T.x1 + T.x2) / 2, T.alto + .25, (T.z1 + T.z2) / 2); escena.add(techoT);
+  const alero = new THREE.Mesh(new THREE.BoxGeometry(4, .3, 8), L(0xe8ecf0)); alero.position.set(T.x1 - 2, 3.8, (T.p1 + T.p2) / 2); escena.add(alero);
+  for (const z of [T.p1 - 1.5, T.p2 + 1.5]) { const c = new THREE.Mesh(new THREE.CylinderGeometry(.12, .12, 3.8, 8), L(0x9aa0a8)); c.position.set(T.x1 - 3.6, 1.9, z); escena.add(c); edificios.push({ x1: T.x1 - 3.75, x2: T.x1 - 3.45, z1: z - .15, z2: z + .15, h: 3.8, arbol: true }); }
+  const cT = cartel("✈️ AEROPUERTO INTERNACIONAL", "#0a6aa8"); cT.scale.set(12, 2.25, 1); cT.position.set((T.x1 + T.x2) / 2, 10, (T.z1 + T.z2) / 2); escena.add(cT);
+  // Adentro: piso brillante, arco de seguridad, mostradores de check-in, cinta de equipaje, asientos y el tablero de partidas
+  const pisoT = new THREE.Mesh(new THREE.PlaneGeometry(T.x2 - T.x1 - .8, T.z2 - T.z1 - .8), new THREE.MeshPhongMaterial({ color: 0xdfe4ea, shininess: 80 })); pisoT.rotation.x = -Math.PI / 2; pisoT.position.set((T.x1 + T.x2) / 2, .03, (T.z1 + T.z2) / 2); escena.add(pisoT);
+  for (const z of [T.p1 - .3, T.p2 + .3]) { const pa = new THREE.Mesh(new THREE.BoxGeometry(.6, 2.4, .25), L(0x7a8088)); pa.position.set(T.x1 + 3, 1.2, z); escena.add(pa); edificios.push({ x1: T.x1 + 2.7, x2: T.x1 + 3.3, z1: z - .15, z2: z + .15, h: 2.4, arbol: true }); }
+  const arcoS = new THREE.Mesh(new THREE.BoxGeometry(.6, .3, (T.p2 - T.p1) + .9), L(0x7a8088)); arcoS.position.set(T.x1 + 3, 2.45, (T.p1 + T.p2) / 2); escena.add(arcoS);
+  const luzS = new THREE.Mesh(new THREE.BoxGeometry(.62, .1, .5), new THREE.MeshBasicMaterial({ color: 0x30ff60 })); luzS.position.set(T.x1 + 3, 2.65, (T.p1 + T.p2) / 2); escena.add(luzS);
+  const cSeg = cartel("🛂 CONTROL DE SEGURIDAD", "#2a3a50"); cSeg.scale.set(4, .9, 1); cSeg.position.set(T.x1 + 3, 3.4, (T.p1 + T.p2) / 2); escena.add(cSeg);
+  const mostr = L(0x2a5a9a), blancoT = L(0xf2f4f7);
+  for (let k = 0; k < 4; k++) { const z = T.z1 + 2.5 + k * 4.6;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.1, 3), mostr); m.position.set(T.x2 - 4, .55, z); escena.add(m);
+    const tp = new THREE.Mesh(new THREE.BoxGeometry(1.3, .08, 3.1), blancoT); tp.position.set(T.x2 - 4, 1.14, z); escena.add(tp);
+    const pc = new THREE.Mesh(new THREE.BoxGeometry(.05, .35, .5), new THREE.MeshBasicMaterial({ color: 0x9fd8ff })); pc.position.set(T.x2 - 4.3, 1.4, z); escena.add(pc);
+    const cinta = new THREE.Mesh(new THREE.BoxGeometry(1.6, .35, 1.2), L(0x2a2a2a)); cinta.position.set(T.x2 - 2.2, .18, z); escena.add(cinta);
+    edificios.push({ x1: T.x2 - 4.6, x2: T.x2 - 1.4, z1: z - 1.5, z2: z + 1.5, h: 1.1 });
+    const n = cartel("✈️ " + (k + 1), "#2a5a9a"); n.scale.set(1.4, .5, 1); n.position.set(T.x2 - 4, 2.6, z); escena.add(n); }
+  for (let f = 0; f < 3; f++) for (const z of [T.z1 + 4, T.z2 - 4]) { const x = T.x1 + 7 + f * 2.4;
+    const b = new THREE.Mesh(new THREE.BoxGeometry(.6, .45, 4), L(0x3a3f48)); b.position.set(x, .45, z); escena.add(b);
+    const r = new THREE.Mesh(new THREE.BoxGeometry(.12, .6, 4), L(0x3a3f48)); r.position.set(x + .3, .8, z); escena.add(r); }
+  const VUELOS = [["AG 101", "BARILOCHE", "EMBARCANDO", "#30ff60"], ["AG 207", "MENDOZA", "A HORARIO", "#ffffff"], ["AG 315", "IGUAZÚ", "DEMORADO", "#ffb030"], ["AG 422", "USHUAIA", "A HORARIO", "#ffffff"], ["AG 530", "SALTA", "CANCELADO", "#ff4040"], ["AG 618", "CÓRDOBA", "PRE-EMBARQUE", "#30c0ff"]];
+  const texTab = textura((c, w, h) => { c.fillStyle = "#06080e"; c.fillRect(0, 0, w, h); c.fillStyle = "#ffd400"; c.font = "bold 26px monospace"; c.fillText("PARTIDAS  ✈", 14, 32);
+    c.font = "bold 20px monospace"; VUELOS.forEach(([v, d, e, col], i) => { const y = 66 + i * 30; c.fillStyle = "#ffd400"; c.fillText(v, 14, y); c.fillStyle = "#ffffff"; c.fillText(d, 120, y); c.fillStyle = col; c.fillText(e, 300, y); }); }, 480, 250);
+  const tab = new THREE.Mesh(new THREE.PlaneGeometry(4.8, 2.5), new THREE.MeshBasicMaterial({ map: texTab })); tab.position.set(T.x2 - .45, 4.4, (T.z1 + T.z2) / 2); tab.rotation.y = -Math.PI / 2; escena.add(tab);
+  for (const z of [T.z1 + 5, T.z2 - 5]) { const l = new THREE.PointLight(0xf0f6ff, 1.4, 14, 1.4); l.position.set((T.x1 + T.x2) / 2, 6, z); escena.add(l); }
+  // Manga (puente de embarque) del costado norte de la terminal hacia la plataforma
+  const manga = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.4, 9), L(0xc8ccd2)); manga.position.set(T.x1 + 4, 3.6, T.z1 - 4.5); escena.add(manga);
+  const pataM = new THREE.Mesh(new THREE.BoxGeometry(.4, 2.4, .4), L(0x5a5f66)); pataM.position.set(T.x1 + 4, 1.2, T.z1 - 8); escena.add(pataM); edificios.push({ x1: T.x1 + 3.8, x2: T.x1 + 4.2, z1: T.z1 - 8.2, z2: T.z1 - 7.8, h: 2.4, arbol: true });
   // Torre de control
   const fuste = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.6, 18, 12), L(0xd8dde2)); fuste.position.set(150, 9, 2); escena.add(fuste);
   const cabina = new THREE.Mesh(new THREE.CylinderGeometry(3, 2.4, 2.6, 8), new THREE.MeshLambertMaterial({ color: 0x5fb0e0, emissive: 0x1a4060 })); cabina.position.set(150, 19.3, 2); escena.add(cabina);
@@ -793,9 +825,41 @@ const PISTA = { x1: 98, x2: 170, z: -26, ancho: 12 };
   // Cartel en el portón de la ciudad
   const cP = cartel("✈️ AEROPUERTO →", "#0a6aa8"); cP.scale.set(6, 1.5, 1); cP.position.set(CIUDAD.tam / 2 - 2, 5, AER.puerta2 + 2); escena.add(cP);
   // Aviones estacionados en la plataforma (se chocan)
-  [[112, 14, 0x1e4fd8], [126, 14, 0xd02030], [138, 24, 0x18a058]].forEach(([x, z, c], i) => { const a = crearAvion(c, .8); a.position.set(x, 0, z); a.rotation.y = i === 2 ? -Math.PI / 2 : Math.PI;
+  [[124, 2, 0x1e4fd8], [136, 2, 0xd02030], [128, 28, 0x18a058]].forEach(([x, z, c], i) => { const a = crearAvion(c, .8); a.position.set(x, 0, z); a.rotation.y = i === 2 ? -Math.PI / 2 : Math.PI;
     edificios.push(i === 2 ? { x1: x - 9, x2: x + 9, z1: z - 1.2, z2: z + 1.2, h: 3, arbol: true } : { x1: x - 1.2, x2: x + 1.2, z1: z - 9, z2: z + 9, h: 3, arbol: true }); });
 }
+// El aeropuerto queda separado con un alambrado alrededor: se entra solo por el acceso (z 12..20), con garita y barrera de la PSA
+{
+  const L = c => new THREE.MeshLambertMaterial({ color: c }), X = AER.cerco = 97, ZS = AER.cercoS = 42.5;
+  const tramo = (x1, z1, x2, z2) => { const largo = Math.hypot(x2 - x1, z2 - z1), m = new THREE.Mesh(new THREE.PlaneGeometry(largo, 2.4), new THREE.MeshLambertMaterial({ map: TEX_ALAMBRE.clone(), transparent: true, side: THREE.DoubleSide, alphaTest: .3 }));
+    m.material.map.repeat.set(largo / 2, 1); m.material.map.needsUpdate = true;
+    m.position.set((x1 + x2) / 2, 1.2, (z1 + z2) / 2); m.rotation.y = x1 === x2 ? Math.PI / 2 : 0; escena.add(m);
+    for (let k = 0; k <= largo; k += 3) { const p = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, 2.6, 5), L(0x8a8f99)); p.position.set(x1 + (x2 - x1) * k / largo, 1.3, z1 + (z2 - z1) * k / largo); escena.add(p); }
+    edificios.push(x1 === x2 ? { x1: x1 - .15, x2: x1 + .15, z1: Math.min(z1, z2), z2: Math.max(z1, z2), h: 2.4, arbol: true } : { x1: Math.min(x1, x2), x2: Math.max(x1, x2), z1: z1 - .15, z2: z1 + .15, h: 2.4, arbol: true }); };
+  tramo(X, AER.z1, X, AER.puerta1 - 1); tramo(X, AER.puerta2 + 1, X, ZS); tramo(X, ZS, AER.x2, ZS);
+  // Portal de acceso, garita y barrera
+  for (const z of [AER.puerta1 - 1, AER.puerta2 + 1]) { const c = new THREE.Mesh(new THREE.BoxGeometry(.6, 6, .6), L(0xe8ecf0)); c.position.set(X, 3, z); escena.add(c); edificios.push({ x1: X - .3, x2: X + .3, z1: z - .3, z2: z + .3, h: 6 }); }
+  const viga = new THREE.Mesh(new THREE.BoxGeometry(.8, 1.2, AER.puerta2 - AER.puerta1 + 2.6), L(0x0a6aa8)); viga.position.set(X, 6.4, (AER.puerta1 + AER.puerta2) / 2); escena.add(viga);
+  const letrero = new THREE.Mesh(new THREE.PlaneGeometry(9, 1), new THREE.MeshBasicMaterial({ map: textura((c, w, h) => { c.fillStyle = "#0a6aa8"; c.fillRect(0, 0, w, h); c.fillStyle = "#fff"; c.font = "bold 46px system-ui"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("✈ AEROPUERTO INTERNACIONAL", w / 2, h / 2); }, 768, 86) }));
+  letrero.position.set(X - .42, 6.4, (AER.puerta1 + AER.puerta2) / 2); letrero.rotation.y = -Math.PI / 2; escena.add(letrero);
+  const gar = new THREE.Mesh(new THREE.BoxGeometry(2, 2.6, 2), [L(0xe8ecf0), L(0xe8ecf0), L(0x0a6aa8), L(0xe8ecf0), new THREE.MeshLambertMaterial({ color: 0x7cc4f2, emissive: 0x1a3a5a }), new THREE.MeshLambertMaterial({ color: 0x7cc4f2, emissive: 0x1a3a5a })]);
+  gar.position.set(X + 2, 1.3, AER.puerta2 + 2.5); escena.add(gar); edificios.push({ x1: X + 1, x2: X + 3, z1: AER.puerta2 + 1.5, z2: AER.puerta2 + 3.5, h: 2.6 });
+  const cG = cartel("🛂 CONTROL PSA", "#2a3550"); cG.scale.set(3, .75, 1); cG.position.set(X + 2, 3.4, AER.puerta2 + 2.5); escena.add(cG);
+  AER.barrera = new THREE.Group(); AER.barrera.position.set(X + .6, 1, AER.puerta2 + .6); escena.add(AER.barrera);
+  for (let k = 0; k < 8; k++) { const b = new THREE.Mesh(new THREE.BoxGeometry(.12, .12, 1), L(k % 2 ? 0xffffff : 0xe02020)); b.position.z = -.5 - k; AER.barrera.add(b); }
+  const base = new THREE.Mesh(new THREE.BoxGeometry(.4, 1, .4), L(0xf2c200)); base.position.set(X + .6, .5, AER.puerta2 + .6); escena.add(base);
+  // Estacionamiento de la terminal y manga de viento al lado de la pista
+  const est = new THREE.Mesh(new THREE.PlaneGeometry(12, 10), L(0x33363c)); est.rotation.x = -Math.PI / 2; est.position.set(105, .026, 36); escena.add(est);
+  for (let k = 0; k < 6; k++) { const r = new THREE.Mesh(new THREE.PlaneGeometry(.12, 4), new THREE.MeshBasicMaterial({ color: 0xeeeeee })); r.rotation.x = -Math.PI / 2; r.position.set(99.6 + k * 2.4, .03, 38.5); escena.add(r); }
+  [[100.8, 0xc02020], [103.2, 0xf2f2f2], [108, 0x2050c0]].forEach(([x, c]) => { const a = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.1, 3.6), L(c)); a.position.set(x, .6, 38.6); escena.add(a);
+    const v = new THREE.Mesh(new THREE.BoxGeometry(1.5, .5, 1.8), new THREE.MeshLambertMaterial({ color: 0x1a2a3a })); v.position.set(x, 1.35, 38.4); escena.add(v); edificios.push({ x1: x - .85, x2: x + .85, z1: 36.8, z2: 40.4, h: 1.4 }); });
+  const mv = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 5, 6), L(0xdddddd)); mv.position.set(104, 2.5, -36); escena.add(mv); edificios.push({ x1: 103.8, x2: 104.2, z1: -36.2, z2: -35.8, h: 5, arbol: true });
+  const manga = new THREE.Mesh(new THREE.CylinderGeometry(.35, .18, 2, 10, 1, true), new THREE.MeshLambertMaterial({ color: 0xff6a00, side: THREE.DoubleSide })); manga.rotation.z = Math.PI / 2; manga.position.set(105, 4.8, -36); escena.add(manga);
+}
+function actualizarBarreraAer() { const B = AER.barrera; if (!B) return;
+  if (!AER.guardia) { const g = AER.guardia = crearMuneco("poli", "Agente PSA", "poli", null, "psa"); g.position.set(AER.cerco + 2, 0, AER.puerta2 + .9); g.rotation.y = -Math.PI / 2; g.userData.nombre.visible = false; }
+  const X = AER.cerco, z = (AER.puerta1 + AER.puerta2) / 2, cerca = Object.values(jug).some(s => Math.abs(s.x - X) < 9 && Math.abs(s.z - z) < 7) || autos.some(a => Math.abs(a.x - X) < 12 && Math.abs(a.z - z) < 7);
+  B.rotation.x += ((cerca ? 1.35 : 0) - B.rotation.x) * .12; }
 // Avión que aterriza (llega volando sobre la ciudad) y después despega; todos lo ven igual porque depende de la hora
 const avionVuelo = crearAvion(0xf2a000, 1); avionVuelo.visible = false;
 const CICLO_AVION = 75000;
@@ -3761,7 +3825,7 @@ function loop(t) {
     if (autoPedido) { if (miAuto) bajarAuto(); else if (autoCerca) subirAuto(autoCerca); }
     autoPedido = false;
     if (!miAuto) CHOFER.ruta = null;
-    actualizarRed(t); actualizarSecreto(); actualizarIglesia(t); actualizarChofer(); actualizarConvoy(t); actualizarBarrio(dt, t); actualizarCurso(t);
+    actualizarRed(t); actualizarSecreto(); actualizarIglesia(t); actualizarBarreraAer(); actualizarChofer(); actualizarConvoy(t); actualizarBarrio(dt, t); actualizarCurso(t);
     if (miAuto) { if (!(miAuto.presi && CHOFER.ruta && conduceChofer(miAuto, dt))) manejar(miAuto, dt); }
     else if (!yo.preso && Date.now() >= aturdidoHasta && Date.now() >= dormirHasta) {
       const f = (teclas.KeyW || teclas.ArrowUp ? 1 : 0) - (teclas.KeyS || teclas.ArrowDown ? 1 : 0) - joy.y;
