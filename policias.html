@@ -342,6 +342,7 @@
       <button class="swat" data-e="swat">🪖 SWAT<small>Equipo especial con ametralladora: disparale a los ladrones hasta que se rindan (sin sangre, se quedan sin resistencia y van presos). Click para disparar, R para recargar. Es el único que puede reventar la puerta de la casa narco (E).</small></button>
       <button class="halcon" data-e="halcon">🦅 GRUPO HALCÓN<small>Fuerza de élite: ametralladora, 3 granadas aturdidoras (G) que dejan quietos a los ladrones, visión nocturna (N) y puede reventar la puerta de la casa narco.</small></button>
       <button class="invest" data-e="investigador">🕵️ INVESTIGACIONES<small>Grupo de Investigaciones: andan de civil, sacan más información a los vecinos cuando les preguntan, ven marcados a los ladrones con botín y llevan el RENAPER en el celular (tecla K o botón 🕵️).</small></button>
+      <button class="usyd" data-e="usyd" style="border-color:#d8ff1a;background:linear-gradient(160deg,#0f1a30,#1c2c50)">🏍️ USyD<small>Unidad de Saturación y Detención (Policía de la Ciudad): uniforme azul con chaleco flúor y casco. Arrancás en tu base propia (al este, pasando la zona de autos) con motos de la unidad. Saturás la zona: ves marcados a los ladrones a menos de 30 m y cobrás $300 extra por cada detención.</small></button>
       <button class="secreto" data-e="secreto" style="border-color:#888;background:linear-gradient(160deg,#111,#2a2a2a)">🕶️ SERVICIO SECRETO<small>Custodia del Presidente: traje negro, anteojos y auricular. Ves a dónde está el Presidente (o la caravana presidencial), marcás a los ladrones que se le acercan y cobrás $150 cada 20 s que estés cerca cuidándolo.</small></button>
       <button class="presi" data-e="presidente" id="rol-presi" style="display:none;border-color:#75aadb;background:linear-gradient(160deg,#75aadb55,#ffffff22)">🇦🇷 PRESIDENTE<small>Solo para Gonza. Traje con banda presidencial y dos guardaespaldas que te siguen. Órdenes con la tecla O o el botón 🕴️: síganme, quietos acá o vigilen el perímetro.</small></button>
       <button class="ladron" data-e="ladron">🦹 LADRÓN<small>Robá bolsas de plata 💰 del banco y llevalas a la guarida. También podés sacar contrabando 📦 de la casa narco y llevarlo al muelle 🚤 ($2.000). Juntá $10.000 antes de que termine el tiempo.</small></button>
@@ -404,6 +405,8 @@ const BP = { x1: -124, x2: -50, z1: -150, puerta1: -60, puerta2: -52, garitaZ: -
 const ACAD = { x1: -150, x2: -84, z1: 77, z2: 140, puerta1: 76, puerta2: 82, instX: -98, instZ: 84 };
 // Base de la Policía de la Ciudad: afuera de la ciudad al sureste, al final del camino del aeropuerto (pasando la zona de autos)
 const CIUD = { x1: 86, x2: 172, z1: 132, z2: 196, puerta1: 88, puerta2: 96 };
+// Base de la USyD (Unidad de Saturación y Detención, inspirada): separada, al este de la zona de autos; se llega por el camino z 120..128
+const USYD = { x1: 172, x2: 236, z1: 100, z2: 156, puerta1: 120, puerta2: 128, cx: 204, cz: 124 };
 // Complejo del Servicio Penitenciario: afuera de la ciudad, al norte del supermercado (se sigue por la calle x = -8)
 const PEN = { x1: -46, x2: 30, z1: -206, z2: -132, puerta1: -12, puerta2: -4,
   ex1: -32, ex2: 16, ez1: -192, ez2: -160, entrada1: -10, entrada2: -6, pasilloZ: -174, celdaZ: -184, mesaX: -8, mesaZ: -165, palancaX: 13, palancaZ: -176 };
@@ -465,6 +468,9 @@ function choca(x, z, r = RADIO, eq = null) {
   const enCiudad = x > -mitad - 1 && x < mitad + 1 && z > -mitad - 1 && z < mitad + 1;
   const enAer = x > mitad - 1 && x < AER.x2 - r && z > AER.z1 + r && z < AER.z2 - r;
   if (x > CIUD.x1 + r && x < CIUD.x2 - r && z > CIUD.z1 + r && z < CIUD.z2 - r || (x > CIUD.puerta1 + r && x < CIUD.puerta2 - r && z > ZAUTOS.z2 - 2 && z < CIUD.z1 + 2)) return cercanos(x, z).some(e => x + r > e.x1 && x - r < e.x2 && z + r > e.z1 && z - r < e.z2);   // base de la Policía de la Ciudad
+  if (x > USYD.x1 - 1 && x < USYD.x2 - r && z > USYD.z1 + r && z < USYD.z2 - r && !(x < ZAUTOS.x2 - r && z < ZAUTOS.z2 - r) && !(x < CIUD.x2 - r && z > CIUD.z1 + r)) {   // base USyD: paredón con portón en x = 172
+    if (x < USYD.x1 + r + .3 && !(z > USYD.puerta1 + r && z < USYD.puerta2 - r)) return true;
+    return cercanos(x, z).some(e => x + r > e.x1 && x - r < e.x2 && z + r > e.z1 && z - r < e.z2); }
   if (x > ZAUTOS.x1 + r && x < ZAUTOS.x2 - r && z > ZAUTOS.z1 && z < ZAUTOS.z2 - r) return cercanos(x, z).some(e => x + r > e.x1 && x - r < e.x2 && z + r > e.z1 && z - r < e.z2);
   const enPuerto = x < -mitad + 1 && x > PUERTO.x1 + r && z > PUERTO.z1 + r && z < PUERTO.z2 - r &&
     (x > PUERTO.agua + r || (x > PUERTO.muelleX + r && z > PUERTO.muelleZ1 + r && z < PUERTO.muelleZ2 - r));   // al agua no se puede entrar, salvo por el muelle
@@ -1500,6 +1506,60 @@ function actualizarCurso(t) {
   const h = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, .08, 28), L(0x2a2a2a)); h.position.set(160, .05, 184); escena.add(h);
   const hl = cartel("H", "#2a2a2a"); hl.scale.set(2.4, 2.4, 1); hl.position.set(160, .35, 184); escena.add(hl);
 }
+// ================== BASE USyD ==================
+// Unidad de Saturación y Detención (inspirada en la de la Policía de la Ciudad, sin escudos oficiales): edificio azul con franja flúor,
+// tinglado con las motos, pista de entrenamiento con conos, mástil, garita en el portón y un camino propio desde la zona de autos.
+{
+  const U = USYD, L = c => new THREE.MeshLambertMaterial({ color: c });
+  const plano = (x1, z1, x2, z2, c, y) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(x2 - x1, z2 - z1), L(c)); m.rotation.x = -Math.PI / 2; m.position.set((x1 + x2) / 2, y, (z1 + z2) / 2); escena.add(m); return m; };
+  const caja = (x1, z1, x2, z2, h, c, choque = true, y0 = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1, h, z2 - z1), typeof c === "number" ? L(c) : c); m.position.set((x1 + x2) / 2, y0 + h / 2, (z1 + z2) / 2); escena.add(m); if (choque && y0 < 1) edificios.push({ x1, z1, x2, z2, h }); return m; };
+  plano(U.x1, U.z1, U.x2, U.z2, 0x3d5a32, .006);
+  plano(96, U.puerta1, U.x1 + 22, U.puerta2, 0x2b2d33, .021);                               // camino desde la zona de autos hasta adentro de la base
+  for (let x = 98; x < U.x1 + 20; x += 5) plano(x, U.cz - .08, x + 2.4, U.cz + .08, 0xf2f2f2, .03);
+  plano(182, 104, 230, 150, 0x24262c, .02);                                                 // playón
+  // Paredones: el del portón (oeste) y los otros tres lados
+  const muro = 0x0f1a30;
+  caja(U.x1, U.z1, U.x1 + .4, U.puerta1, 3, muro); caja(U.x1, U.puerta2, U.x1 + .4, U.z2, 3, muro);
+  caja(U.x1, U.z1 - .4, U.x2, U.z1, 3, muro); caja(U.x1, U.z2, U.x2, U.z2 + .4, 3, muro); caja(U.x2, U.z1, U.x2 + .4, U.z2, 3, muro);
+  for (const [x1, z1, x2, z2] of [[U.x1, U.z1, U.x1 + .42, U.puerta1], [U.x1, U.puerta2, U.x1 + .42, U.z2], [U.x1, U.z1 - .42, U.x2, U.z1], [U.x1, U.z2, U.x2, U.z2 + .42], [U.x2, U.z1, U.x2 + .42, U.z2]])
+    caja(x1, z1, x2, z2, .25, 0xd8ff1a, false, 2.6);                                         // franja flúor arriba del paredón
+  // Portón: columnas, viga con el nombre y garita con guardia
+  for (const z of [U.puerta1 - .5, U.puerta2 + .5]) caja(U.x1 - .3, z - .5, U.x1 + .7, z + .5, 6, 0xf2f2f2);
+  caja(U.x1 - .2, U.puerta1 - 1, U.x1 + .6, U.puerta2 + 1, 1.2, 0x0f1a30, false, 6);
+  const tN = textura((c, w, h) => { c.fillStyle = "#0f1a30"; c.fillRect(0, 0, w, h); c.fillStyle = "#d8ff1a"; c.fillRect(0, h - 10, w, 10); c.fillStyle = "#fff"; c.font = "bold 50px system-ui"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("🏍️ BASE USyD", w / 2, h / 2 - 4); }, 512, 96);
+  for (const [x, r] of [[U.x1 - .22, -Math.PI / 2], [U.x1 + .62, Math.PI / 2]]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(10, 1.15), new THREE.MeshBasicMaterial({ map: tN })); m.position.set(x, 6.6, (U.puerta1 + U.puerta2) / 2); m.rotation.y = r; escena.add(m); }
+  caja(U.x1 + 1.5, U.puerta2 + 1.6, U.x1 + 3.7, U.puerta2 + 3.8, 2.6, 0xf2f2f2);
+  caja(U.x1 + 1.45, U.puerta2 + 1.55, U.x1 + 3.75, U.puerta2 + 3.85, .3, 0xd8ff1a, false, 2.6);
+  USYD.guardia = null;
+  // Edificio de la unidad (azul con franja flúor y ventanas)
+  caja(206, 136, 232, 152, 8, 0x16233f);
+  const fr = new THREE.Mesh(new THREE.BoxGeometry(26.2, .9, .1), L(0xd8ff1a)); fr.position.set(219, 4, 135.95); escena.add(fr);
+  for (let i = 0; i < 6; i++) for (const y of [2, 6.2]) { const v = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.3, .06), new THREE.MeshLambertMaterial({ color: 0x9fd4ff, emissive: 0x1a3050 })); v.position.set(209 + i * 4.2, y, 135.94); escena.add(v); }
+  const pu = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.8, .1), L(0x0a0f1c)); pu.position.set(219, 1.4, 135.93); escena.add(pu);
+  caja(205.6, 135.6, 232.4, 152.4, .5, 0x0a1224, false, 8);
+  const cB = cartel("🏍️ USyD · UNIDAD DE SATURACIÓN Y DETENCIÓN", "#0f1a30"); cB.scale.set(13, 2, 1); cB.position.set(219, 10.5, 137); escena.add(cB);
+  // Tinglado de las motos (techo con columnas finitas)
+  caja(186, 104.5, 200, 116.5, .2, 0x8a8f99, false, 3.4);
+  for (const [x, z] of [[186.3, 104.8], [199.7, 104.8], [186.3, 116.2], [199.7, 116.2]]) caja(x - .12, z - .12, x + .12, z + .12, 3.4, 0x5a5f66);
+  const cM = cartel("🏍️ MOTOS USyD", "#0f1a30"); cM.scale.set(4, 1, 1); cM.position.set(193, 4.4, 117); escena.add(cM);
+  // Pista de entrenamiento: slalom de conos
+  for (let k = 0; k < 8; k++) { const x = 186 + k * 4, z = 140 + (k % 2 ? 2 : -2);
+    const c = new THREE.Mesh(new THREE.ConeGeometry(.25, .7, 10), L(0xff6a00)); c.position.set(x, .35, z); escena.add(c);
+    const f = new THREE.Mesh(new THREE.CylinderGeometry(.13, .17, .1, 10), L(0xffffff)); f.position.set(x, .4, z); escena.add(f); }
+  const cP = cartel("🔶 PISTA DE MANEJO", "#ff6a00"); cP.scale.set(4, 1, 1); cP.position.set(200, 3, 146); escena.add(cP);
+  // Mástil con bandera celeste y blanca
+  caja(178.8, 132.8, 179.2, 133.2, 9, 0xdddddd);
+  [0x75aadb, 0xffffff, 0x75aadb].forEach((c, k) => { const b = new THREE.Mesh(new THREE.BoxGeometry(2.2, .36, .04), L(c)); b.position.set(180.2, 8.6 - k * .36, 133); escena.add(b); });
+  // Cartel en la zona de autos para encontrar el camino
+  const cE = cartel("🏍️ BASE USyD →", "#0f1a30"); cE.scale.set(6, 1.5, 1); cE.position.set(100, 5, U.puerta2 + 1.5); escena.add(cE);
+  const luz = new THREE.PointLight(0xe8f0ff, 2, 30, 1.4); luz.position.set(205, 8, 128); escena.add(luz);
+}
+function actualizarUsyd() {
+  if (!USYD.guardia) { const g = USYD.guardia = crearMuneco("poli", "Guardia USyD", "usyd", null, "usyd"); g.position.set(USYD.x1 + 2.6, 0, USYD.puerta2 + 1); g.rotation.y = -Math.PI / 2; g.userData.nombre.visible = false; }
+  if (!yo || yo.clase !== "usyd" || yo.preso) return "";
+  const n = Object.values(jug).filter(s => s.equipo === "ladron" && !s.preso && Math.hypot(s.x - yo.x, s.z - yo.z) < 30).length;
+  return n ? `🏍️ Saturación: ${n} ladrón${n > 1 ? "es" : ""} en la zona (30 m)` : "";
+}
 // ================== SERVICIO PENITENCIARIO (complejo con interior) ==================
 // Muro alto con alambre, torres de vigilancia, patio, y un pabellón con interior: guardia de entrada con mostrador,
 // pasillo, 8 celdas con rejas (algunas con internos), comedor y la palanca de las celdas al fondo.
@@ -1867,9 +1927,9 @@ function crearPatrullero(estilo = "ciudad") {
 }
 // Lugares fijos (iguales para todos) cerca de la comisaría
 // Moto policial
-function crearMoto(halcon = false) {
+function crearMoto(halcon = false, usyd = false) {
   // La del Grupo Halcón: toda negra con franja verde y cartel propio (diseño inspirado, sin escudos oficiales)
-  const g = new THREE.Group(), blanco = new THREE.MeshLambertMaterial({ color: halcon ? 0x161616 : 0xf2f2f2 }), negro = new THREE.MeshLambertMaterial({ color: 0x111111 }), cel = new THREE.MeshLambertMaterial({ color: halcon ? 0x3dff6a : 0x5ec8f2 });
+  const g = new THREE.Group(), blanco = new THREE.MeshLambertMaterial({ color: halcon ? 0x161616 : usyd ? 0x0f1a30 : 0xf2f2f2 }), negro = new THREE.MeshLambertMaterial({ color: 0x111111 }), cel = new THREE.MeshLambertMaterial({ color: halcon ? 0x3dff6a : usyd ? 0xd8ff1a : 0x5ec8f2 });
   const cuadro = new THREE.Group(); g.add(cuadro);
   const ruedasM = [.75, -.75].map(z => rueda(cuadro, 0, .42, z, .4, .12, 0xb0b0b0));
   const escape = new THREE.Mesh(new THREE.CylinderGeometry(.06, .07, .8, 8), new THREE.MeshLambertMaterial({ color: 0x9a9a9a })); escape.rotation.x = Math.PI / 2; escape.position.set(.2, .45, -.45); cuadro.add(escape);
@@ -1882,9 +1942,9 @@ function crearMoto(halcon = false) {
   const faro = new THREE.Mesh(new THREE.BoxGeometry(.2, .14, .05), new THREE.MeshBasicMaterial({ color: 0xffffff })); faro.position.set(0, .95, .85); cuadro.add(faro);
   const rojo = new THREE.Mesh(new THREE.BoxGeometry(.12, .12, .12), new THREE.MeshBasicMaterial({ color: 0x550000 })); rojo.position.set(-.18, 1.12, -.7); cuadro.add(rojo);
   const azulL = new THREE.Mesh(new THREE.BoxGeometry(.12, .12, .12), new THREE.MeshBasicMaterial({ color: 0x000055 })); azulL.position.set(.18, 1.12, -.7); cuadro.add(azulL);
-  if (halcon) { for (const x of [-.26, .26]) { const alf = new THREE.Mesh(new THREE.BoxGeometry(.14, .34, .6), negro); alf.position.set(x, .72, -.55); cuadro.add(alf); }   // alforjas
+  if (halcon || usyd) { for (const x of [-.26, .26]) { const alf = new THREE.Mesh(new THREE.BoxGeometry(.14, .34, .6), negro); alf.position.set(x, .72, -.55); cuadro.add(alf); }   // alforjas
     const ant = new THREE.Mesh(new THREE.CylinderGeometry(.01, .01, 1, 4), negro); ant.position.set(.15, 1.6, -.75); cuadro.add(ant); }
-  const c = cartel(halcon ? "🦅 HALCÓN" : "🏍️ MOTORIZADA", halcon ? "#0a0a0a" : "#0f1d36"); c.scale.set(2.4, .6, 1); c.position.y = 2.2; c.visible = false; g.add(c);
+  const c = cartel(halcon ? "🦅 HALCÓN" : usyd ? "🏍️ USyD" : "🏍️ MOTORIZADA", halcon ? "#0a0a0a" : "#0f1d36"); c.scale.set(2.4, .6, 1); c.position.y = 2.2; c.visible = false; g.add(c);
   g.userData = { rojo, azul: azulL, cartel: c, cuadro, ruedas: ruedasM, radio: .4 };
   escena.add(g); return g;
 }
@@ -2013,7 +2073,9 @@ const autos = (() => {
     .concat([{ i: tipos.length + 7, tipo: "patrullero", academia: true, r: AUTO_R, max: 24, x0: -104, z0: 92, h0: -Math.PI / 2, x: -104, z: 92, h: -Math.PI / 2, vel: 0, conductor: null, sirena: true,
       tx: -104, tz: 92, th: -Math.PI / 2, mesh: crearPatrullero("ciudad") }])
     .concat([110, 116, 122, 128, 134].map((x, k) => ({ i: tipos.length + 8 + k, tipo: k === 4 ? "camioneta" : "patrullero", pickup: k === 4, ciudad: true, r: k === 4 ? 1.5 : AUTO_R, max: 27, x0: x, z0: 150, h0: Math.PI, x, z: 150, h: Math.PI, vel: 0, conductor: null, sirena: true,
-      tx: x, tz: 150, th: Math.PI, mesh: k === 4 ? crearPickup() : crearPatrullero("ciudad2") })));   // patrulleros de la base de la Policía de la Ciudad   // auto blindado del Presidente, frente a la Casa de Gobierno   // motos del Grupo Halcón (galpón de la base) y camionetas policiales (cualquier poli)
+      tx: x, tz: 150, th: Math.PI, mesh: k === 4 ? crearPickup() : crearPatrullero("ciudad2") })))
+    .concat([0, 1, 2, 3, 4, 5].map(k => { const x = 190 + (k % 3) * 2.4, z = k < 3 ? 108 : 113;   // motos de la USyD, bajo el tinglado de la base (andan de a dos)
+      return { i: tipos.length + 13 + k, tipo: "moto", usyd: true, r: .7, max: 33, x0: x, z0: z, h0: Math.PI, x, z, h: Math.PI, vel: 0, conductor: null, sirena: true, tx: x, tz: z, th: Math.PI, mesh: crearMoto(false, true) }; }));   // patrulleros de la base de la Policía de la Ciudad   // auto blindado del Presidente, frente a la Casa de Gobierno   // motos del Grupo Halcón (galpón de la base) y camionetas policiales (cualquier poli)
 })();
 function resetAutos() { for (const a of autos) Object.assign(a, { x: a.x0, z: a.z0, tx: a.x0, tz: a.z0, h: a.h0, th: a.h0, vel: 0, conductor: null, sirena: true, balizas: false }); }
 let miAuto = null, sirenaT = 0, sirenaAlt = false, mirarAuto = 0;
@@ -2051,9 +2113,10 @@ function subirAuto(a) { setTimeout(pintarPanel, 0);
   if (a.presi && yo.clase !== "presidente") { grande("🚘 Auto blindado del Presidente: solo para él", "#75aadb"); return; }
   if (a.tipo === "camioneta" && !a.pickup && !a.presi && !ARMADO(yo.clase)) { grande("🚙 Solo para SWAT y Grupo Halcón", "#f2c200"); return; }
   if (a.halcon && yo.clase !== "halcon") { grande("🦅 Moto del Grupo Halcón: solo para el Halcón", "#3dff6a"); return; }
+  if (a.usyd && yo.clase !== "usyd") { grande("🏍️ Moto de la USyD: solo para la Unidad de Saturación y Detención", "#d8ff1a"); return; }
   a.conductor = yo.id; miAuto = a; yaw = a.h + Math.PI; pitch = -.05;
   enviar("auto", { i: a.i, quien: yo.id, sube: true });
-  grande(a.presi ? "🚘 Auto blindado presidencial — Y: que maneje el chofer" : a.pickup ? "🛻 ¡CAMIONETA POLICIAL!" : a.tipo === "camioneta" ? "🚙 GRUPO ESPECIAL TÁCTICO" : a.tipo === "moto" ? (a.halcon ? "🦅 ¡HALCÓN EN MOTO!" : "🏍️ ¡MOTORIZADA!") : "🚓 ¡A PATRULLAR!", a.tipo === "camioneta" ? "#f2c200" : "#5a8aff"); beep(500, .1); setTimeout(() => beep(800, .1), 120);
+  grande(a.presi ? "🚘 Auto blindado presidencial — Y: que maneje el chofer" : a.pickup ? "🛻 ¡CAMIONETA POLICIAL!" : a.tipo === "camioneta" ? "🚙 GRUPO ESPECIAL TÁCTICO" : a.tipo === "moto" ? (a.usyd ? "🏍️ ¡USyD EN MOTO! ¡A SATURAR LA ZONA!" : a.halcon ? "🦅 ¡HALCÓN EN MOTO!" : "🏍️ ¡MOTORIZADA!") : "🚓 ¡A PATRULLAR!", a.tipo === "camioneta" ? "#f2c200" : "#5a8aff"); beep(500, .1); setTimeout(() => beep(800, .1), 120);
 }
 function bajarAuto() { setTimeout(pintarPanel, 0);
   const a = miAuto; if (!a) return;
@@ -2245,7 +2308,7 @@ function texTexto(txt, fondo, letra) { const k = txt + fondo + letra; return _te
 const texRayas = textura((c, w, h) => { for (let y = 0; y < h; y += 16) { c.fillStyle = (y / 16) % 2 ? "#f2f2f2" : "#151515"; c.fillRect(0, y, w, 16); } }, 64, 64);
 const TEX_PARCHE = textura((c, w, h) => { c.fillStyle = "#1a1a1a"; c.fillRect(0, 0, w, h); c.fillStyle = "#74acdf"; c.fillRect(3, 3, w - 6, h - 6); c.fillStyle = "#fff"; c.fillRect(3, h / 3, w - 6, h / 3); c.fillStyle = "#f6b40e"; c.beginPath(); c.arc(w / 2, h / 2, h / 10, 0, 7); c.fill(); }, 40, 48);
 function crearMuneco(equipo, nombre, clase, div, uni) {
-  const U = equipo === "poli" && !ARMADO(clase) ? (clase === "investigador" ? UNIFORMES.civil : clase === "presidente" ? UNIFORMES.presidente : clase === "secreto" ? UNIFORMES.secreto : (UNIFORMES[uni] || UNIFORMES.azul)) : null;
+  const U = equipo === "poli" && !ARMADO(clase) ? (clase === "investigador" ? UNIFORMES.civil : clase === "presidente" ? UNIFORMES.presidente : clase === "secreto" ? UNIFORMES.secreto : clase === "usyd" ? UNIFORMES.usyd : (UNIFORMES[uni] || UNIFORMES.azul)) : null;
   const swat = ARMADO(clase), halcon = clase === "halcon", ladron = equipo === "ladron";
   // Materiales compartidos entre todos los muñecos (así hay menos materiales distintos y anda más liviano)
   const MC = crearMuneco.mc || (crearMuneco.mc = new Map());
@@ -2311,6 +2374,9 @@ function crearMuneco(equipo, nombre, clase, div, uni) {
     espalda.position.set(0, 1.42, U.extra === "vest" || U.extra === "chaleco" ? -.182 : -.152); espalda.rotation.y = Math.PI; g.add(espalda);
     if (U.extra === "chaleco") { caja(.6, .5, .34, B(0xd8ff1a), 0, 1.32, 0); caja(.61, .05, .35, B(0xe8e8e8), 0, 1.25, 0); caja(.61, .05, .35, B(0xe8e8e8), 0, 1.4, 0); }
     if (U.extra === "vest") { caja(.6, .5, .34, L(U.vest), 0, 1.32, 0); caja(.61, .05, .35, B(U.franja), 0, 1.2, 0); caja(.61, .05, .35, B(U.franja), 0, 1.45, 0); }
+    if (U.extra === "usyd") { caja(.6, .5, .35, L(0x0f1a30), 0, 1.32, 0); caja(.61, .07, .36, B(0xd8ff1a), 0, 1.2, 0); caja(.61, .07, .36, B(0xd8ff1a), 0, 1.46, 0);
+      for (const x of [-.15, .15]) caja(.11, .13, .05, L(0x1a2640), x, 1.3, .19);
+      const fr = new THREE.Mesh(new THREE.PlaneGeometry(.3, .07), new THREE.MeshBasicMaterial({ map: texTexto("POLICÍA", "#00000000", "#d8ff1a"), transparent: true })); fr.position.set(0, 1.56, .177); g.add(fr); }
     if (U.extra === "chaleco-negro") { caja(.6, .52, .35, L(0x161616), 0, 1.3, 0); for (const x of [-.15, 0, .15]) caja(.11, .13, .05, L(0x2a2a2a), x, 1.17, .19); }
     if (U.extra === "medallas") { for (let i = 0; i < 3; i++) caja(.05, .06, .02, B([0xffd400, 0xc0c0c0, 0xcd7f32][i]), -.18 + i * .06, 1.45, .16); caja(.5, .03, .31, B(0xd4af37), 0, 1.58, 0); }
     if (U.extra === "cuello") { const cu = new THREE.Mesh(new THREE.TorusGeometry(.13, .05, 8, 14), L(0x2a2a2a)); cu.rotation.x = Math.PI / 2; cu.position.y = 1.64; g.add(cu); caja(.58, .3, .32, L(0x151515), 0, 1.07, 0); }
@@ -2323,6 +2389,9 @@ function crearMuneco(equipo, nombre, clase, div, uni) {
     else if (U.extra === "civil" || U.extra === "traje") { if (U.extra === "civil") caja(.58, .2, .32, L(0x5a3a1a), 0, 1.5, 0); }   // campera de civil, sin gorra (la placa va en el cinturón)
     else if (U.extra === "sombrero") { const ala = new THREE.Mesh(new THREE.CylinderGeometry(.42, .42, .03, 18), L(U.gorro)); ala.position.y = 2.03; g.add(ala);
       const copa = new THREE.Mesh(new THREE.CylinderGeometry(.18, .21, .2, 14), L(U.gorro)); copa.position.y = 2.14; g.add(copa); }
+    else if (U.extra === "usyd") { const ca = new THREE.Mesh(new THREE.SphereGeometry(.26, 16, 10, 0, Math.PI * 2, 0, Math.PI / 1.7), L(0xf2f2f2)); ca.position.y = 1.88; g.add(ca);
+      const fr = new THREE.Mesh(new THREE.TorusGeometry(.25, .022, 6, 24), B(0xd8ff1a)); fr.position.y = 2.02; fr.rotation.x = Math.PI / 2; g.add(fr);
+      caja(.34, .1, .05, new THREE.MeshPhongMaterial({ color: 0x0a0a14, shininess: 120 }), 0, 1.91, .22); }
     else if (U.extra === "casco") { const ca = new THREE.Mesh(new THREE.SphereGeometry(.25, 16, 10, 0, Math.PI * 2, 0, Math.PI / 1.8), L(U.gorro)); ca.position.y = 1.9; g.add(ca);
       caja(.3, .08, .05, B(0x223344), 0, 1.93, .22); }
     else {   // gorra de plato reglamentaria: banda negra, copa más ancha arriba, visera brillante y cordón dorado
@@ -2386,7 +2455,7 @@ function animarMuneco(m, vel, t) {
 const miId = Math.random().toString(36).slice(2, 9);
 let clase = "poli", equipo = "poli", jug = {}, yo = null, jugando = false, online = false, soyHost = false, canal = null, codigo = "", fin = 0, botin = 0, inicioT = 0;
 const miNombre = () => (DB.nombre || (clase === "halcon" ? "Halcón" : clase === "swat" ? "SWAT" : equipo === "poli" ? "Poli" : "Ladrón")).slice(0, 14);
-const ICONO = c => c === "secreto" ? "🕶️" : c === "presidente" ? "🇦🇷" : c === "halcon" ? "🦅" : c === "swat" ? "🪖" : c === "investigador" ? "🕵️" : c === "poli" ? "👮" : "🦹";
+const ICONO = c => c === "usyd" ? "🏍️" : c === "secreto" ? "🕶️" : c === "presidente" ? "🇦🇷" : c === "halcon" ? "🦅" : c === "swat" ? "🪖" : c === "investigador" ? "🕵️" : c === "poli" ? "👮" : "🦹";
 const ARMADO = c => c === "swat" || c === "halcon";
 // Uniformes de la policía (se eligen en las taquillas)
 const UNIFORMES = {
@@ -2407,6 +2476,7 @@ const UNIFORMES = {
   psa:       { nom: "Aeroportuaria (gris y azul)",     ico: "✈️", camisa: 0x3a4a66, pantalon: 0x1a2236, gorro: 0x1a2236, charretera: 0x9ab0cc, letras: "#e8eef6", extra: "vest", vest: 0x2a3550, franja: 0x9ab0cc, texto: "AEROPORTUARIA" },
   penitenciario:{ nom: "Servicio Penitenciario",       ico: "🔒", camisa: 0x5a5f66, pantalon: 0x2a2e33, gorro: 0x2a2e33, charretera: 0x2a2e33, letras: "#f2f2f2", extra: null, texto: "PENITENCIARIO" },
   montada:   { nom: "Montada (casco de equitación)",   ico: "🐎", camisa: 0x1b2a4a, pantalon: 0xd8d2c0, gorro: 0x111111, charretera: 0xd4af37, letras: "#e8e8e8", extra: "casco", texto: "POLICÍA" },
+  usyd:     { nom: "USyD", ico: "🏍️", camisa: 0x0f1a30, pantalon: 0x0f1a30, gorro: 0x0f1a30, charretera: 0xd8ff1a, letras: "#d8ff1a", extra: "usyd", texto: "USyD", oculto: true },
   secreto:  { nom: "Servicio Secreto", ico: "🕶️", camisa: 0x111114, pantalon: 0x111114, gorro: 0x000000, charretera: 0x111114, letras: "#00000000", extra: "traje", texto: " ", oculto: true },
   presidente:{ nom: "Traje presidencial", ico: "🇦🇷", camisa: 0x15151c, pantalon: 0x15151c, gorro: 0x000000, charretera: 0x15151c, letras: "#00000000", extra: "banda", texto: " ", oculto: true },
   motorista:{ nom: "Motorista",          ico: "⛑️", camisa: 0x1b2a4a, pantalon: 0x111111, gorro: 0xffffff, charretera: 0x5ec8f2, letras: "#e8e8e8", extra: "casco" },
@@ -2423,7 +2493,7 @@ const DIVISIONES = {
   comunicaciones:  { nom: "Comunicaciones",  ico: "📡", d: "Ve en el HUD dónde está cada ladrón con botín y a qué distancia." },
 };   // tienen ametralladora y pueden reventar puertas
 function nuevoJug(id, nombre, eq, bot, cl) {
-  const l = lugarLibre(cl === "halcon" && !bot ? { x: -104, z: 40 } : eq === "poli" ? { x: DEPTO.cx, z: DEPTO.cz } : ZONAS.guarida, eq === "poli" ? 3.5 : 8);   // el Grupo Halcón arranca en su base
+  const l = lugarLibre(cl === "usyd" && !bot ? { x: USYD.cx, z: USYD.cz } : cl === "halcon" && !bot ? { x: -104, z: 40 } : eq === "poli" ? { x: DEPTO.cx, z: DEPTO.cz } : ZONAS.guarida, eq === "poli" ? 3.5 : 8);   // el Grupo Halcón arranca en su base
   return { id, nombre, equipo: eq, clase: cl || eq, div: "patrulla", uni: "azul", bot, res: 100, x: l.x, z: l.z, rot: 0, preso: false, bolsa: false, mesh: null, tx: l.x, tz: l.z, atrapados: 0, robado: 0, visto: Date.now() };
 }
 
@@ -2595,7 +2665,7 @@ function atrapado(idLadron, idPoli) {
   { const l = jug[idLadron]; if (l && !l.preso) { l.detenciones = (l.detenciones || 0) + 1; delete capturas[idLadron]; } }
   const l = jug[idLadron], p = jug[idPoli]; if (!l || l.preso) return;
   l.preso = true; l.res = 100; if (l.bolsa) { l.bolsa = false; } l.paquete = false; if (l.maletin) { l.maletin = false; feed("💼 La policía recuperó el maletín presidencial"); }
-  if (p) p.atrapados++; if (p === yo) ganar(300, "detención");
+  if (p) p.atrapados++; if (p === yo) { ganar(300, "detención"); if (yo.clase === "usyd") ganar(300, "bonus USyD"); }
   // Si lo atrapó un jugador policía, queda esposado y lo tiene que llevar él a la cárcel (antes se teletransportaba)
   if (p && !p.bot && p.equipo === "poli") l.esposado = p.id; else alaCelda(l);
   feed(`🚔 ${p ? p.nombre : "La poli"} atrapó a ${l.nombre}`);
@@ -3825,7 +3895,7 @@ function loop(t) {
     if (autoPedido) { if (miAuto) bajarAuto(); else if (autoCerca) subirAuto(autoCerca); }
     autoPedido = false;
     if (!miAuto) CHOFER.ruta = null;
-    actualizarRed(t); actualizarSecreto(); actualizarIglesia(t); actualizarBarreraAer(); actualizarChofer(); actualizarConvoy(t); actualizarBarrio(dt, t); actualizarCurso(t);
+    actualizarRed(t); actualizarSecreto(); actualizarIglesia(t); SS.usyd = actualizarUsyd(); actualizarBarreraAer(); actualizarChofer(); actualizarConvoy(t); actualizarBarrio(dt, t); actualizarCurso(t);
     if (miAuto) { if (!(miAuto.presi && CHOFER.ruta && conduceChofer(miAuto, dt))) manejar(miAuto, dt); }
     else if (!yo.preso && Date.now() >= aturdidoHasta && Date.now() >= dormirHasta) {
       const f = (teclas.KeyW || teclas.ArrowUp ? 1 : 0) - (teclas.KeyS || teclas.ArrowDown ? 1 : 0) - joy.y;
@@ -3853,7 +3923,7 @@ function loop(t) {
       else if (autoCerca && autoCerca.presi) pista = yo.clase === "presidente" ? "🚘 F: subirte a tu auto blindado (adentro, Y para el chofer)" : "🚘 Auto blindado del Presidente";
       else if (autoCerca) pista = autoCerca.pickup ? "🛻 Tocá F para subirte a la camioneta policial" : autoCerca.tipo === "camioneta"
         ? (ARMADO(yo.clase) ? "🚙 Tocá F para subirte a la camioneta del Grupo Especial Táctico" : "🚙 Camioneta del Grupo Especial Táctico: solo SWAT y Grupo Halcón")
-        : autoCerca.tipo === "moto" ? (autoCerca.halcon ? (yo.clase === "halcon" ? "🦅 Tocá F para subirte a la moto Halcón" : "🦅 Moto del Grupo Halcón: solo para el Halcón") : "🏍️ Tocá F para subirte a la moto") : "🚓 Tocá F para subirte al patrullero";
+        : autoCerca.tipo === "moto" ? (autoCerca.usyd ? (yo.clase === "usyd" ? "🏍️ Tocá F para subirte a la moto de la USyD" : "🏍️ Moto de la USyD: solo para la USyD") : autoCerca.halcon ? (yo.clase === "halcon" ? "🦅 Tocá F para subirte a la moto Halcón" : "🦅 Moto del Grupo Halcón: solo para el Halcón") : "🏍️ Tocá F para subirte a la moto") : "🚓 Tocá F para subirte al patrullero";
       const llevo = Object.values(jug).filter(s => s.esposado === yo.id);
       if (llevo.length && Math.hypot(yo.x - PEN.mesaX, yo.z - (PEN.mesaZ + 1.2)) < 3) for (const s of llevo) { enviar("penal", { id: s.id, poli: yo.id }); trasladarPenal(s.id, yo.id); }
       else if (llevo.length && dentro(yo, ZONAS.carcel, 3)) for (const s of llevo) { enviar("entregaPreso", { id: s.id, poli: yo.id }); entregarPreso(s.id, yo.id); }
@@ -3877,7 +3947,7 @@ function loop(t) {
     $("b-orden").style.display = ADMIN.pres ? "block" : "none"; $("b-orden").textContent = { seguir: "🕴️ Síganme", quietos: "🕴️ Quietos acá", perimetro: "🕴️ Perímetro" }[ADMIN.orden];
     $("b-admin").style.display = esGonza() ? "block" : "none"; $("b-mochila").style.display = "block"; $("b-mochila").style.top = esGonza() ? "132px" : "96px";
     if (performance.now() - pistaGuardas < 1500) pista = "🕴️ Guardaespaldas: \"¡Atrás! ¡Atrás del presidente!\"";
-    $("pista").textContent = CURSO.texto || pistaDepto || pista || SS.texto || ""; $("mira").classList.toggle("cerca", !!objetivo);
+    $("pista").textContent = CURSO.texto || pistaDepto || pista || SS.texto || SS.usyd || ""; $("mira").classList.toggle("cerca", !!objetivo);
     $("radar").style.display = yo.equipo === "poli" && yo.div === "comunicaciones" ? "block" : "none";
     if (yo.equipo === "poli" && yo.div === "comunicaciones") { const P = ["N","NE","E","SE","S","SO","O","NO"];
       const L = Object.values(jug).filter(s => s.equipo === "ladron" && !s.preso && (s.bolsa || s.paquete));
@@ -3894,7 +3964,7 @@ function loop(t) {
       if (s.mesh) { const v = Math.hypot(s.x - (s._px ?? s.x), s.z - (s._pz ?? s.z)) / Math.max(dt, .001); s._px = s.x; s._pz = s.z; animarMuneco(s.mesh, s.preso ? 0 : v, t);
         s.mesh.visible = !(s.auto !== null && s.auto !== undefined) && !s.enPropio && Math.abs(s.x - camara.position.x) + Math.abs(s.z - camara.position.z) < 110 && !(s.esposado && poliEnAuto(jug[s.esposado]));   // lejos no se dibuja
         s.mesh.position.set(s.x, 0, s.z); s.mesh.rotation.y = s.rot; s.mesh.userData.bolsa.visible = s.bolsa || !!s.paquete;
-        s.mesh.userData.marca.visible = yo.equipo === "poli" && s.equipo === "ladron" && !s.preso && (((yo.div === "investigaciones" || yo.clase === "investigador") && (s.bolsa || !!s.paquete)) || (capturas[s.id] || 0) > Date.now());
+        s.mesh.userData.marca.visible = yo.equipo === "poli" && s.equipo === "ladron" && !s.preso && (((yo.div === "investigaciones" || yo.clase === "investigador") && (s.bolsa || !!s.paquete)) || (capturas[s.id] || 0) > Date.now() || (yo.clase === "usyd" && Math.hypot(s.x - yo.x, s.z - yo.z) < 30));
         s.mesh.position.y = 0; }
     }
     for (const s of Object.values(jug)) { const quiere = s === yo ? ADMIN.modo : !!s.adm; if (!s.mesh || (!quiere && !s.tagAdm)) continue;
