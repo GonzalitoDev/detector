@@ -437,7 +437,8 @@ function generarCiudad() {
 // Terrenos reservados: ahí no se construye nada de la ciudad (departamento de policía y casa narco), con 2 m de vereda alrededor
 const RESERVADOS = [ { x1: -28, x2: -12, z1: 44, z2: 60 },   // manzana del Hotel Plaza
  { x1: -84, x2: 84, z1: -28, z2: -12 },   // fila de manzanas libre para la autopista
-  { x1: -52, x2: -36, z1: -4, z2: 12 }, { x1: -76, x2: -60, z1: -4, z2: 12 }, { x1: 20, x2: 36, z1: -4, z2: 12 }, { x1: 39, x2: 49, z1: -48, z2: -40 } ];
+  { x1: -52, x2: -36, z1: -4, z2: 12 }, { x1: -76, x2: -60, z1: -4, z2: 12 }, { x1: 20, x2: 36, z1: -4, z2: 12 }, { x1: 39, x2: 49, z1: -48, z2: -40 },
+  { x1: 20, x2: 36, z1: -76, z2: -60 } ];   // manzana de la Catedral
 function poner(e) { if (!RESERVADOS.some(R => e.x1 < R.x2 + 2 && e.x2 > R.x1 - 2 && e.z1 < R.z2 + 2 && e.z2 > R.z1 - 2)) edificios.push(e); }
 generarCiudad();
 // Aeropuerto, afuera de la ciudad hacia el este (se entra por la calle z = 16)
@@ -2358,6 +2359,7 @@ function conectar(cod, host) {
     .on("broadcast", { event: "gobpuerta" }, ({ payload: p }) => puertaGob(p))
     .on("broadcast", { event: "penal" }, ({ payload: p }) => trasladarPenal(p.id, p.poli))
     .on("broadcast", { event: "liberaPenal" }, ({ payload: p }) => liberarPenal(p.quien))
+    .on("broadcast", { event: "conclave" }, ({ payload: p }) => conclave(p))
     .on("broadcast", { event: "chat" }, ({ payload: p }) => recibirChat(p))
     .on("broadcast", { event: "ping" }, ({ payload: p }) => { if (yo) enviar("pong", { a: p.de, t: p.t, de: yo.id }); })
     .on("broadcast", { event: "pong" }, ({ payload: p }) => { if (yo && p.a === yo.id) { const ms = performance.now() - p.t; RED.ping[p.de] = Math.round(ms); RED.ultimo = Date.now(); } })
@@ -3634,6 +3636,10 @@ function loop(t) {
       pistaDepto = ARMADO(yo.clase) ? "🦅 E: armería Halcón (elegir arma, recargar y granadas)" : "🦅 La armería de la base es solo para Halcón y SWAT";
       if (accionPedida && ARMADO(yo.clase)) { accionPedida = false; abrirArmeria(); balas = ARMA().carg || 0; recargando = 0; if (yo.clase === "halcon") granadas = 3; }
     }
+    // Altar de la Catedral: llamar a cónclave
+    if (!miAuto && !yo.preso && !pistaDepto && Math.hypot(yo.x - IGL.cx, yo.z - (IGL.z1 + 3.4)) < 2.2) {
+      pistaDepto = IGL.fase === 0 ? "⛪ E: llamar a los cardenales a cónclave" : IGL.fase === 1 ? "⛪ Los cardenales están votando..." : `⛪ ${IGL.papa} saluda desde el balcón`;
+      if (accionPedida) { accionPedida = false; if (IGL.fase === 0) { const t0 = Date.now() - 28000; conclave({ t0 }); enviar("conclave", { t0 }); grande("⛪ ¡Cónclave! Los cardenales van a votar", "#e8c0ff"); } } }
     // Concesionaria y Mecánico Cacho
     if (!miAuto && !yo.preso && !pistaDepto) {
       if (Math.hypot(yo.x - 104.6, yo.z - 69) < 1.8) { pistaDepto = "🚗 E: hablar con el vendedor (comprar autos)"; if (accionPedida) { accionPedida = false; abrirConce(); } }
@@ -3721,7 +3727,7 @@ function loop(t) {
     if (autoPedido) { if (miAuto) bajarAuto(); else if (autoCerca) subirAuto(autoCerca); }
     autoPedido = false;
     if (!miAuto) CHOFER.ruta = null;
-    actualizarRed(t); actualizarSecreto(); actualizarChofer(); actualizarConvoy(t); actualizarBarrio(dt, t); actualizarCurso(t);
+    actualizarRed(t); actualizarSecreto(); actualizarIglesia(t); actualizarChofer(); actualizarConvoy(t); actualizarBarrio(dt, t); actualizarCurso(t);
     if (miAuto) { if (!(miAuto.presi && CHOFER.ruta && conduceChofer(miAuto, dt))) manejar(miAuto, dt); }
     else if (!yo.preso && Date.now() >= aturdidoHasta && Date.now() >= dormirHasta) {
       const f = (teclas.KeyW || teclas.ArrowUp ? 1 : 0) - (teclas.KeyS || teclas.ArrowDown ? 1 : 0) - joy.y;
@@ -4367,6 +4373,96 @@ $("cm-orden").onclick = () => {
 };
 $("cm-ok").onclick = () => { $("comisario").style.display = "none"; if (!document.body.classList.contains("tactil")) renderer.domElement.requestPointerLock?.(); };
 crearComisario();
+// ================== IGLESIA (CATEDRAL) ==================
+// En una manzana del norte. Adentro hay bancos, altar y cardenales de rojo. Cada 3 minutos hay cónclave:
+// fumata negra, fumata negra... y fumata blanca: ¡HABEMUS PAPAM! y el Papa nuevo sale al balcón.
+// El ciclo sale de la hora, así todos los jugadores lo ven igual. En el altar se puede llamar a cónclave (E).
+const IGL = { x1: 22, x2: 34, z1: -75, z2: -62, alto: 9, cx: 28, puerta1: 26.8, puerta2: 29.2, ciclo: 180000, t0: 0, fase: -1, papa: "", n: 0 };
+const NOMBRES_PAPA = ["Gonzalo I", "Pedro II", "Juan Pablo III", "Francisco II", "León XV", "Pío XIII", "Benedicto XVII", "Clemente XV"];
+{
+  CIUDAD.plazas = CIUDAD.plazas.filter(P => Math.abs(P.x - IGL.cx) > 8 || Math.abs(P.z - (IGL.z1 + IGL.z2) / 2) > 8);   // esta manzana ya no es plaza
+  const I = IGL, L = c => new THREE.MeshLambertMaterial({ color: c }), piedra = L(0xd9cdb4), oscura = L(0x8a7a62), tejas = L(0x6a3a2a), madera = L(0x5a3a1e), oro = L(0xd4af37), g4 = .4;
+  const pared = (x1, z1, x2, z2, y1, y2, m = piedra) => { const p = new THREE.Mesh(new THREE.BoxGeometry(x2 - x1, y2 - y1, z2 - z1), m); p.position.set((x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2); escena.add(p); if (y1 < 1) edificios.push({ x1, z1, x2, z2, h: I.alto }); };
+  pared(I.x1, I.z1, I.x2, I.z1 + g4, 0, I.alto); pared(I.x1, I.z1, I.x1 + g4, I.z2, 0, I.alto); pared(I.x2 - g4, I.z1, I.x2, I.z2, 0, I.alto);
+  pared(I.x1, I.z2 - g4, I.puerta1, I.z2, 0, I.alto); pared(I.puerta2, I.z2 - g4, I.x2, I.z2, 0, I.alto); pared(I.puerta1, I.z2 - g4, I.puerta2, I.z2, 3.6, I.alto);
+  // Techo a dos aguas
+  const largo = I.z2 - I.z1, ancho = I.x2 - I.x1;
+  for (const s of [-1, 1]) { const t = new THREE.Mesh(new THREE.BoxGeometry(ancho / 2 / Math.cos(.5) + .4, .3, largo + .6), tejas); t.rotation.z = -s * .5; t.position.set(I.cx + s * ancho / 4, I.alto + ancho / 4 * Math.tan(.5), (I.z1 + I.z2) / 2); escena.add(t); }
+  // Frente: rosetón, arco de la puerta, campanario a cada lado y una cruz arriba
+  const roseton = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ map: textura((c, w, h) => { for (let i = 0; i < 12; i++) { c.fillStyle = ["#c0283a", "#2a5ac0", "#e8c020", "#2a9a4a"][i % 4]; c.beginPath(); c.moveTo(64, 64); c.arc(64, 64, 62, i / 12 * 6.283, (i + 1) / 12 * 6.283); c.fill(); }
+    c.fillStyle = "#fff6d0"; c.beginPath(); c.arc(64, 64, 14, 0, 7); c.fill(); }) })); roseton.position.set(I.cx, 7.7, I.z2 + .02); escena.add(roseton);
+  const arco = new THREE.Mesh(new THREE.TorusGeometry(1.25, .15, 6, 16, Math.PI), oscura); arco.position.set(I.cx, 3.6, I.z2 + .05); escena.add(arco);
+  for (const x of [I.x1 + 1.5, I.x2 - 1.5]) {   // torres en las esquinas del frente (macizas)
+    const t = new THREE.Mesh(new THREE.BoxGeometry(3, 15, 3), piedra); t.position.set(x, 7.5, I.z2 - 1.5); escena.add(t);
+    edificios.push({ x1: x - 1.5, x2: x + 1.5, z1: I.z2 - 3, z2: I.z2, h: 15 });
+    const ag = new THREE.Mesh(new THREE.ConeGeometry(2.3, 4.5, 4), tejas); ag.rotation.y = Math.PI / 4; ag.position.set(x, 17.25, I.z2 - 1.6); escena.add(ag);
+    const ven = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2, .1), L(0x1a1410)); ven.position.set(x, 12, I.z2 + .02); escena.add(ven);
+    const camp = new THREE.Mesh(new THREE.CylinderGeometry(.25, .5, .8, 10), oro); camp.position.set(x, 11.8, I.z2 + .25); escena.add(camp); }
+  const cv = new THREE.Mesh(new THREE.BoxGeometry(.25, 2.2, .25), oro), ch = new THREE.Mesh(new THREE.BoxGeometry(1.2, .25, .25), oro);
+  cv.position.set(I.cx, I.alto + ancho / 2 * Math.tan(.5) + 1.2, I.z2 - .3); ch.position.set(I.cx, cv.position.y + .4, I.z2 - .3); escena.add(cv, ch);
+  // Balcón del frente (ahí sale el Papa nuevo)
+  const balc = new THREE.Mesh(new THREE.BoxGeometry(3, .25, 1.4), piedra); balc.position.set(I.cx, 4.5, I.z2 + .7); escena.add(balc);
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(3, .7, .1), oscura); bar.position.set(I.cx, 4.95, I.z2 + 1.35); escena.add(bar);
+  const tela = new THREE.Mesh(new THREE.PlaneGeometry(2.4, .6), L(0x9a1020)); tela.position.set(I.cx, 4.6, I.z2 + 1.42); escena.add(tela);
+  // Adentro: piso, alfombra, bancos, altar con cruz y velas
+  const piso = new THREE.Mesh(new THREE.PlaneGeometry(ancho - .8, largo - .8), L(0xb8ad98)); piso.rotation.x = -Math.PI / 2; piso.position.set(I.cx, .03, (I.z1 + I.z2) / 2); escena.add(piso);
+  const alf = new THREE.Mesh(new THREE.PlaneGeometry(1.8, largo - 1.2), L(0x9a1020)); alf.rotation.x = -Math.PI / 2; alf.position.set(I.cx, .04, (I.z1 + I.z2) / 2); escena.add(alf);
+  for (let k = 0; k < 3; k++) for (const s of [-1, 1]) { const z = I.z2 - 4.2 - k * 1.8, x = I.cx + s * 3.2;
+    const b = new THREE.Mesh(new THREE.BoxGeometry(3.4, .5, .5), madera); b.position.set(x, .3, z); escena.add(b);
+    const r = new THREE.Mesh(new THREE.BoxGeometry(3.4, .7, .1), madera); r.position.set(x, .7, z + .25); escena.add(r); }
+  const altar = new THREE.Mesh(new THREE.BoxGeometry(3, 1, 1.2), L(0xf2eee4)); altar.position.set(I.cx, .5, I.z1 + 2.2); escena.add(altar);
+  edificios.push({ x1: I.cx - 1.5, x2: I.cx + 1.5, z1: I.z1 + 1.6, z2: I.z1 + 2.8, h: 1 });
+  const mantel = new THREE.Mesh(new THREE.BoxGeometry(3.1, .05, 1.3), oro); mantel.position.set(I.cx, 1.02, I.z1 + 2.2); escena.add(mantel);
+  const c1 = new THREE.Mesh(new THREE.BoxGeometry(.2, 2.6, .2), oro), c2 = new THREE.Mesh(new THREE.BoxGeometry(1.4, .2, .2), oro); c1.position.set(I.cx, 4, I.z1 + .5); c2.position.set(I.cx, 4.6, I.z1 + .5); escena.add(c1, c2);
+  for (const dx of [-1.1, 1.1]) { const v = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, .4, 6), L(0xfff8e0)); v.position.set(I.cx + dx, 1.25, I.z1 + 2.2); escena.add(v);
+    const ll = new THREE.Mesh(new THREE.SphereGeometry(.06, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffb030 })); ll.position.set(I.cx + dx, 1.5, I.z1 + 2.2); escena.add(ll); }
+  for (const z of [I.z1 + 3, I.z2 - 4]) { const l = new THREE.PointLight(0xffe0a0, 1.6, 12, 1.4); l.position.set(I.cx, 6, z); escena.add(l); }
+  // Chimenea del cónclave en el techo y el humo (negro o blanco)
+  const chim = new THREE.Mesh(new THREE.CylinderGeometry(.18, .18, 2.2, 8), L(0x7a7a7a)); chim.position.set(I.x1 + 3, I.alto + 2.4, I.z1 + 3); escena.add(chim);
+  I.humo = new THREE.Group(); escena.add(I.humo); I.matHumo = new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, opacity: .8, depthWrite: false });
+  for (let i = 0; i < 14; i++) { const p = new THREE.Mesh(new THREE.SphereGeometry(.5, 8, 6), I.matHumo); p.userData.f = i / 14; I.humo.add(p); }
+  I.humo.visible = false;
+  const cIgl = cartel("⛪ CATEDRAL", "#6a4a8a"); cIgl.position.set(I.cx, 15.5, I.z2 + .5); escena.add(cIgl);
+  // Cardenales (sotana roja, capa corta y solideo rojo) y el Papa (de blanco)
+  const religioso = (color, gorro) => { const g = new THREE.Group();
+    const sot = new THREE.Mesh(new THREE.CylinderGeometry(.24, .38, 1.5, 10), L(color)); sot.position.y = .75; g.add(sot);
+    const capa = new THREE.Mesh(new THREE.CylinderGeometry(.27, .33, .35, 10), L(color)); capa.position.y = 1.4; g.add(capa);
+    const cab = new THREE.Mesh(new THREE.SphereGeometry(.2, 10, 8), L(0xe0ac7e)); cab.position.y = 1.78; g.add(cab);
+    const sol = new THREE.Mesh(new THREE.SphereGeometry(.205, 10, 6, 0, 6.3, 0, 1), L(gorro)); sol.position.y = 1.8; g.add(sol);
+    const cr = new THREE.Mesh(new THREE.BoxGeometry(.06, .16, .02), oro); cr.position.set(0, 1.35, .3); g.add(cr);
+    escena.add(g); return g; };
+  I.cardenales = [];
+  for (let i = 0; i < 8; i++) { const s = i % 2 ? 1 : -1, k = Math.floor(i / 2), c = religioso(0xb01020, 0xb01020);
+    c.userData.base = { x: I.cx + s * (1.4 + k * .9), z: I.z1 + 4.4 + (k % 2) * .6 }; c.position.set(c.userData.base.x, 0, c.userData.base.z); c.rotation.y = Math.PI; c.userData.k = i;
+    edificios.push({ x1: c.userData.base.x - .3, x2: c.userData.base.x + .3, z1: c.userData.base.z - .3, z2: c.userData.base.z + .3, h: 1.8 }); I.cardenales.push(c); }
+  I.papaM = religioso(0xf6f4ee, 0xffffff); I.papaM.position.set(I.cx, 4.62, I.z2 + .6); I.papaM.visible = false;
+  I.papaM.scale.setScalar(1.3); const lp = new THREE.PointLight(0xfff0d0, 2.5, 8, 1.4); lp.position.set(0, 2.2, 1.6); I.papaM.add(lp);
+  I.papaCartel = cartel("🇻🇦 ", "#c9a227"); I.papaCartel.scale.set(4.4, 1.1, 1); I.papaCartel.position.set(I.cx, 9.6, I.z2 + 1.2); I.papaCartel.visible = false; escena.add(I.papaCartel);
+}
+function conclave(p) { IGL.t0 = +p.t0 || Date.now(); IGL.fase = -1; }
+function actualizarIglesia(t) {
+  const I = IGL, ahora = Date.now();
+  if (!I.t0 || ahora - I.t0 > I.ciclo) I.t0 = Math.floor(ahora / I.ciclo) * I.ciclo;
+  const s = (ahora - I.t0) / 1000, n = Math.floor(I.t0 / I.ciclo);
+  // 0-30 nada · 30-42 fumata negra · 52-64 fumata negra · 74-100 fumata blanca · 74-170 el Papa en el balcón
+  const fase = s < 30 ? 0 : s < 42 ? 1 : s < 52 ? 0 : s < 64 ? 1 : s < 74 ? 0 : s < 100 ? 2 : s < 170 ? 3 : 0;
+  if (fase !== I.fase) { const antes = I.fase; I.fase = fase;
+    if (fase === 2 || fase === 3) I.papa = "Papa " + NOMBRES_PAPA[Math.abs(Math.floor(I.t0 / 1000)) % NOMBRES_PAPA.length];
+    if (antes !== -1 && jugando) {
+      if (fase === 1) feed("⛪ Fumata negra: los cardenales todavía no eligieron Papa");
+      if (fase === 2) { grande("⚪ ¡HABEMUS PAPAM!", "#ffffff"); feed(`⛪ Fumata blanca: ${I.papa} sale al balcón de la Catedral`); }
+    }
+    I.matHumo.color.setHex(fase === 2 ? 0xf4f4f4 : 0x111111);
+    I.humo.visible = fase === 1 || fase === 2;
+    I.papaM.visible = I.papaCartel.visible = fase >= 2;
+    if (fase >= 2) { const nueva = cartel("🇻🇦 " + I.papa, "#c9a227"); I.papaCartel.material.map = nueva.material.map; I.papaCartel.material.needsUpdate = true; }
+  }
+  if (I.humo.visible) for (const p of I.humo.children) { const f = (p.userData.f + t / 5000) % 1;
+    p.position.set(I.x1 + 3 + Math.sin(f * 9 + p.userData.f * 20) * .4 + f * 3, I.alto + 3.6 + f * 9, I.z1 + 3 + Math.cos(f * 7) * .3); p.scale.setScalar(.6 + f * 2.2); }
+  if (I.humo.visible) I.matHumo.opacity = .75;
+  if (I.papaM.visible) I.papaM.rotation.y = Math.sin(t / 700) * .4;
+  for (const c of I.cardenales) { const vota = fase === 0 && s > 25 && s < 74; c.rotation.y = Math.PI + (vota ? Math.sin(t / 600 + c.userData.k) * .5 : 0); c.position.y = Math.abs(Math.sin(t / 900 + c.userData.k)) * .03; }
+}
 // ================== PLAZAS DE LA CIUDAD ==================
 // Las manzanas que quedaron libres son plazas: pasto, caminitos en cruz, árboles, bancos y una fuente o juegos.
 (function plazas() {
