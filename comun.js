@@ -22,3 +22,23 @@ const AJUSTES = (() => {
     if ("serviceWorker" in navigator && location.protocol !== "file:") addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
   } catch (e) {}
 })();
+// Cuadro para escribir un texto (por ejemplo el PIN de admin). Reemplaza a prompt(), que la app de PC no muestra.
+// Devuelve una promesa con lo escrito, o null si se cancela.
+function pedirTexto(mensaje, secreto) {
+  return new Promise(res => {
+    const fondo = document.createElement("div");
+    fondo.style.cssText = "position:fixed;inset:0;z-index:100000;background:#000b;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif";
+    fondo.innerHTML = `<div style="background:#141e33;border:2px solid #ffd400;border-radius:14px;padding:16px;width:min(86vw,340px);color:#fff;text-align:center">
+      <div class="pt-msg" style="font-weight:800;margin-bottom:10px"></div>
+      <input style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:0;font-size:18px;text-align:center" autocomplete="off">
+      <div style="display:flex;gap:8px;margin-top:12px"><button data-r="no" style="flex:1;padding:9px;border:0;border-radius:10px;background:#ffffff22;color:#fff;font-weight:800">Cancelar</button>
+      <button data-r="si" style="flex:1;padding:9px;border:0;border-radius:10px;background:#ffd400;color:#000;font-weight:900">Aceptar</button></div></div>`;
+    fondo.querySelector(".pt-msg").textContent = mensaje;
+    const inp = fondo.querySelector("input"); if (secreto) { inp.type = "password"; inp.inputMode = "numeric"; }
+    const fin = v => { fondo.remove(); res(v); };
+    fondo.querySelector('[data-r="si"]').onclick = () => fin(inp.value);
+    fondo.querySelector('[data-r="no"]').onclick = () => fin(null);
+    inp.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Enter") fin(inp.value); else if (e.key === "Escape") fin(null); });
+    document.exitPointerLock?.(); document.body.appendChild(fondo); setTimeout(() => inp.focus(), 0);
+  });
+}
