@@ -395,7 +395,7 @@ const META = 10000, DURACION = 240, ATRAPA = 2.2, RADIO = 0.45;
 
 // ================== CIUDAD ==================
 // Cuadrícula de manzanas: edificios en las celdas, calles entre medio
-const CIUDAD = { tam: 168, cuadra: 16, calle: 8 };
+const CIUDAD = { tam: 168, cuadra: 16, calle: 8, plazas: [] };
 const edificios = [];   // { x1, z1, x2, z2, h }
 // Barrio privado "Los Aromos" (inventado): afuera de la ciudad al noroeste; se entra por un portón con guardia en la calle x = -56
 const BP = { x1: -124, x2: -50, z1: -150, puerta1: -60, puerta2: -52, garitaZ: -92, pasa: false };
@@ -421,10 +421,13 @@ function generarCiudad() {
       const cx = x + CIUDAD.cuadra / 2, cz = z + CIUDAD.cuadra / 2;
       if (Object.values(ZONAS).some(Z => Math.hypot(Z.x - cx, Z.z - cz) < 13)) continue;   // plazas libres
       // Cada manzana: 1 a 4 edificios
-      const partes = azar() < .5 ? 1 : 4, m = 1;
-      if (partes === 1) poner({ x1: x + m, z1: z + m, x2: x + CIUDAD.cuadra - m, z2: z + CIUDAD.cuadra - m, h: 6 + azar() * 22 });
+      // (se usan los mismos números al azar de siempre, así no cambia nada de lo que ya estaba en el mapa: solo hay más aire)
+      const partes = azar() < .5 ? 1 : 4, plaza = ((Math.abs(x * 73 + z * 31) >> 3) % 10) < 3;   // ~30% de las manzanas grandes son plazas
+      if (partes === 1) { const h = 6 + azar() * 22, m = 2.2;   // retiro más grande: vereda ancha y jardín al frente
+        if (plaza && !RESERVADOS.some(R => x < R.x2 && x + CIUDAD.cuadra > R.x1 && z < R.z2 && z + CIUDAD.cuadra > R.z1)) CIUDAD.plazas.push({ x: cx, z: cz });
+        else poner({ x1: x + m, z1: z + m, x2: x + CIUDAD.cuadra - m, z2: z + CIUDAD.cuadra - m, h }); }
       else for (const [dx, dz] of [[0,0],[1,0],[0,1],[1,1]]) {
-        const s = CIUDAD.cuadra / 2;
+        const s = CIUDAD.cuadra / 2, m = 1.7;   // pasaje entre edificio y edificio
         if (azar() < .15) continue;
         poner({ x1: x + dx*s + m, z1: z + dz*s + m, x2: x + dx*s + s - m, z2: z + dz*s + s - m, h: 4 + azar() * 14 });
       }
@@ -4340,6 +4343,34 @@ $("cm-orden").onclick = () => {
 };
 $("cm-ok").onclick = () => { $("comisario").style.display = "none"; if (!document.body.classList.contains("tactil")) renderer.domElement.requestPointerLock?.(); };
 crearComisario();
+// ================== PLAZAS DE LA CIUDAD ==================
+// Las manzanas que quedaron libres son plazas: pasto, caminitos en cruz, árboles, bancos y una fuente o juegos.
+(function plazas() {
+  const L = c => new THREE.MeshLambertMaterial({ color: c }), pasto = L(0x3f8a3a), tierra = L(0xc8b890), madera = L(0x7a5a3a), hojas = L(0x2f7a32), tronco = L(0x6a4a2a);
+  CIUDAD.plazas.forEach((P, i) => { const lado = CIUDAD.cuadra - 2;
+    if (cercanos(P.x, P.z).some(e => e.x1 < P.x + lado / 2 && e.x2 > P.x - lado / 2 && e.z1 < P.z + lado / 2 && e.z2 > P.z - lado / 2)) return;   // ahí ya hay otra cosa
+    const g = new THREE.Mesh(new THREE.PlaneGeometry(lado, lado), pasto); g.rotation.x = -Math.PI / 2; g.position.set(P.x, .03, P.z); escena.add(g);
+    for (const r of [0, Math.PI / 2]) { const c = new THREE.Mesh(new THREE.PlaneGeometry(lado, 1.6), tierra); c.rotation.set(-Math.PI / 2, 0, r); c.position.set(P.x, .035, P.z); escena.add(c); }
+    for (const [dx, dz] of [[-4.5, -4.5], [4.5, -4.5], [-4.5, 4.5], [4.5, 4.5], [-4.5, 0], [4.5, 0]]) { const x = P.x + dx, z = P.z + dz; if (choca(x, z, .6)) continue;
+      const t = new THREE.Mesh(new THREE.CylinderGeometry(.18, .25, 2.4, 6), tronco); t.position.set(x, 1.2, z); escena.add(t);
+      const co = new THREE.Mesh(new THREE.SphereGeometry(1.5 + (i + dx) % 2 * .3, 8, 6), hojas); co.position.set(x, 3.2, z); escena.add(co);
+      edificios.push({ x1: x - .3, x2: x + .3, z1: z - .3, z2: z + .3, h: 3, arbol: true }); }
+    for (const [dx, dz, r] of [[0, -2.6, 0], [0, 2.6, 0], [-2.6, 0, Math.PI / 2], [2.6, 0, Math.PI / 2]]) { if ((dx + dz + i) % 2) continue; const x = P.x + dx * 1.6, z = P.z + dz * 1.6;
+      const b = new THREE.Mesh(new THREE.BoxGeometry(1.8, .45, .5), madera); b.position.set(x, .35, z); b.rotation.y = r; escena.add(b); }
+    if (i % 2 === 0) {   // fuente
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.7, .5, 18), L(0xd8d2c4)); base.position.set(P.x, .25, P.z); escena.add(base);
+      const agua = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.35, .08, 18), new THREE.MeshLambertMaterial({ color: 0x3aa0d8, emissive: 0x0a3050 })); agua.position.set(P.x, .52, P.z); escena.add(agua);
+      const ch = new THREE.Mesh(new THREE.CylinderGeometry(.18, .3, 1.4, 8), L(0xd8d2c4)); ch.position.set(P.x, 1, P.z); escena.add(ch);
+      edificios.push({ x1: P.x - 1.7, x2: P.x + 1.7, z1: P.z - 1.7, z2: P.z + 1.7, h: .5 });
+    } else {   // juegos: tobogán y hamacas
+      const tob = new THREE.Mesh(new THREE.BoxGeometry(.6, .08, 2.6), L(0xe83a3a)); tob.position.set(P.x - 1.5, .8, P.z); tob.rotation.x = .55; escena.add(tob);
+      const esc = new THREE.Mesh(new THREE.BoxGeometry(.6, 1.6, .2), L(0x3a6ae8)); esc.position.set(P.x - 1.5, .8, P.z - 1.2); escena.add(esc);
+      for (const dx of [.8, 2.6]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, 2.2, 5), L(0xf2c200)); p.position.set(P.x + dx, 1.1, P.z); escena.add(p); }
+      const vig = new THREE.Mesh(new THREE.BoxGeometry(2, .08, .08), L(0xf2c200)); vig.position.set(P.x + 1.7, 2.2, P.z); escena.add(vig);
+      edificios.push({ x1: P.x - 1.9, x2: P.x - 1.1, z1: P.z - 1.4, z2: P.z + 1.2, h: 1.6, arbol: true }); }
+  });
+  GRILLA.sucia = true;
+})();
 fusionarEstaticos();
 requestAnimationFrame(loop);
 
