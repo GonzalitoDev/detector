@@ -1560,6 +1560,43 @@ function actualizarUsyd() {
   const n = Object.values(jug).filter(s => s.equipo === "ladron" && !s.preso && Math.hypot(s.x - yo.x, s.z - yo.z) < 30).length;
   return n ? `🏍️ Saturación: ${n} ladrón${n > 1 ? "es" : ""} en la zona (30 m)` : "";
 }
+// Patrullaje de la USyD: dos motos con dupla (conductor y acompañante) salen de la base y recorren la ciudad.
+// El recorrido sale de la hora, así todos los jugadores las ven en el mismo lugar. Si pasan cerca de un ladrón lo dejan marcado.
+const PATRULLA_USYD = { ruta: null, largos: null, total: 0, motos: [], vel: 9, intento: 0 };
+function prepararPatrullaUsyd() {
+  const P = PATRULLA_USYD, U = USYD;
+  const tramos = [[U.cx, U.cz], [150, U.cz], [92, U.cz]], paradas = [[64, 40], [16, 64], [-56, 64], [-56, -8], [-8, -56], [64, -56], [64, 16], [92, U.cz]];
+  const R = tramos.map(([x, z]) => ({ x, z }));
+  for (const [x, z] of paradas) { const r = rutaAuto(R[R.length - 1], { x, z }); if (!r) return false; for (const n of r) R.push(n); R.push({ x, z }); }
+  R.push({ x: 150, z: U.cz }, { x: U.cx, z: U.cz });
+  const lim = []; for (const n of R) { const u = lim[lim.length - 1]; if (!u || Math.hypot(u.x - n.x, u.z - n.z) > .5) lim.push(n); }
+  P.ruta = lim; P.largos = [0]; for (let i = 1; i < lim.length; i++) P.largos.push(P.largos[i - 1] + Math.hypot(lim[i].x - lim[i - 1].x, lim[i].z - lim[i - 1].z)); P.total = P.largos[P.largos.length - 1];
+  for (let k = 0; k < 2; k++) { const m = crearMoto(false, true);
+    for (const [z, y] of [[-.15, .38], [-.62, .48]]) { const r = crearMuneco("poli", "USyD", "usyd", null, "usyd"); r.userData.nombre.visible = false; r.position.set(0, y, z); m.add(r);
+      for (const pi of r.userData.piernas) pi.rotation.x = -1.25; for (const b of r.userData.brazos) b.rotation.x = z > -.3 ? -1.1 : -.3; }
+    P.motos.push({ m, h: 0 }); }
+  return true;
+}
+function puntoRuta(d) { const P = PATRULLA_USYD; d = ((d % P.total) + P.total) % P.total;
+  let i = 1; while (i < P.largos.length - 1 && P.largos[i] < d) i++;
+  const a = P.ruta[i - 1], b = P.ruta[i], f = (d - P.largos[i - 1]) / Math.max(.01, P.largos[i] - P.largos[i - 1]);
+  return { x: a.x + (b.x - a.x) * f, z: a.z + (b.z - a.z) * f, h: Math.atan2(b.x - a.x, b.z - a.z) }; }
+function actualizarPatrullaUsyd(t) {
+  const P = PATRULLA_USYD;
+  if (!P.ruta) { if (!jugando || Date.now() < P.intento) return; P.intento = Date.now() + 10000; if (!prepararPatrullaUsyd()) return; }
+  const base = Date.now() / 1000 * P.vel;
+  P.motos.forEach((o, k) => { const p = puntoRuta(base - k * 7), m = o.m;
+    const giro = Math.atan2(Math.sin(p.h - o.h), Math.cos(p.h - o.h)); o.h += giro * .15;
+    m.position.set(p.x + (k ? .9 : -.9) * Math.cos(o.h), 0, p.z - (k ? .9 : -.9) * Math.sin(o.h)); o.lean = (o.lean || 0) + (Math.max(-.22, Math.min(.22, -giro * 1.5)) - (o.lean || 0)) * .1;
+    m.rotation.order = "YXZ"; m.rotation.set(0, o.h, o.lean);   // se inclinan (moto y dupla) en las curvas
+    for (const r of m.userData.ruedas || []) r.rotation.x += .25;
+    const on = Math.floor(t / 130 + k) % 2; m.userData.rojo.visible = !!on; m.userData.azul.visible = !on; m.userData.rojo.material.color.setHex(on ? 0xff2020 : 0x550000); m.userData.azul.material.color.setHex(on ? 0x000055 : 0x2050ff);
+    // Saturación: los ladrones que pasan cerca quedan marcados para la policía unos segundos
+    for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso && Math.hypot(s.x - m.position.x, s.z - m.position.z) < 18) {
+      if (!((capturas[s.id] || 0) > Date.now()) && yo && yo.equipo === "poli") feed(`🏍️ La USyD vio a ${s.nombre} y lo marcó`);
+      capturas[s.id] = Math.max(capturas[s.id] || 0, Date.now() + 8000); }
+  });
+}
 // ================== SERVICIO PENITENCIARIO (complejo con interior) ==================
 // Muro alto con alambre, torres de vigilancia, patio, y un pabellón con interior: guardia de entrada con mostrador,
 // pasillo, 8 celdas con rejas (algunas con internos), comedor y la palanca de las celdas al fondo.
@@ -3895,7 +3932,7 @@ function loop(t) {
     if (autoPedido) { if (miAuto) bajarAuto(); else if (autoCerca) subirAuto(autoCerca); }
     autoPedido = false;
     if (!miAuto) CHOFER.ruta = null;
-    actualizarRed(t); actualizarSecreto(); actualizarIglesia(t); SS.usyd = actualizarUsyd(); actualizarBarreraAer(); actualizarChofer(); actualizarConvoy(t); actualizarBarrio(dt, t); actualizarCurso(t);
+    actualizarRed(t); actualizarSecreto(); actualizarIglesia(t); SS.usyd = actualizarUsyd(); actualizarPatrullaUsyd(t); actualizarBarreraAer(); actualizarChofer(); actualizarConvoy(t); actualizarBarrio(dt, t); actualizarCurso(t);
     if (miAuto) { if (!(miAuto.presi && CHOFER.ruta && conduceChofer(miAuto, dt))) manejar(miAuto, dt); }
     else if (!yo.preso && Date.now() >= aturdidoHasta && Date.now() >= dormirHasta) {
       const f = (teclas.KeyW || teclas.ArrowUp ? 1 : 0) - (teclas.KeyS || teclas.ArrowDown ? 1 : 0) - joy.y;
