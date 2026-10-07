@@ -1,0 +1,46 @@
+{
+  "name": "juegos-gonzalito",
+  "version": "1.0.0",
+  "description": "Juegos de Gonzalito",
+  "main": "main.js",
+  "author": "GonzalitoDev",
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "dev.gonzalito.juegos",
+    "productName": "Juegos de Gonzalito",
+    "files": [
+      "main.js",
+      "app/**/*"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "app/iconos/icono-512.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Juegos de Gonzalito",
+      "artifactName": "Juegos-de-Gonzalito-Instalador.exe"
+    },
+    "publish": null
+  },
+  "repository": "https://github.com/GonzalitoDev/detector",
+  "scripts": {
+    "armar": "electron-builder --win nsis --x64 --publish never"
+  }
+}

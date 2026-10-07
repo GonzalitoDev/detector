@@ -1,0 +1,38 @@
+# Arma el instalador de Windows (.exe) de los juegos y lo publica en Releases.
+name: Instalador de PC
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["*.html", "*.js", "vendor/**", "iconos/**", "escritorio/**", ".github/workflows/escritorio.yml"]
+permissions:
+  contents: write
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Copiar los juegos adentro de la app
+        shell: bash
+        run: |
+          mkdir -p escritorio/app
+          cp *.html *.js manifest.json escritorio/app/
+          cp -r iconos vendor escritorio/app/
+      - name: Armar el instalador
+        working-directory: escritorio
+        run: |
+          npm install --no-audit --no-fund
+          npm run armar
+      - name: Publicar en Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: pc-${{ github.run_number }}
+          name: "Juegos de Gonzalito para PC (versión ${{ github.run_number }})"
+          body: |
+            Instalador de Windows. Bajá **Juegos-de-Gonzalito-Instalador.exe**, abrilo y seguí los pasos.
+            Si Windows muestra "Windows protegió su PC", tocá **Más información → Ejecutar de todas formas** (la app no está firmada).
+          files: escritorio/dist/Juegos-de-Gonzalito-Instalador.exe
+          make_latest: true
