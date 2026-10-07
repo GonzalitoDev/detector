@@ -342,6 +342,7 @@
       <button class="swat" data-e="swat">🪖 SWAT<small>Equipo especial con ametralladora: disparale a los ladrones hasta que se rindan (sin sangre, se quedan sin resistencia y van presos). Click para disparar, R para recargar. Es el único que puede reventar la puerta de la casa narco (E).</small></button>
       <button class="halcon" data-e="halcon">🦅 GRUPO HALCÓN<small>Fuerza de élite: ametralladora, 3 granadas aturdidoras (G) que dejan quietos a los ladrones, visión nocturna (N) y puede reventar la puerta de la casa narco.</small></button>
       <button class="invest" data-e="investigador">🕵️ INVESTIGACIONES<small>Grupo de Investigaciones: andan de civil, sacan más información a los vecinos cuando les preguntan, ven marcados a los ladrones con botín y llevan el RENAPER en el celular (tecla K o botón 🕵️).</small></button>
+      <button class="secreto" data-e="secreto" style="border-color:#888;background:linear-gradient(160deg,#111,#2a2a2a)">🕶️ SERVICIO SECRETO<small>Custodia del Presidente: traje negro, anteojos y auricular. Ves a dónde está el Presidente (o la caravana presidencial), marcás a los ladrones que se le acercan y cobrás $150 cada 20 s que estés cerca cuidándolo.</small></button>
       <button class="presi" data-e="presidente" id="rol-presi" style="display:none;border-color:#75aadb;background:linear-gradient(160deg,#75aadb55,#ffffff22)">🇦🇷 PRESIDENTE<small>Solo para Gonza. Traje con banda presidencial y dos guardaespaldas que te siguen. Órdenes con la tecla O o el botón 🕴️: síganme, quietos acá o vigilen el perímetro.</small></button>
       <button class="ladron" data-e="ladron">🦹 LADRÓN<small>Robá bolsas de plata 💰 del banco y llevalas a la guarida. También podés sacar contrabando 📦 de la casa narco y llevarlo al muelle 🚤 ($2.000). Juntá $10.000 antes de que termine el tiempo.</small></button>
     </div>
@@ -2178,7 +2179,7 @@ function texTexto(txt, fondo, letra) { const k = txt + fondo + letra; return _te
   c.fillStyle = fondo; c.fillRect(0, 0, w, h); c.fillStyle = letra; c.font = "bold 44px system-ui"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(txt, w / 2, h / 2 + 2, w - 12); }, 256, 64)); }
 const texRayas = textura((c, w, h) => { for (let y = 0; y < h; y += 16) { c.fillStyle = (y / 16) % 2 ? "#f2f2f2" : "#151515"; c.fillRect(0, y, w, 16); } }, 64, 64);
 function crearMuneco(equipo, nombre, clase, div, uni) {
-  const U = equipo === "poli" && !ARMADO(clase) ? (clase === "investigador" ? UNIFORMES.civil : clase === "presidente" ? UNIFORMES.presidente : (UNIFORMES[uni] || UNIFORMES.azul)) : null;
+  const U = equipo === "poli" && !ARMADO(clase) ? (clase === "investigador" ? UNIFORMES.civil : clase === "presidente" ? UNIFORMES.presidente : clase === "secreto" ? UNIFORMES.secreto : (UNIFORMES[uni] || UNIFORMES.azul)) : null;
   const swat = ARMADO(clase), halcon = clase === "halcon", ladron = equipo === "ladron";
   const L = c => new THREE.MeshLambertMaterial({ color: c }), B = c => new THREE.MeshBasicMaterial({ color: c });
   const caja = (w, h, d, mat, x, y, z, padre) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); (padre || g).add(m); return m; };
@@ -2219,10 +2220,12 @@ function crearMuneco(equipo, nombre, clase, div, uni) {
     if (U.extra === "medallas") { for (let i = 0; i < 3; i++) caja(.05, .06, .02, B([0xffd400, 0xc0c0c0, 0xcd7f32][i]), -.18 + i * .06, 1.45, .16); caja(.5, .03, .31, B(0xd4af37), 0, 1.58, 0); }
     if (U.extra === "cuello") { const cu = new THREE.Mesh(new THREE.TorusGeometry(.13, .05, 8, 14), L(0x2a2a2a)); cu.rotation.x = Math.PI / 2; cu.position.y = 1.64; g.add(cu); caja(.58, .3, .32, L(0x151515), 0, 1.07, 0); }
     // Gorra / sombrero / casco
-    if (U.extra === "banda") { const b = new THREE.Group(); b.position.set(0, 1.34, 0); b.rotation.z = .75; g.add(b);   // banda presidencial celeste y blanca
+    if (U.extra === "traje") { caja(.06, .14, .02, B(0xffffff), 0, 1.5, .155); caja(.04, .2, .02, B(0x111111), 0, 1.4, .16);   // camisa blanca y corbata
+      caja(.3, .07, .05, B(0x050505), 0, 1.78, .18); const cab = new THREE.Mesh(new THREE.CylinderGeometry(.01, .01, .32, 4), B(0xdddddd)); cab.position.set(.17, 1.6, .02); g.add(cab); }   // anteojos negros y auricular
+    else if (U.extra === "banda") { const b = new THREE.Group(); b.position.set(0, 1.34, 0); b.rotation.z = .75; g.add(b);   // banda presidencial celeste y blanca
       [0x75aadb, 0xffffff, 0x75aadb].forEach((c, k) => { const t = new THREE.Mesh(new THREE.BoxGeometry(.06, .82, .33), B(c)); t.position.x = (k - 1) * .06; b.add(t); });
       caja(.12, .12, .05, B(0xf6b40e), .12, 1.12, .16); caja(.06, .14, .02, B(0xffffff), 0, 1.5, .155); }   // sol dorado y camisa blanca
-    else if (U.extra === "civil") { caja(.58, .2, .32, L(0x5a3a1a), 0, 1.5, 0); }   // campera de civil, sin gorra (la placa va en el cinturón)
+    else if (U.extra === "civil" || U.extra === "traje") { if (U.extra === "civil") caja(.58, .2, .32, L(0x5a3a1a), 0, 1.5, 0); }   // campera de civil, sin gorra (la placa va en el cinturón)
     else if (U.extra === "sombrero") { const ala = new THREE.Mesh(new THREE.CylinderGeometry(.42, .42, .03, 18), L(U.gorro)); ala.position.y = 2.03; g.add(ala);
       const copa = new THREE.Mesh(new THREE.CylinderGeometry(.18, .21, .2, 14), L(U.gorro)); copa.position.y = 2.14; g.add(copa); }
     else if (U.extra === "casco") { const ca = new THREE.Mesh(new THREE.SphereGeometry(.25, 16, 10, 0, Math.PI * 2, 0, Math.PI / 1.8), L(U.gorro)); ca.position.y = 1.9; g.add(ca);
@@ -2284,7 +2287,7 @@ function animarMuneco(m, vel, t) {
 const miId = Math.random().toString(36).slice(2, 9);
 let clase = "poli", equipo = "poli", jug = {}, yo = null, jugando = false, online = false, soyHost = false, canal = null, codigo = "", fin = 0, botin = 0, inicioT = 0;
 const miNombre = () => (DB.nombre || (clase === "halcon" ? "Halcón" : clase === "swat" ? "SWAT" : equipo === "poli" ? "Poli" : "Ladrón")).slice(0, 14);
-const ICONO = c => c === "presidente" ? "🇦🇷" : c === "halcon" ? "🦅" : c === "swat" ? "🪖" : c === "investigador" ? "🕵️" : c === "poli" ? "👮" : "🦹";
+const ICONO = c => c === "secreto" ? "🕶️" : c === "presidente" ? "🇦🇷" : c === "halcon" ? "🦅" : c === "swat" ? "🪖" : c === "investigador" ? "🕵️" : c === "poli" ? "👮" : "🦹";
 const ARMADO = c => c === "swat" || c === "halcon";
 // Uniformes de la policía (se eligen en las taquillas)
 const UNIFORMES = {
@@ -2305,6 +2308,7 @@ const UNIFORMES = {
   psa:       { nom: "Aeroportuaria (gris y azul)",     ico: "✈️", camisa: 0x3a4a66, pantalon: 0x1a2236, gorro: 0x1a2236, charretera: 0x9ab0cc, letras: "#e8eef6", extra: "vest", vest: 0x2a3550, franja: 0x9ab0cc, texto: "AEROPORTUARIA" },
   penitenciario:{ nom: "Servicio Penitenciario",       ico: "🔒", camisa: 0x5a5f66, pantalon: 0x2a2e33, gorro: 0x2a2e33, charretera: 0x2a2e33, letras: "#f2f2f2", extra: null, texto: "PENITENCIARIO" },
   montada:   { nom: "Montada (casco de equitación)",   ico: "🐎", camisa: 0x1b2a4a, pantalon: 0xd8d2c0, gorro: 0x111111, charretera: 0xd4af37, letras: "#e8e8e8", extra: "casco", texto: "POLICÍA" },
+  secreto:  { nom: "Servicio Secreto", ico: "🕶️", camisa: 0x111114, pantalon: 0x111114, gorro: 0x000000, charretera: 0x111114, letras: "#00000000", extra: "traje", texto: " ", oculto: true },
   presidente:{ nom: "Traje presidencial", ico: "🇦🇷", camisa: 0x15151c, pantalon: 0x15151c, gorro: 0x000000, charretera: 0x15151c, letras: "#00000000", extra: "banda", texto: " ", oculto: true },
   motorista:{ nom: "Motorista",          ico: "⛑️", camisa: 0x1b2a4a, pantalon: 0x111111, gorro: 0xffffff, charretera: 0x5ec8f2, letras: "#e8e8e8", extra: "casco" },
 };
@@ -2459,6 +2463,26 @@ function actualizarRed(t) {
   for (const s of Object.values(jug)) { if (s === yo || !s.mesh?.userData?.nombre) continue;
     const mio = s.equipo === yo.equipo, d = Math.hypot(s.x - yo.x, s.z - yo.z);
     s.mesh.userData.nombre.visible = mio || (d < 25 && lineaLibre(yo, s, .05)); }
+}
+// ================== SERVICIO SECRETO ==================
+// Custodia: sigue al Presidente (un jugador con el rol, o la caravana presidencial si sale), marca a los ladrones que se le
+// acercan y cobra $150 cada 20 segundos que está cerca cuidándolo.
+const SS = { prox: 0 };
+function objetivoSecreto() {
+  const p = Object.values(jug).find(s => (s === yo ? ADMIN.pres : s.pres) && s !== yo);
+  if (p) return { x: p.x, z: p.z, nom: "🇦🇷 " + p.nombre };
+  if (CAR.activa) return { x: CAR.x, z: CAR.z, nom: "🚗 Caravana presidencial" };
+  return { x: GOB.cx, z: GOB.cz, nom: "🏛️ Casa de Gobierno" };
+}
+function actualizarSecreto() {
+  if (!yo || yo.clase !== "secreto" || yo.preso) { SS.texto = ""; return; }
+  const o = objetivoSecreto(), d = Math.hypot(o.x - yo.x, o.z - yo.z);
+  for (const s of Object.values(jug)) if (s.equipo === "ladron" && !s.preso && Math.hypot(s.x - o.x, s.z - o.z) < 25) capturas[s.id] = Math.max(capturas[s.id] || 0, Date.now() + 2500);   // amenaza: se marca
+  const cerca = d < 10;
+  if (cerca && Date.now() > SS.prox) { if (SS.prox) ganar(150, "custodia presidencial"); SS.prox = Date.now() + 20000; }
+  if (!cerca) SS.prox = 0;
+  const P = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"], a = Math.atan2(o.x - yo.x, -(o.z - yo.z));
+  SS.texto = cerca ? `🕶️ Custodiando a ${o.nom} · cobrás $150 cada 20 s` : `🕶️ Protegé a ${o.nom}: ${Math.round(d)} m ${P[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8]}`;
 }
 // ================== REGLAS ==================
 function feed(t) { const d = document.createElement("div"); d.textContent = t; $("feed").prepend(d); setTimeout(() => d.remove(), 5000); }
@@ -3542,7 +3566,7 @@ function fondoMini() {
   for (const e of edificios) if (!e.arbol && e.h > 1) R(e.x1, e.z1, e.x2, e.z2, "#8a93a6");
   M.fondo = c;
 }
-const LUGARES_MINI = [[ZONAS.banco, "🏦"], [ZONAS.carcel, "⛓️"], [ZONAS.guarida, "🏚️"], [ZONAS.narco, "💊"], [ZONAS.muelle, "🚤"], [{ x: CAMBIO.mostX, z: CAMBIO.mostZ }, "💵"], [{ x: 159, z: -190 }, "🏛️"], [{ x: -20, z: 52 }, "🏨"], [{ x: GANG.jefeX, z: GANG.jefeZ }, "🐺"], [{ x: GOB.cx, z: GOB.cz }, "🏛️"], [{ x: -84, z: -120 }, "🏡"], [{ x: -94, z: 110 }, "🎓"], [{ x: 125, z: 165 }, "🚓"], [{ x: -8, z: -176 }, "🔒"], [{ x: 100, z: 72 }, "🚗"]];
+const LUGARES_MINI = [[ZONAS.banco, "🏦"], [ZONAS.carcel, "⛓️"], [ZONAS.guarida, "🏚️"], [ZONAS.narco, "💊"], [ZONAS.muelle, "🚤"], [{ x: CAMBIO.mostX, z: CAMBIO.mostZ }, "💵"], [{ x: 159, z: -190 }, "🏛️"], [{ x: -20, z: 52 }, "🏨"], [{ x: GANG.jefeX, z: GANG.jefeZ }, "🐺"], [{ x: GOB.cx, z: GOB.cz }, "🏛️"], [{ get x() { return yo && yo.clase === "secreto" ? objetivoSecreto().x : 9999; }, get z() { return yo && yo.clase === "secreto" ? objetivoSecreto().z : 9999; } }, "🕶️"], [{ x: -84, z: -120 }, "🏡"], [{ x: -94, z: 110 }, "🎓"], [{ x: 125, z: 165 }, "🚓"], [{ x: -8, z: -176 }, "🔒"], [{ x: 100, z: 72 }, "🚗"]];
 function dibujarMini(t) {
   const cv = $("minimapa"); cv.style.display = jugando && MINI.modo < 2 ? "block" : "none"; cv.classList.toggle("chico", MINI.modo === 1);
   if (!jugando || MINI.modo === 2 || t - MINI.ult < 100 || !yo) return; MINI.ult = t;
@@ -3697,7 +3721,7 @@ function loop(t) {
     if (autoPedido) { if (miAuto) bajarAuto(); else if (autoCerca) subirAuto(autoCerca); }
     autoPedido = false;
     if (!miAuto) CHOFER.ruta = null;
-    actualizarRed(t); actualizarChofer(); actualizarConvoy(t); actualizarBarrio(dt, t); actualizarCurso(t);
+    actualizarRed(t); actualizarSecreto(); actualizarChofer(); actualizarConvoy(t); actualizarBarrio(dt, t); actualizarCurso(t);
     if (miAuto) { if (!(miAuto.presi && CHOFER.ruta && conduceChofer(miAuto, dt))) manejar(miAuto, dt); }
     else if (!yo.preso && Date.now() >= aturdidoHasta && Date.now() >= dormirHasta) {
       const f = (teclas.KeyW || teclas.ArrowUp ? 1 : 0) - (teclas.KeyS || teclas.ArrowDown ? 1 : 0) - joy.y;
@@ -3749,7 +3773,7 @@ function loop(t) {
     $("b-orden").style.display = ADMIN.pres ? "block" : "none"; $("b-orden").textContent = { seguir: "🕴️ Síganme", quietos: "🕴️ Quietos acá", perimetro: "🕴️ Perímetro" }[ADMIN.orden];
     $("b-admin").style.display = esGonza() ? "block" : "none"; $("b-mochila").style.display = "block"; $("b-mochila").style.top = esGonza() ? "132px" : "96px";
     if (performance.now() - pistaGuardas < 1500) pista = "🕴️ Guardaespaldas: \"¡Atrás! ¡Atrás del presidente!\"";
-    $("pista").textContent = CURSO.texto || pistaDepto || pista; $("mira").classList.toggle("cerca", !!objetivo);
+    $("pista").textContent = CURSO.texto || pistaDepto || pista || SS.texto || ""; $("mira").classList.toggle("cerca", !!objetivo);
     $("radar").style.display = yo.equipo === "poli" && yo.div === "comunicaciones" ? "block" : "none";
     if (yo.equipo === "poli" && yo.div === "comunicaciones") { const P = ["N","NE","E","SE","S","SO","O","NO"];
       const L = Object.values(jug).filter(s => s.equipo === "ladron" && !s.preso && (s.bolsa || s.paquete));
