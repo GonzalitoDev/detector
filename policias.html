@@ -2412,8 +2412,19 @@ function crearMuneco(equipo, nombre, clase, div, uni) {
     }
     const espalda = new THREE.Mesh(new THREE.PlaneGeometry(.48, .12), new THREE.MeshBasicMaterial({ map: texTexto(U.texto || "POLICÍA", "#00000000", U.letras), transparent: true }));
     espalda.position.set(0, 1.42, U.extra === "vest" || U.extra === "chaleco" ? -.182 : -.152); espalda.rotation.y = Math.PI; g.add(espalda);
-    if (U.extra === "chaleco") { caja(.6, .5, .34, B(0xd8ff1a), 0, 1.32, 0); caja(.61, .05, .35, B(0xe8e8e8), 0, 1.25, 0); caja(.61, .05, .35, B(0xe8e8e8), 0, 1.4, 0); }
-    if (U.extra === "vest") { caja(.6, .5, .34, L(U.vest), 0, 1.32, 0); caja(.61, .05, .35, B(U.franja), 0, 1.2, 0); caja(.61, .05, .35, B(U.franja), 0, 1.45, 0); }
+    const textoFrente = (t, col, y = 1.5) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(.32, .07), new THREE.MeshBasicMaterial({ map: texTexto(t, "#00000000", col), transparent: true })); m.position.set(0, y, .182); g.add(m); };
+    if (U.extra === "chaleco") {   // chaleco de tránsito: flúor con bandas plateadas reflectivas en X y tiradores
+      caja(.6, .5, .34, B(0xd8ff1a), 0, 1.32, 0);
+      for (const y of [1.2, 1.42]) { caja(.61, .06, .35, B(0xd0d4d8), 0, y, 0); caja(.615, .014, .355, B(0x8a8f96), 0, y, 0); }
+      for (const x of [-.13, .13]) caja(.035, .5, .345, B(0xd0d4d8), x, 1.32, 0);
+      textoFrente("TRÁNSITO", "#111111", 1.53); }
+    if (U.extra === "vest") {   // chaleco antibalas de servicio: placas, bolsillos porta-cargador, velcro con la leyenda y bandas reflectivas
+      caja(.62, .54, .36, L(U.vest), 0, 1.32, 0); caja(.5, .4, .38, L(U.vest), 0, 1.33, 0);
+      caja(.63, .045, .37, B(U.franja), 0, 1.17, 0); caja(.63, .045, .37, B(0xd0d4d8), 0, 1.115, 0);
+      for (const x of [-.17, -.06, .06, .17]) { caja(.09, .13, .05, L(U.vest), x, 1.22, .2); caja(.095, .03, .055, L(0x0a0a0a), x, 1.29, .2); }   // porta-cargadores
+      caja(.34, .09, .02, L(0x0a0a0a), 0, 1.47, .192); textoFrente(U.texto && U.texto.length < 10 ? U.texto : "POLICÍA", "#ffffff", 1.47);   // parche de velcro
+      for (const x of [-.2, .2]) caja(.14, .06, .3, L(U.vest), x, 1.6, 0);   // hombros del chaleco
+      caja(.06, .12, .05, L(0x111111), .19, 1.5, .2); }   // radio en el chaleco
     if (U.extra === "usyd") {   // chaleco reflectivo flúor con bandas plateadas, bolsillos, porta-radio y codos/hombros protegidos
       caja(.6, .52, .35, L(0xc8f000), 0, 1.33, 0);
       for (const y of [1.18, 1.44]) { caja(.61, .06, .36, B(0xd0d4d8), 0, y, 0); caja(.615, .015, .365, B(0x8a8f96), 0, y, 0); }
@@ -2425,8 +2436,28 @@ function crearMuneco(equipo, nombre, clase, div, uni) {
       const esp = new THREE.Mesh(new THREE.PlaneGeometry(.5, .12), new THREE.MeshBasicMaterial({ map: texTexto("POLICÍA", "#00000000", "#0f1a30"), transparent: true })); esp.position.set(0, 1.31, -.178); esp.rotation.y = Math.PI; g.add(esp);
       const esp2 = new THREE.Mesh(new THREE.PlaneGeometry(.3, .07), new THREE.MeshBasicMaterial({ map: texTexto("USyD", "#00000000", "#0f1a30"), transparent: true })); esp2.position.set(0, 1.52, -.178); esp2.rotation.y = Math.PI; g.add(esp2);
       const fr = new THREE.Mesh(new THREE.PlaneGeometry(.3, .07), new THREE.MeshBasicMaterial({ map: texTexto("POLICÍA", "#00000000", "#d8ff1a"), transparent: true })); fr.position.set(0, 1.56, .177); g.add(fr); }
-    if (U.extra === "chaleco-negro") { caja(.6, .52, .35, L(0x161616), 0, 1.3, 0); for (const x of [-.15, 0, .15]) caja(.11, .13, .05, L(0x2a2a2a), x, 1.17, .19); }
-    if (U.extra === "medallas") { for (let i = 0; i < 3; i++) caja(.05, .06, .02, B([0xffd400, 0xc0c0c0, 0xcd7f32][i]), -.18 + i * .06, 1.45, .16); caja(.5, .03, .31, B(0xd4af37), 0, 1.58, 0); }
+    if (U.extra === "chaleco-negro") { caja(.6, .52, .35, L(0x161616), 0, 1.3, 0); for (const x of [-.15, 0, .15]) { caja(.11, .13, .05, L(0x2a2a2a), x, 1.17, .19); caja(.115, .03, .055, L(0x0a0a0a), x, 1.245, .19); }
+      caja(.2, .12, .05, L(0x2a2a2a), -.1, 1.45, .19); caja(.08, .2, .06, L(0x111111), .2, 1.42, .19);   // bolsillo admin y torniquete
+      for (const p of piernas) { caja(.22, .14, .24, L(0x111111), 0, -.45, .02, p); caja(.04, .22, .14, L(0x2a2f24), .12, -.25, 0, p); }   // rodilleras y bolsillo cargo
+      textoFrente("POLICÍA", "#e8e8e8", 1.52); }
+    if (U.extra === "medallas") {   // gala: doble botonera dorada, cordón (alamar) en el hombro, cuello alto, medallas con cinta y guantes blancos
+      for (let i = 0; i < 3; i++) { caja(.05, .03, .02, B([0x75aadb, 0xc01020, 0x1a6a2a][i]), -.18 + i * .06, 1.48, .162); caja(.04, .045, .02, P([0xffd400, 0xc0c0c0, 0xcd7f32][i]), -.18 + i * .06, 1.44, .162); }
+      caja(.5, .03, .31, B(0xd4af37), 0, 1.58, 0);
+      for (let k = 0; k < 4; k++) for (const x of [-.06, .06]) caja(.025, .025, .012, P(0xd4af37), x, 1.5 - k * .12, .162);
+      const al = new THREE.Mesh(new THREE.TorusGeometry(.12, .012, 6, 16, Math.PI * 1.2), P(0xd4af37)); al.position.set(.2, 1.46, .1); al.rotation.set(0, .3, 1.9); g.add(al);
+      const al2 = al.clone(); al2.scale.setScalar(.8); al2.position.y = 1.43; g.add(al2);
+      caja(.3, .07, .3, L(U.camisa), 0, 1.64, 0); caja(.31, .015, .31, B(0xd4af37), 0, 1.67, 0);
+      for (const b of brazos) { b.children.filter(m => m.geometry && m.geometry.parameters.width === .1).forEach(m => m.material = B(0xffffff)); caja(.15, .03, .17, B(0xd4af37), 0, -.52, 0, b); } }
+    // Detalles propios de cada fuerza
+    if (U === UNIFORMES.prefectura || U === UNIFORMES.gala) for (let k = 0; k < 2; k++) for (const x of [-.2, .2]) caja(.12, .015, .17, B(0xd4af37), x, 1.66 + k * .012, 0);   // galones en las palas
+    if (U === UNIFORMES.gendarmeria) { caja(.36, .05, .02, L(0x2f3a20), 0, 1.47, .16); for (const x of [-.2, .2]) caja(.14, .14, .04, L(0x2f3a20), x, 1.25, .16);   // camisa de campaña con bolsillos grandes
+      for (const p of piernas) { caja(.04, .2, .14, L(0x3f4c2c), .11, -.25, 0, p); caja(.22, .12, .3, L(0x111111), 0, -.78, .02, p); } }
+    if (U === UNIFORMES.penitenciario) { const ll = new THREE.Mesh(new THREE.TorusGeometry(.05, .012, 6, 12), P(0xc0c0c0)); ll.position.set(-.2, .86, .15); g.add(ll);   // llavero de la celda
+      for (let k = 0; k < 3; k++) caja(.012, .07, .01, P(0xd4af37), -.22 + k * .02, .8, .16); }
+    if (U === UNIFORMES.transito) for (const b of brazos) b.children.filter(m => m.geometry && m.geometry.parameters.width === .1).forEach(m => m.material = B(0xffffff));   // guantes blancos
+    if (U === UNIFORMES.rural) { const pa = caja(.24, .16, .04, L(0xc01020), 0, 1.6, .14); pa.rotation.x = .3; caja(.6, .02, .32, L(0x5a4a2a), 0, 1.0, 0); caja(.05, .5, .3, L(0x5a4a2a), .25, 1.3, 0); }   // pañuelo y cartuchera cruzada
+    if (U.extra === "cuello") { caja(.02, .5, .02, P(0x888888), 0, 1.3, .17); for (const y of [1.2, 1.42]) caja(.6, .03, .33, B(0xc8ccd0), 0, y, 0);   // cierre y vivos reflectivos de la campera
+      for (const b of brazos) caja(.165, .03, .185, B(0xc8ccd0), 0, -.2, 0, b); }
     if (U.extra === "cuello") { const cu = new THREE.Mesh(new THREE.TorusGeometry(.13, .05, 8, 14), L(0x2a2a2a)); cu.rotation.x = Math.PI / 2; cu.position.y = 1.64; g.add(cu); caja(.58, .3, .32, L(0x151515), 0, 1.07, 0); }
     // Gorra / sombrero / casco
     if (U.extra === "traje") { caja(.06, .14, .02, B(0xffffff), 0, 1.5, .155); caja(.04, .2, .02, B(0x111111), 0, 1.4, .16);   // camisa blanca y corbata
@@ -2442,6 +2473,9 @@ function crearMuneco(equipo, nombre, clase, div, uni) {
       const fr2 = new THREE.Mesh(new THREE.TorusGeometry(.262, .012, 6, 28), B(0xd8ff1a)); fr2.position.y = 1.95; fr2.rotation.x = Math.PI / 2; g.add(fr2);
       const vis = new THREE.Mesh(new THREE.SphereGeometry(.27, 16, 8, Math.PI / 2 - .9, 1.8, 1.25, .5), new THREE.MeshPhongMaterial({ color: 0x14202e, shininess: 140, specular: 0xaaccff, transparent: true, opacity: .8, side: THREE.DoubleSide })); vis.position.y = 1.87; g.add(vis);
       caja(.24, .07, .06, P(0xf4f4f4), 0, 1.7, .2); }   // mentonera
+    else if (U.boina) { const bo = new THREE.Mesh(new THREE.SphereGeometry(.24, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2.4), L(U.gorro)); bo.position.set(.04, 1.98, -.02); bo.scale.set(1, .45, 1); bo.rotation.z = -.25; g.add(bo);
+      const ri = new THREE.Mesh(new THREE.TorusGeometry(.205, .02, 6, 20), L(0x111111)); ri.rotation.x = Math.PI / 2; ri.position.y = 1.97; g.add(ri);
+      const es = new THREE.Mesh(new THREE.CircleGeometry(.04, 6), P(0xd4af37)); es.position.set(-.1, 2.02, .19); es.rotation.y = -.4; g.add(es); }
     else if (U.extra === "casco") { const ca = new THREE.Mesh(new THREE.SphereGeometry(.25, 16, 10, 0, Math.PI * 2, 0, Math.PI / 1.8), L(U.gorro)); ca.position.y = 1.9; g.add(ca);
       caja(.3, .08, .05, B(0x223344), 0, 1.93, .22); }
     else {   // gorra de plato reglamentaria: banda negra, copa más ancha arriba, visera brillante y cordón dorado
@@ -2457,6 +2491,10 @@ function crearMuneco(equipo, nombre, clase, div, uni) {
     for (const x of [-.17, 0, .17]) caja(.12, .15, .06, L(halcon ? 0x1a1a1a : 0x3a4030), x, 1.18, .21);   // bolsillos
     caja(.16, .12, .14, L(0x111111), .2, 1.66, .02); caja(.16, .12, .14, L(0x111111), -.2, 1.66, .02);   // hombreras
     for (const p of piernas) caja(.22, .14, .24, L(0x111111), 0, -.45, .02, p);   // rodilleras
+    caja(.1, .2, .06, L(0x111111), .14, .9, .2, piernas[1]).position.set(.1, -.2, 0);   // pistolera de pierna
+    for (const x of [-.12, 0, .12]) caja(.09, .14, .05, L(halcon ? 0x101010 : 0x30362a), x, 1.42, .21);   // cargadores en el pecho
+    caja(.3, .04, .4, L(0x111111), 0, 1.15, 0); caja(.08, .1, .05, L(0x111111), -.2, 1.58, .2);   // cinturón táctico y radio
+    caja(.08, .06, .06, L(0x2a2a2a), 0, 2.08, .2);   // soporte de visión nocturna en el casco
     const espalda = new THREE.Mesh(new THREE.PlaneGeometry(.5, .14), new THREE.MeshBasicMaterial({ map: texTexto(halcon ? "HALCÓN" : "SWAT", "#00000000", "#e8e8e8"), transparent: true }));
     espalda.position.set(0, 1.42, -.195); espalda.rotation.y = Math.PI; g.add(espalda);
     const casco = new THREE.Mesh(new THREE.SphereGeometry(.25, 16, 10, 0, Math.PI * 2, 0, Math.PI / 1.9), L(halcon ? 0x050505 : 0x2a2d24)); casco.position.y = 1.9; g.add(casco);
@@ -2521,7 +2559,7 @@ const UNIFORMES = {
   federal:   { nom: "Federal (chaleco azul)",          ico: "🔵", camisa: 0x1a2748, pantalon: 0x141e33, gorro: 0x0f1a30, charretera: 0x0f1a30, letras: "#f2f2f2", extra: "vest", vest: 0x0f1a30, franja: 0xc8c8c8, texto: "POLICÍA FEDERAL" },
   ciudad:    { nom: "Ciudad (azul y flúor)",           ico: "🟡", camisa: 0x16233f, pantalon: 0x141e33, gorro: 0x0f1a30, charretera: 0xd8ff1a, letras: "#111111", extra: "vest", vest: 0xd8ff1a, franja: 0x16233f, texto: "POLICÍA" },
   bonaerense:{ nom: "Bonaerense (celeste y azul)",     ico: "🩵", camisa: 0x8fc3e6, pantalon: 0x16223c, gorro: 0x16223c, charretera: 0x16223c, letras: "#16223c", extra: "vest", vest: 0x16223c, franja: 0x8fc3e6, texto: "POLICÍA" },
-  gendarmeria:{ nom: "Gendarmería (verde)",            ico: "🟢", camisa: 0x5a6a42, pantalon: 0x4a5836, gorro: 0x3f4c2c, charretera: 0x2f3a20, letras: "#f2e6a0", extra: null, texto: "GENDARMERÍA" },
+  gendarmeria:{ nom: "Gendarmería (verde)",            ico: "🟢", camisa: 0x5a6a42, pantalon: 0x4a5836, gorro: 0x3f4c2c, charretera: 0x2f3a20, letras: "#f2e6a0", extra: null, texto: "GENDARMERÍA", boina: true },
   prefectura:{ nom: "Prefectura (azul marino)",        ico: "⚓", camisa: 0x101a35, pantalon: 0x101a35, gorro: 0xf4f4f4, charretera: 0xd4af37, letras: "#d4af37", extra: null, texto: "PREFECTURA" },
   psa:       { nom: "Aeroportuaria (gris y azul)",     ico: "✈️", camisa: 0x3a4a66, pantalon: 0x1a2236, gorro: 0x1a2236, charretera: 0x9ab0cc, letras: "#e8eef6", extra: "vest", vest: 0x2a3550, franja: 0x9ab0cc, texto: "AEROPORTUARIA" },
   penitenciario:{ nom: "Servicio Penitenciario",       ico: "🔒", camisa: 0x5a5f66, pantalon: 0x2a2e33, gorro: 0x2a2e33, charretera: 0x2a2e33, letras: "#f2f2f2", extra: null, texto: "PENITENCIARIO" },
