@@ -4007,7 +4007,7 @@ async function hashPin(p) { try { const b = await crypto.subtle.digest("SHA-256"
 async function abrirAdmin() {
   if (!esGonza() || !jugando) return; document.exitPointerLock?.();
   if (!ADMIN.ok) { let guardado = null; try { guardado = localStorage.getItem("polis-admin-pin"); } catch (e) {}
-    const p = prompt(guardado ? "🔐 PIN de admin:" : "🔐 Elegí un PIN de admin (lo vas a usar siempre):"); if (!p) return;
+    const p = await pedirTexto(guardado ? "🔐 PIN de admin:" : "🔐 Elegí un PIN de admin (lo vas a usar siempre):", true); if (!p) return;
     const h = await hashPin(p);
     if (!guardado) { try { localStorage.setItem("polis-admin-pin", h); } catch (e) {} }
     else if (h !== guardado) { grande("❌ PIN incorrecto", "#ff6a6a"); return; }

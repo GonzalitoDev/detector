@@ -6,7 +6,7 @@ const AdminGonza = (() => {
   async function hash(p) { try { const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("polis:" + p)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); } catch (e) { return "x" + p; } }
   async function pedirPin() {
     if (ok) return true; let g = null; try { g = localStorage.getItem("polis-admin-pin"); } catch (e) {}
-    const p = prompt(g ? "🔐 PIN de admin:" : "🔐 Elegí un PIN de admin (lo vas a usar siempre):"); if (!p) return false;
+    const p = await (typeof pedirTexto === "function" ? pedirTexto(g ? "🔐 PIN de admin:" : "🔐 Elegí un PIN de admin (lo vas a usar siempre):", true) : Promise.resolve(prompt("🔐 PIN de admin:"))); if (!p) return false;
     const h = await hash(p);
     if (!g) { try { localStorage.setItem("polis-admin-pin", h); } catch (e) {} } else if (h !== g) { alert("❌ PIN incorrecto"); return false; }
     return ok = true;
