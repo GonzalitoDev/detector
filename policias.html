@@ -2179,40 +2179,70 @@ const _texCache = {};
 function texTexto(txt, fondo, letra) { const k = txt + fondo + letra; return _texCache[k] || (_texCache[k] = textura((c, w, h) => {
   c.fillStyle = fondo; c.fillRect(0, 0, w, h); c.fillStyle = letra; c.font = "bold 44px system-ui"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(txt, w / 2, h / 2 + 2, w - 12); }, 256, 64)); }
 const texRayas = textura((c, w, h) => { for (let y = 0; y < h; y += 16) { c.fillStyle = (y / 16) % 2 ? "#f2f2f2" : "#151515"; c.fillRect(0, y, w, 16); } }, 64, 64);
+const TEX_PARCHE = textura((c, w, h) => { c.fillStyle = "#1a1a1a"; c.fillRect(0, 0, w, h); c.fillStyle = "#74acdf"; c.fillRect(3, 3, w - 6, h - 6); c.fillStyle = "#fff"; c.fillRect(3, h / 3, w - 6, h / 3); c.fillStyle = "#f6b40e"; c.beginPath(); c.arc(w / 2, h / 2, h / 10, 0, 7); c.fill(); }, 40, 48);
 function crearMuneco(equipo, nombre, clase, div, uni) {
   const U = equipo === "poli" && !ARMADO(clase) ? (clase === "investigador" ? UNIFORMES.civil : clase === "presidente" ? UNIFORMES.presidente : clase === "secreto" ? UNIFORMES.secreto : (UNIFORMES[uni] || UNIFORMES.azul)) : null;
   const swat = ARMADO(clase), halcon = clase === "halcon", ladron = equipo === "ladron";
-  const L = c => new THREE.MeshLambertMaterial({ color: c }), B = c => new THREE.MeshBasicMaterial({ color: c });
+  // Materiales compartidos entre todos los muñecos (así hay menos materiales distintos y anda más liviano)
+  const MC = crearMuneco.mc || (crearMuneco.mc = new Map());
+  const L = c => MC.get("L" + c) || MC.set("L" + c, new THREE.MeshLambertMaterial({ color: c })).get("L" + c), B = c => MC.get("B" + c) || MC.set("B" + c, new THREE.MeshBasicMaterial({ color: c })).get("B" + c);
+  const P = c => MC.get("P" + c) || MC.set("P" + c, new THREE.MeshPhongMaterial({ color: c, shininess: 90, specular: 0x666666 })).get("P" + c);   // brilloso (visera, botas, placa)
   const caja = (w, h, d, mat, x, y, z, padre) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); (padre || g).add(m); return m; };
+  const hash = [...String(nombre || "")].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
   // Colores según quién es
   const camisa = ladron ? null : halcon ? 0x0d0d0d : swat ? 0x2b2f24 : U.camisa;
   const pantalon = ladron ? 0x23324a : halcon ? 0x0d0d0d : swat ? 0x2b2f24 : U.pantalon;
-  const piel = 0xe0ac7e, botas = 0x111111;
+  const piel = [0xe0ac7e, 0xc68e62, 0xf1c7a0, 0xa8714a, 0xd9a073, 0x8a5a3a][hash % 6], botas = 0x0c0c0c, pelo = [0x1a1210, 0x3a2414, 0x0a0a0a, 0x5a3a1e, 0x2a2a2a][(hash >> 3) % 5];
+  const mangaCorta = U && (uni === "celeste" || uni === "bonaerense") && !U.extra;
   const matCamisa = ladron ? new THREE.MeshLambertMaterial({ map: texRayas }) : L(camisa);
   const g = new THREE.Group();
   // Piernas (giran desde la cadera para caminar)
   const piernas = [-.12, .12].map(x => { const p = new THREE.Group(); p.position.set(x, .92, 0); g.add(p);
-    caja(.2, .82, .22, L(pantalon), 0, -.41, 0, p); caja(.22, .13, .32, L(botas), 0, -.86, .04, p); return p; });
-  // Torso
-  caja(.56, .66, .3, matCamisa, 0, 1.27, 0);
-  caja(.58, .08, .32, L(0x111111), 0, .96, 0);                                   // cinturón
-  if (!ladron) caja(.08, .06, .02, B(0xd4af37), 0, .96, .165);                    // hebilla
+    caja(.21, .44, .23, L(pantalon), 0, -.2, 0, p); caja(.19, .38, .21, L(pantalon), 0, -.6, 0, p);   // muslo y pierna
+    if (U || swat) { caja(.21, .2, .23, P(botas), 0, -.76, .01, p); caja(.21, .1, .33, P(botas), 0, -.85, .05, p); caja(.22, .03, .34, L(0x050505), 0, -.905, .05, p); }   // borceguí con suela
+    else caja(.22, .13, .32, L(0x2a2a2a), 0, -.86, .04, p);
+    if (U && U.extra === "medallas") caja(.02, .78, .02, B(0xd4af37), x < 0 ? -.106 : .106, -.4, 0, p);   // franja dorada del pantalón de gala
+    return p; });
+  // Torso: pecho más ancho que la cintura, y hombros redondeados
+  caja(.58, .4, .31, matCamisa, 0, 1.42, 0); caja(.5, .3, .28, matCamisa, 0, 1.08, 0);
+  for (const x of [-.27, .27]) { const h = new THREE.Mesh(new THREE.SphereGeometry(.105, 10, 8), matCamisa); h.position.set(x, 1.58, 0); g.add(h); }
+  caja(.54, .08, .3, L(0x111111), 0, .96, 0);                                    // cinturón
+  if (!ladron) caja(.08, .06, .02, P(0xd4af37), 0, .96, .155);                    // hebilla
   // Brazos (giran desde el hombro)
   const brazos = [-.36, .36].map(x => { const a = new THREE.Group(); a.position.set(x, 1.55, 0); g.add(a);
-    caja(.15, .58, .17, matCamisa, 0, -.29, 0, a);
-    const mano = new THREE.Mesh(new THREE.SphereGeometry(.075, 8, 6), L(swat ? 0x111111 : piel)); mano.position.y = -.62; a.add(mano); return a; });
+    caja(.16, .3, .18, matCamisa, 0, -.15, 0, a); caja(.14, .28, .16, mangaCorta ? L(piel) : matCamisa, 0, -.43, 0, a);   // brazo y antebrazo
+    if (mangaCorta) caja(.17, .05, .19, matCamisa, 0, -.3, 0, a);
+    const mano = caja(.1, .13, .11, L(swat ? 0x111111 : piel), 0, -.64, .01, a); caja(.04, .07, .05, L(swat ? 0x111111 : piel), x < 0 ? .06 : -.06, -.6, .04, a); return a; });
   // Cuello y cabeza
   const cuello = new THREE.Mesh(new THREE.CylinderGeometry(.08, .09, .12, 8), L(piel)); cuello.position.y = 1.66; g.add(cuello);
-  const cabeza = new THREE.Mesh(new THREE.SphereGeometry(.2, 16, 12), L(piel)); cabeza.position.y = 1.86; cabeza.scale.set(1, 1.12, 1); g.add(cabeza);
-  for (const x of [-.07, .07]) { const o = new THREE.Mesh(new THREE.SphereGeometry(.025, 6, 4), B(0x111111)); o.position.set(x, 1.9, .18); g.add(o); }
+  const cabeza = new THREE.Mesh(new THREE.SphereGeometry(.2, 16, 12), L(piel)); cabeza.position.y = 1.86; cabeza.scale.set(.95, 1.12, 1); g.add(cabeza);
+  const mandibula = caja(.24, .1, .2, L(piel), 0, 1.72, .04);
+  // Cara: ojos con blanco, cejas, nariz, boca y orejas
+  for (const x of [-.068, .068]) { caja(.055, .03, .02, B(0xf4f4f0), x, 1.9, .182); caja(.025, .03, .022, B(0x2a1a10), x, 1.9, .186); caja(.07, .018, .02, L(pelo), x, 1.945, .182);
+    const ore = new THREE.Mesh(new THREE.SphereGeometry(.045, 8, 6), L(piel)); ore.scale.set(.5, 1, .8); ore.position.set(x > 0 ? .19 : -.19, 1.87, 0); g.add(ore); }
+  caja(.04, .07, .05, L(piel), 0, 1.85, .2); caja(.08, .015, .02, B(0x7a3a30), 0, 1.78, .175);
+  if (!(swat || halcon)) { const pe = new THREE.Mesh(new THREE.SphereGeometry(.208, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2.1), L(pelo)); pe.position.y = 1.88; pe.rotation.x = -.35; g.add(pe); }   // pelo corto
   if (U) {
     // ---- Policía ----
-    for (const x of [-.36, .36]) caja(.16, .1, .18, L(U.charretera), x, 1.6, 0);   // hombreras / parches
-    caja(.07, .09, .02, B(0xd4af37), .14, 1.42, .16);                              // placa
-    caja(.07, .12, .05, L(0x1a1a1a), -.15, 1.42, .17);                             // radio
-    caja(.02, .1, .02, L(0x1a1a1a), -.12, 1.52, .17);                              // antena
-    caja(.09, .22, .14, L(0x111111), .33, .86, .02);                               // funda del arma
-    caja(.06, .08, .1, L(0x2a2a2a), -.33, .9, .02);                                // esposas
+    const civil = U.extra === "traje" || U.extra === "banda" || U.extra === "civil";
+    if (!civil) {
+      for (const x of [-.2, .2]) { caja(.2, .03, .16, L(U.charretera), x, 1.64, 0); caja(.025, .025, .02, P(0xd4af37), x * 1.25, 1.655, .03); }   // palas en los hombros con botón
+      for (const x of [-.13, .13]) { caja(.15, .13, .015, matCamisa, x, 1.43, .158); caja(.155, .045, .02, L(U.charretera === U.camisa ? 0x0a0a0a : U.charretera), x, 1.49, .162); caja(.02, .02, .01, P(0xd4af37), x, 1.47, .174); }   // bolsillos con tapa
+      for (let k = 0; k < 4; k++) caja(.02, .02, .01, P(0xe8e8e8), 0, 1.55 - k * .14, .158);   // botonera
+      for (const s of [-1, 1]) { const cu = caja(.13, .07, .02, matCamisa, s * .07, 1.62, .15); cu.rotation.z = s * .5; }   // cuello de la camisa
+      // Placa (estrella genérica, sin escudos oficiales) y chapita con el nombre
+      const pl = new THREE.Mesh(new THREE.CircleGeometry(.045, 6), P(0xd4af37)); pl.position.set(-.13, 1.36, .165); g.add(pl);
+      caja(.12, .03, .01, B(0x111111), .13, 1.355, .163); caja(.1, .015, .012, B(0xe8e8e8), .13, 1.355, .166);
+      // Parche en la manga (celeste y blanco, sin escudo)
+      const parche = new THREE.Mesh(new THREE.PlaneGeometry(.1, .12), new THREE.MeshBasicMaterial({ map: TEX_PARCHE })); parche.position.set(-.081, -.13, 0); parche.rotation.y = -Math.PI / 2; brazos[0].add(parche);
+      // Radio de mano en el hombro con el cable en espiral
+      caja(.06, .08, .04, L(0x151515), -.2, 1.55, .17); caja(.012, .2, .012, L(0x222222), -.24, 1.42, .16);
+      // Cinturón táctico: pistolera con la culata, cargadores, esposas, linterna y tonfa
+      caja(.1, .24, .12, P(0x0a0a0a), .3, .84, .02); caja(.05, .1, .07, L(0x2a2a2a), .3, 1, .0);
+      for (const x of [-.12, -.05]) caja(.05, .09, .05, L(0x161616), x, .93, .16);
+      caja(.08, .07, .06, L(0x1a1a1a), -.29, .92, .07); caja(.035, .16, .035, L(0x2a2a2a), -.29, .88, -.08);
+      const tonfa = caja(.04, .5, .04, L(0x101010), -.3, .74, -.03); tonfa.rotation.x = .12;
+    }
     const espalda = new THREE.Mesh(new THREE.PlaneGeometry(.48, .12), new THREE.MeshBasicMaterial({ map: texTexto(U.texto || "POLICÍA", "#00000000", U.letras), transparent: true }));
     espalda.position.set(0, 1.42, U.extra === "vest" || U.extra === "chaleco" ? -.182 : -.152); espalda.rotation.y = Math.PI; g.add(espalda);
     if (U.extra === "chaleco") { caja(.6, .5, .34, B(0xd8ff1a), 0, 1.32, 0); caja(.61, .05, .35, B(0xe8e8e8), 0, 1.25, 0); caja(.61, .05, .35, B(0xe8e8e8), 0, 1.4, 0); }
@@ -2231,9 +2261,13 @@ function crearMuneco(equipo, nombre, clase, div, uni) {
       const copa = new THREE.Mesh(new THREE.CylinderGeometry(.18, .21, .2, 14), L(U.gorro)); copa.position.y = 2.14; g.add(copa); }
     else if (U.extra === "casco") { const ca = new THREE.Mesh(new THREE.SphereGeometry(.25, 16, 10, 0, Math.PI * 2, 0, Math.PI / 1.8), L(U.gorro)); ca.position.y = 1.9; g.add(ca);
       caja(.3, .08, .05, B(0x223344), 0, 1.93, .22); }
-    else { const copa = new THREE.Mesh(new THREE.CylinderGeometry(.22, .2, .14, 16), L(U.gorro)); copa.position.y = 2.05; g.add(copa);
-      const visera = caja(.3, .03, .16, L(0x111111), 0, 1.99, .2); visera.rotation.x = .25;
-      caja(.08, .05, .02, B(0xd4af37), 0, 2.06, .215); }                              // escudito de la gorra
+    else {   // gorra de plato reglamentaria: banda negra, copa más ancha arriba, visera brillante y cordón dorado
+      const banda = new THREE.Mesh(new THREE.CylinderGeometry(.212, .208, .07, 18), L(0x0a0a0a)); banda.position.y = 1.99; g.add(banda);
+      const copa = new THREE.Mesh(new THREE.CylinderGeometry(.26, .214, .11, 18), L(U.gorro)); copa.position.y = 2.08; copa.scale.z = 1.08; g.add(copa);
+      const tapa = new THREE.Mesh(new THREE.CylinderGeometry(.26, .26, .012, 18), L(U.gorro)); tapa.position.y = 2.14; tapa.scale.z = 1.08; g.add(tapa);
+      const visera = new THREE.Mesh(new THREE.CylinderGeometry(.16, .16, .018, 16, 1, false, -Math.PI / 2, Math.PI), P(0x050505)); visera.position.set(0, 1.965, .14); visera.rotation.x = .18; visera.scale.z = .75; g.add(visera);
+      caja(.3, .014, .01, P(0xd4af37), 0, 2, .21);
+      const est = new THREE.Mesh(new THREE.CircleGeometry(.035, 6), P(0xd4af37)); est.position.set(0, 2.06, .232); est.rotation.x = -.2; g.add(est); }
   } else if (swat) {
     // ---- SWAT / Grupo Halcón ----
     caja(.62, .56, .38, L(halcon ? 0x050505 : 0x1a1d16), 0, 1.3, 0);                 // chaleco antibalas
